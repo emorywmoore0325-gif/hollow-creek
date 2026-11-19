@@ -221,6 +221,7 @@
     if (!Net.players[p.id]) return;
     if (p.mode === 'own') {
       if (m.type === 'opres') { m.tag = p.tag; onPres(m); for (const q of ownPlayers()) if (q !== p) q.conn.send(m); return; } // relay to the other companies
+      if (m.type === 'took') { HC.company.board = (HC.company.board || []).filter((j) => j.id !== m.id); return; } // a friend took a job off the shared board
       if (m.type === 'payTo') { // money from their company: to the host, or passed on to another friend
         const amt = Math.round(+m.amt || 0); if (amt <= 0) return;
         if (m.to === 'h') { HC.company.money += amt; HC.Audio.cash(); HC.Save.save(); HC.UI.toast(`${p.name} (${p.co}) paid you ${HC.money(amt)}.`, 'good'); }
@@ -512,7 +513,7 @@
   // shared: everyone sends the others where their machines are and what they changed in the world (trees, brush,
   // ground, stumps, fences, job sites), about ten times a second. The host relays between the friends.
   const OWN_RATE = 1 / 10;
-  let ownAcc = 0, pendStamps = [], lastItemsSig = '', myTag = 'h', applyingRemote = false;
+  let ownAcc = 0, pendStamps = [], lastItemsSig = '', lastBoardSig = '', myTag = 'h', applyingRemote = false;
   Net.remote = {}; // tag -> another company: { name, co, me, job, units, trailers, at, items, raw... }
   const ownPlayers = () => Object.values(Net.players).filter((q) => q.mode === 'own');
   const tkey = (t) => t.k0 || (t.k0 = Math.round(t.x) + ',' + Math.round(t.y)); // where it first stood: a dragged tree keeps its name
@@ -595,7 +596,11 @@
     const msg = { type: 'opres', tag: myTag, name: Net.myName || C.name, co: C.name, me: s.active, units, trailers, at: s.attachments || [], job: s.job ? s.job.parcel : null };
     if (withDiff) { msg.d = ldDiff(); msg.st = pendStamps.splice(0); }
     if (!withDiff || isig !== lastItemsSig) { if (withDiff) lastItemsSig = isig; msg.items = items; }
-    if (Net.role === 'host') Object.assign(msg, { t: s.time, w: s.weather });
+    if (Net.role === 'host') {
+      Object.assign(msg, { t: s.time, w: s.weather });
+      const bsig = (C.board || []).map((j) => j.id + ':' + (j.lost ? 1 : 0)).join(',');
+      if (!withDiff || bsig !== lastBoardSig) { if (withDiff) lastBoardSig = bsig; msg.board = JSON.parse(JSON.stringify(C.board || [])); }
+    }
     return msg;
   }
   function flushOwn() {
@@ -607,6 +612,12 @@
   // another company's machines, trailers, attachments and loose things: shown here, driven over there
   function onPres(m) {
     if (!m || m.tag === myTag || !S()) return;
+    if (m.board && Net.role === 'peer' && m.tag === 'h') { // the shared job board (everyone sees the same calls)
+      const C = HC.company, had = new Set((C.board || []).map((j) => j.id));
+      C.board = m.board.filter((j) => !(S().job && S().job.id === j.id));
+      const fresh = C.board.filter((j) => !had.has(j.id));
+      if (fresh.length && had.size) { HC.Audio.pop(); HC.UI.toast(`Phone: ${fresh[0].client} wants ${HC.JOBS[fresh[0].type].name.toLowerCase()} for ${HC.money(fresh[0].pay)}. Press J to see the job board.`, 'call'); }
+    }
     const s = S(), R = Net.remote[m.tag] || (Net.remote[m.tag] = { units: {}, trailers: [], at: [], items: [] });
     Object.assign(R, { name: m.name, co: m.co, me: m.me && m.tag + ':' + m.me, job: m.job });
     for (const st of m.st || []) applyStamp(st);
@@ -723,6 +734,7 @@
   }
   // a partner's shop and job buttons go to the host
   Net.sendAct = (sel, d) => { if (conn) conn.send({ type: 'act', sel, d }); };
+  Net.sendTook = (id) => { if (conn) conn.send({ type: 'took', id }); };
   // the whole company a partner sees in their phone (positions and the board's lots aren't needed)
   const coLite = (C) => { const o = Object.assign({}, C); delete o.pos; return o; };
   // asking yes or no on screen (the host deciding on a friend's request, or a friend on an invite)
@@ -821,4 +833,14 @@
   };
 
   Object.assign(Net, { host, join, hostTick, guestFrame, guestKey, snapshotState, peerTick, frameRemote });
+})();
+
+// friends in their own company don't get their own calls: the host's board is shared, and taking a job tells the host
+(() => {
+  const G = HC.Game, baseAccept = G.accept;
+  G.accept = function (job) {
+    const r = baseAccept.apply(this, arguments);
+    if (HC.Net && HC.Net.role === 'peer' && HC.Net.sendTook && HC.session && HC.session.job && HC.session.job.id === job.id) HC.Net.sendTook(job.id);
+    return r;
+  };
 })();

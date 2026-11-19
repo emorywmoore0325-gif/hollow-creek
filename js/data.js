@@ -13,7 +13,7 @@ HC.TREES = {
 };
 
 // Game version: co-op players must match (bump whenever the game changes)
-HC.VERSION = '2026.11.19-3';
+HC.VERSION = '2026.11.19-4';
 HC.MAP_VER = 4; // bump whenever the world layout changes (saves then park everything back at the yard)
 
 // Equipment. key = number key. fuel in units, use per second.
@@ -636,3 +636,12 @@ HC.EQUIP.grinderXL = Object.assign({}, HC.EQUIP.grinder, {
   help: 'A 55 hp four-wheel-drive stump grinder with the cutter wheel on a swinging boom out front. Grinds about two and a half times as fast as the walk-behind, and reaches bigger stumps. Hold left click with the wheel over a stump. Rides the deck-over or the gooseneck flat deck (3.3 t).',
 });
 HC.BLURB.grinderXL = '55 hp 4x4 stump grinder: grinds 2.4x faster than the walk-behind.';
+
+// ================= Price audit: line the fleet up so bigger and more capable costs more, and pays back from the jobs it opens =================
+for (const [k, p] of Object.entries({
+  truck2: 8500,       // same truck as the first one
+  grinder: 3200, grinderXL: 12500, mulcher: 6500,
+  miniex: 11000, excavator: 26000, dozerS: 22000,
+  tractor: 24000, bucket: 24000, fwproc: 24000,
+})) if (HC.EQUIP[k]) HC.EQUIP[k].price = p;
+for (const [k, p] of Object.entries({ deckover: 9000, gnflat: 10500, gndump: 11500, lowboy: 15000 })) if (HC.TRAILERS[k]) HC.TRAILERS[k].price = p;

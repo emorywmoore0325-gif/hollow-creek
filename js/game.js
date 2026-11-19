@@ -9,6 +9,7 @@
     const W = HC.world, C = HC.company;
     const busy = new Set(exclude || []);
     if (C.active) busy.add(C.active.parcel);
+    if (C.queued) busy.add(C.queued.parcel);
     for (const j of C.board || []) busy.add(j.parcel);
     const kind = W.parcels.filter((p) => !p.isYard && !!p.tract === !!tract);
     const free = kind.filter((p) => !busy.has(p.id) && !(HC.Net && HC.Net.busyParcel && HC.Net.busyParcel(p.id)));
@@ -228,6 +229,7 @@
     HC.Render.setOutlines(C.prefs && C.prefs.outlines);
     if (!C.board || !C.board.length) C.board = HC.Game.makeBoard();
     if (C.active) accept(C.active, true);
+    if (C.queued) stampHeld(C.queued);
     if (C.mapMoved) {
       const msg = C.mapMoved === 'job' ? 'The county map grew (new timber country to the east and south). Your equipment is parked back at the yard, and the job you had open was called off. Press J for new calls.'
         : 'The county map grew: new timber country to the east and south. Your equipment is parked back at the yard.';
@@ -390,9 +392,84 @@
     if (pos.active && S.units[pos.active] && !S.units[pos.active].hidden) S.active = pos.active;
   }
 
+  // ---------- due dates, and a second job on hold when you have hired help ----------
+  const nowAbs = () => (HC.company.day || 1) * 1440 + ((HC.session && HC.session.time) || 0);
+  const hasHelp = () => Object.values(HC.company.crew || {}).some(Boolean);
+  // generous: two working days, plus another day for every five hours of par
+  const dueMins = (job) => 1440 * (2 + Math.ceil((job.par || 60) / 300));
+  const JOB_STATE = ['stage', 'workMins', 'penalties', 'penQ', 'costs', 'logSales', 'init', 'ground', 'chipped'];
+  function parkState(S) { const o = { zone: S.lot.zone, targets: S.lot.targets }; for (const k of JOB_STATE) o[k] = S[k]; return o; }
+  function loadState(S, st) { for (const k of JOB_STATE) S[k] = st[k]; S.lot.zone = st.zone || null; S.lot.targets = st.targets || []; }
+  // stamp a job's lot onto the map without making it the job you're working (its markings wait in job.saved)
+  function stampHeld(job) {
+    const S = HC.session, W = HC.world, p = W.parcels.find((q) => q.id === job.parcel);
+    const cur = parkState(S), curJob = S.job;
+    job.h = HC.World.PH + 2;
+    HC.World.stamp(W, p, HC.Lot.generate(job), true);
+    HC.Render.restamp(p);
+    Object.assign(S, { job, stage: 'travel', workMins: 0, penalties: [], penQ: 0, costs: newCosts(), logSales: 0, init: null, ground: 0, chipped: 0 });
+    objectives(S);
+    job.saved = parkState(S);
+    S.job = curJob; loadState(S, cur);
+  }
+  // work on the job on hold instead (its checklist, clock and markings come back where you left them)
+  function switchJob() {
+    const S = HC.session, C = HC.company;
+    if (!C.queued || !C.active) return false;
+    C.active.saved = parkState(S);
+    const next = C.queued; C.queued = C.active; C.active = next;
+    S.job = next; loadState(S, next.saved || { stage: 'travel', workMins: 0, penalties: [], penQ: 0, costs: newCosts(), logSales: 0, init: null, ground: 0, chipped: 0 });
+    delete next.saved;
+    objectives(S);
+    toast(`Now working: ${HC.JOBS[next.type].name.toLowerCase()} for ${next.client}. ${HC.JOBS[C.queued.type].name} for ${C.queued.client} is on hold.`, 'call');
+    HC.Save.save();
+    return true;
+  }
+  // drop a job that ran past its due date: no pay, and a one-star review
+  function missJob(job) {
+    const S = HC.session, C = HC.company;
+    C.ratings.push(1);
+    if (C.queued && C.queued.id === job.id) C.queued = null;
+    else if (C.active && C.active.id === job.id) {
+      for (const t of S.lot.trees) if (t.parcel === job.parcel) t.marked = false;
+      S.lot.zone = null; S.lot.targets = [];
+      C.active = null;
+      Object.assign(S, { job: null, stage: 'idle', workMins: 0, penalties: [], penQ: 0, costs: newCosts(), logSales: 0 });
+      if (C.queued) { const q = C.queued; C.queued = null; C.active = q; S.job = q; loadState(S, q.saved || {}); delete q.saved; objectives(S); }
+    }
+    HC.Audio.deny();
+    toast(`${job.client}'s job ran past its due date. They won't pay and left you a 1-star review.`, 'bad');
+    HC.Save.save();
+  }
+  function dueCheck(S) {
+    const C = HC.company, now = nowAbs();
+    for (const j of [C.active, C.queued]) if (j && j.due && now > j.due) return missJob(j);
+    // drive onto the job on hold and it becomes the one you're working
+    if (C.queued && C.active) {
+      const u = S.units[S.active], at = (job) => { const p = HC.world.parcels.find((q) => q.id === job.parcel); return p && u && HC.inRect(u.x, u.y, { x: p.x - TS, y: p.y - TS * 2, w: p.w + TS * 2, h: p.h + TS * 5 }); };
+      if (at(C.queued) && !at(C.active)) switchJob();
+    }
+  }
+  HC.dueText = (job) => (job && job.due ? `day ${Math.floor(job.due / 1440)}, ${HC.clock(job.due % 1440)}` : '');
+  HC.canTakeAnother = () => !HC.company.active || (hasHelp() && !HC.company.queued);
+
   function accept(job, restoring) {
     const S = HC.session, C = HC.company, W = HC.world;
     const p = W.parcels.find((q) => q.id === job.parcel);
+    if (!restoring && C.active && C.active.id !== job.id) { // a second job: only with hired help, and it waits on hold
+      if (!hasHelp()) return toast('Finish your current job first (hire help in the shop to run two at once).', 'warn');
+      if (C.queued) return toast('You already have two jobs going. Finish one first.', 'warn');
+      if (HC.Net && HC.Net.busyParcel && HC.Net.busyParcel(job.parcel)) { C.board = (C.board || []).filter((j) => j.id !== job.id); return toast(`${job.client} already hired another company in town. The call is off the board.`, 'warn'); }
+      C.board = (C.board || []).filter((j) => j.id !== job.id);
+      job.due = nowAbs() + dueMins(job);
+      C.queued = job;
+      stampHeld(job);
+      HC.Audio.horn();
+      toast(`Second job booked: ${job.address}, due ${HC.dueText(job)}. It's on hold: drive onto the property to work it.`, 'good');
+      HC.Save.save();
+      return;
+    }
+    if (!restoring && !job.due) job.due = nowAbs() + dueMins(job);
     if (!restoring && HC.Net && HC.Net.busyParcel && HC.Net.busyParcel(job.parcel)) { // a friend's company took that property first
       C.board = (C.board || []).filter((j) => j.id !== job.id);
       return toast(`${job.client} already hired another company in town. The call is off the board.`, 'warn');
@@ -875,6 +952,7 @@
   // ---------- customers calling in ----------
   function calls(S) {
     const C = HC.company;
+    if (HC.Net && HC.Net.role === 'peer') return; // in co-op the host's board is everyone's board
     if (S.time < S.nextCall) return;
     S.nextCall = S.time + HC.rand(70, 130);
     C.board = (C.board || []).filter((j) => !j.lost);
@@ -959,6 +1037,7 @@
     S.lot.zone = null; S.lot.targets = [];
     C.active = null;
     Object.assign(S, { job: null, stage: 'idle', workMins: 0, penalties: [], penQ: 0, costs: newCosts(), logSales: 0 });
+    if (C.queued) { const q = C.queued; C.queued = null; C.active = q; S.job = q; loadState(S, q.saved || {}); delete q.saved; objectives(S); } // the job on hold is next
     r.unlocked = HC.Co.tier() > tierBefore ? HC.TIERS[HC.Co.tier()].name : null;
     C.minute = S.time;
     HC.Save.save();
@@ -977,6 +1056,7 @@
     if (S.time >= DAY_END) return endOfDay(S);
     for (const k in S.units) if (!S.units[k].hidden && !(HC.Net && HC.Net.drive(k, S.units[k], dt, S))) HC.Units.update(S.units[k], dt, S, k === S.active); // co-op guests drive their own machines
     HC.Units.snapRiders(S); // strapped machines follow their trailer in the same frame (no lag, no shake)
+    S._dueT = (S._dueT || 0) + dt; if (S._dueT > 1) { S._dueT = 0; dueCheck(S); }
     arriveCheck(S);
     calls(S);
     for (const t of S.lot.trees) {
@@ -1023,7 +1103,7 @@
   }
 
   HC.Game = {
-    buySaw, sawTrade, buyAttachment, buyExtraSaw, sawProps, stockStand, makeJob, makeBoard, rollWeather, boot, accept, addUnit, buyAnother, sellUnit, sellTrailer, sellAttachment, resaleValue, trailerResale, buyTrailer, registerClone, addAttachment, attachToggle, attachmentNear, select, take, climb, nearestMachine, update, finish, snapshot, toast, hintOnce, float, dust, penalty, setTile,
+    buySaw, sawTrade, buyAttachment, switchJob, buyExtraSaw, sawProps, stockStand, makeJob, makeBoard, rollWeather, boot, accept, addUnit, buyAnother, sellUnit, sellTrailer, sellAttachment, resaleValue, trailerResale, buyTrailer, registerClone, addAttachment, attachToggle, attachmentNear, select, take, climb, nearestMachine, update, finish, snapshot, toast, hintOnce, float, dust, penalty, setTile,
     spray, fell, fallGeom, predictHits, spreadDeg, buck, cutBush, loadTrailer, haul, trailerCap, sellRocks, sellMulch, dumpLoad, dropItems, takeItem,
     objectives, inZone, jobHint, debrisOn, padAt, storageAt, sweepPads, bucketTree, addTrailer, ESTIMATE, OBJECTIVES, DAY_START, DAY_END,
   };

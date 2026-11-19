@@ -170,6 +170,15 @@ afternoon. Leftovers sell at the landscape supply for $28.
 ride in it; it takes no load while a machine is aboard. The 40 ft gooseneck flat deck on three axles carries
 three small machines, or one up to 9 t plus a small one.
 
+**Due dates and a second job.** Every job you take has a generous due date (two working days, plus a day for
+every five hours of par), shown on the job card and the checklist. Run past it and the customer won't pay and
+leaves a 1-star review. With any hired help you can book a second job: its site is set up right away and it
+waits on hold; drive onto that property (or press *Work this one now*) and it becomes your current job, with
+its checklist and clock where you left them.
+
+**Co-op job board.** Everyone in a co-op game sees the host's job board. When anyone takes a job it comes off
+the board for everybody.
+
 **Loading limits.** Every flat trailer has a rated payload and won't take more: 20 ft equipment trailer 5 t,
 deck-over 10 t, 40 ft gooseneck flat deck 13.5 t, gooseneck dump 6 t (one machine, empty box), lowboy 40 t.
 Machines, pallets and attachments all count, and the towing hint shows the load. A flatbed pickup's bed holds

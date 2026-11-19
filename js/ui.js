@@ -184,12 +184,12 @@
     const missing = j.needs.filter((k) => !HC.ownsKind(k));
     const locked = j.tier > HC.Co.tier(); // re-checked every time: it unlocks as soon as you qualify
     if (!locked) j.locked = false;
-    const busy = !!C.active;
+    const busy = !HC.canTakeAnother();
     let action;
     if (j.lost) action = '<p class="lock">They went with another outfit.</p>';
     else if (locked) action = `<p class="lock">Needs a ${tr.minRating.toFixed(1)}★ rating and ${tr.minJobs} jobs done</p>`;
     else if (missing.length) action = `<p class="lock">You need: ${missing.map((k) => esc(HC.needLabel(k))).join(' and ')}</p>`;
-    else if (busy) action = '<p class="lock">Finish your current job first</p>';
+    else if (busy) action = `<p class="lock">${C.active && C.queued ? 'You have two jobs going. Finish one first.' : 'Finish your current job first (hired help lets you take a second).'}</p>`;
     else action = `<div class="job-actions"><button class="btn primary take" data-job="${j.id}">Accept ${HC.money(j.pay)}</button>
       ${j.countered ? '' : `<button class="btn counter" data-job="${j.id}" title="${HC.Game.counterOdds()}% chance they agree at your rating">Counter at ${HC.money(Math.round(j.pay * 1.2 / 10) * 10)}</button>`}</div>`;
     return `
@@ -217,8 +217,11 @@
     if (C.active) {
       const ob = HC.Game.objectives(S);
       active = `<section class="active-job panel"><div><span class="eyebrow">Current job · ${S.stage === 'travel' ? 'driving out' : 'on site'}</span>
-        <h3>${esc(HC.JOBS[C.active.type].name)} for ${esc(C.active.client)}</h3><p>${esc(C.active.address)} · ${HC.money(C.active.pay)} · par ${HC.dur(C.active.par)}</p></div>
+        <h3>${esc(HC.JOBS[C.active.type].name)} for ${esc(C.active.client)}</h3><p>${esc(C.active.address)} · ${HC.money(C.active.pay)} · par ${HC.dur(C.active.par)}${C.active.due ? ` · <b>due ${esc(HC.dueText(C.active))}</b>` : ''}</p></div>
         <div class="btn-row"><button class="btn ${ob.complete ? 'primary' : 'danger'}" id="b-invoice">${ob.complete ? 'Send the invoice' : 'Invoice now (unfinished work pays less)'}</button></div></section>`;
+      if (C.queued) active += `<section class="active-job panel"><div><span class="eyebrow">On hold · second job</span>
+        <h3>${esc(HC.JOBS[C.queued.type].name)} for ${esc(C.queued.client)}</h3><p>${esc(C.queued.address)} · ${HC.money(C.queued.pay)} · <b>due ${esc(HC.dueText(C.queued))}</b>. Drive onto the property and it becomes your current job.</p></div>
+        <div class="btn-row"><button class="btn" id="b-switch">Work this one now</button></div></section>`;
     }
     const board = (C.board || []);
     const cons = (C.contracts || []).filter((c) => c.status !== 'closed');
@@ -466,6 +469,7 @@
       return ok ? `${j.client} agreed to ${HC.money(j.pay)}.` : `${j.client} said that's too rich and hired someone else.`;
     },
     '#b-invoice'() { HC.Game.finish(); return null; },
+    '#b-switch'() { HC.Game.switchJob(); return null; },
     '.bid'(d) { const m = HC.Storms.bid(+d.id, d.amt); HC.Save.save(); return m; },
     '.buy-eq'(d) {
       const C = HC.company, k = d.k, e = HC.EQUIP[k];
@@ -586,7 +590,7 @@
     bind('#b-title', () => { HC.Save.save(); hide(); HC.session = null; title(); });
     // shop and job buttons are named actions, so a co-op friend working for this company sends them to the host to run
     const act = (sel, close) => bind(sel, (el) => doAct(sel, { ...el.dataset }, close));
-    act('.take', true); act('.counter'); act('#b-invoice', true);
+    act('.take', true); act('.counter'); act('#b-invoice', true); act('#b-switch', true);
     bind('.bid', (el) => { const inp = screen.querySelector(`.bid-in[data-id="${el.dataset.id}"]`); doAct('.bid', { id: el.dataset.id, amt: inp ? inp.value : 0 }); });
     for (const sel of ['.buy-used', '.buy-eq', '.buy-tr', '.buy-more', '.buy-att', '.buy-pal', '.buy-mulch', '.buy-exp', '.buy-quarry', '.buy-yard', '.buy-saw', '.buy-saw2', '.buy-up', '.hire', '.fire', '.repair', '#b-repair-all', '#b-fuel-all']) act(sel);
     for (const sel of ['.sell-u', '.sell-t', '.sell-a']) bind(sel, (el) => armSell(el, () => { doAct(sel, { ...el.dataset }); return false; }));
@@ -666,6 +670,7 @@
           return `<li class="${done ? 'done' : ''} ${o.optional ? 'opt' : ''}"><i></i><span>${esc(o.label)}${o.optional ? ` (+${HC.money(o.bonus)} each)` : ''}</span><b>${cnt}</b></li>`;
         }).join('') +
         (HC.JOBS[S.job.type].disposal ? `<li class="meta"><span>Debris: ${esc(HC.DISPOSAL[HC.JOBS[S.job.type].disposal].short)}</span><b>${HC.JOBS[S.job.type].disposal === 'haul' ? 'fined if left' : ''}</b></li>` : '') +
+        (S.job && S.job.due ? `<li class="meta"><span>Due</span><b>${esc(HC.dueText(S.job))}</b></li>` : '') +
         `<li class="meta"><span>Time on site</span><b class="${S.workMins > S.job.par ? 'late' : ''}">${HC.dur(S.workMins)} / par ${HC.dur(S.job.par)}</b></li>`;
     } else {
       $('h-jobname').textContent = 'No job booked';
