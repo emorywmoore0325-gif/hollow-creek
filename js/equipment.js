@@ -405,9 +405,9 @@
           const log = S.lot.items.filter((i) => i.kind === 'log' && near(i, u, 110)).sort((a, b) => HC.dist(a.x, a.y, u.x, u.y) - HC.dist(b.x, b.y, u.x, u.y))[0];
           if (log) {
             if (Math.abs(u.v) > 5) return HC.Game.toast('Park the truck before swinging the crane.');
-            if (bed.load + 2 > spec.bed) return HC.Game.toast(`Log bunks are full (${bed.load}/${spec.bed}). Take them to the log pad.`, 'warn');
+            if (bed.load + 1 > spec.bed) return HC.Game.toast(`Log bunks are full (${bed.load}/${spec.bed}). Take them to the sawmill.`, 'warn');
             S.lot.items.splice(S.lot.items.indexOf(log), 1);
-            bed.cargo.push(log); bed.load += 2; u.craneT = 0.8; u.craneTo = { x: log.x, y: log.y };
+            bed.cargo.push(log); bed.load += 1; u.craneT = 0.8; u.craneTo = { x: log.x, y: log.y };
             S.time += 1.5; if (S.stage === 'onsite') S.workMins += 1.5;
             HC.Audio.pick();
             return;
@@ -479,7 +479,7 @@
         const bits = [];
         const bed = att.find((tr) => U.isBed(tr));
         if (bed) bits.push(`${HC.EQUIP[HC.baseOf(kind)].chipBox ? 'Chip box' : HC.TRAILERS[bed.kind].name} ${bed.load}/${HC.Game.trailerCap(bed)}.`);
-        if (att.some((tr) => ['dump', 'dump2', 'gndump', 'bed'].includes(tr.kind) && tr.cargo.length)) bits.push('X dumps the load here.');
+        if (att.some((tr) => ['dump', 'dump2', 'dump18', 'gndump', 'bed'].includes(tr.kind) && tr.cargo.length)) bits.push('X dumps the load here.');
         if (t) {
           const on = Object.values(S.units).filter((o) => o.on && o.on.id === t.id).map((o) => HC.EQUIP[o.kind].short).join(', ');
           bits.push(`Towing the ${HC.TRAILERS[t.kind].name.toLowerCase()}${U.isDump(t) ? ` (${t.load}/${HC.Game.trailerCap(t)})` : HC.TRAILERS[t.kind].deck ? ` (${on || 'empty'}${HC.TRAILERS[t.kind].payload ? ` · ${HC.deckLoad(S, t)}/${HC.TRAILERS[t.kind].payload} t` : ''})` : ''}. R drops it.`);
@@ -846,20 +846,20 @@
       if (bed.load) {
         if (atPad(u, S)) return HC.Game.haul(bed, HC.Game.padAt(u.x, u.y));
         const pref = (t) => (t.kind === 'logbed' || t.kind === 'logtrailer' ? 0 : 1);
-        const into = S.trailers.filter((t) => ['logbed', 'logtrailer', 'dump', 'dump2', 'gndump', 'bed'].includes(t.kind) && !HC.Units.machineIn(t, S) && HC.dist(t.x, t.y, u.x, u.y) < R + 30 && t.load < HC.Game.trailerCap(t))
+        const into = S.trailers.filter((t) => ['logbed', 'logtrailer', 'dump', 'dump2', 'dump18', 'gndump', 'bed'].includes(t.kind) && !HC.Units.machineIn(t, S) && HC.dist(t.x, t.y, u.x, u.y) < R + 30 && t.load < HC.Game.trailerCap(t))
           .sort((a2, b2) => pref(a2) - pref(b2) || HC.dist(a2.x, a2.y, u.x, u.y) - HC.dist(b2.x, b2.y, u.x, u.y))[0];
         if (into) {
           const cap = HC.Game.trailerCap(into);
           let n = 0;
-          while (bed.cargo.length && into.load + 2 <= cap) { into.cargo.push(bed.cargo.pop()); into.load += 2; bed.load -= 2; n++; }
+          while (bed.cargo.length && into.load + HC.loadOf(bed.cargo[bed.cargo.length - 1], into) <= cap) { const l = bed.cargo.pop(); into.cargo.push(l); into.load += HC.loadOf(l, into); bed.load -= 1; n++; }
           u.craneT = 0.8; HC.Audio.drop();
           return HC.Game.toast(n ? `Swung ${n} log(s) across into the ${HC.TRAILERS[into.kind].name.toLowerCase()}.` : `The ${HC.TRAILERS[into.kind].name.toLowerCase()} is full.`);
         }
       }
       const log = S.lot.items.filter((i) => i.kind === 'log' && near(i, u, R)).sort((a2, b2) => HC.dist(a2.x, a2.y, u.x, u.y) - HC.dist(b2.x, b2.y, u.x, u.y))[0];
       if (log) {
-        if (bed.load + 2 > HC.EQUIP.forwarder.bed) return HC.Game.toast('Bunks are full. Unload at a log truck, the log trailer or the sawmill.', 'warn');
-        S.lot.items.splice(S.lot.items.indexOf(log), 1); bed.cargo.push(log); bed.load += 2; u.craneT = 0.8;
+        if (bed.load + 1 > HC.EQUIP.forwarder.bed) return HC.Game.toast('Bunks are full. Unload at a log truck, the log trailer or the sawmill.', 'warn');
+        S.lot.items.splice(S.lot.items.indexOf(log), 1); bed.cargo.push(log); bed.load += 1; u.craneT = 0.8;
         S.time += 1; if (S.stage === 'onsite') S.workMins += 1;
         HC.Audio.pick(); return;
       }

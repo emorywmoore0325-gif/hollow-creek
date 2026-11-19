@@ -5,7 +5,7 @@
   const key = (k) => HC.input.keys.has(k);
   const isTruck = (k) => HC.EQUIP[k] && HC.EQUIP[k].move === 'car';
   const isBed = (t) => t.kind === 'bed' || t.kind === 'logbed' || t.kind === 'fwdbed';
-  const isDump = (t) => ['dump', 'dump2', 'gndump', 'bed', 'logbed', 'fwdbed', 'logtrailer'].includes(t.kind);
+  const isDump = (t) => ['dump', 'dump2', 'dump18', 'gndump', 'bed', 'logbed', 'fwdbed', 'logtrailer'].includes(t.kind);
 
   function create(kind, x, y, a = -Math.PI / 2) {
     const spec = HC.EQUIP[kind];

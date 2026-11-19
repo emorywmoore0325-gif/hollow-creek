@@ -5,7 +5,7 @@
   const SELLERS = ['Retiring contractor, Persimmon Ln', 'Bank repo lot', 'County surplus auction', 'Haddix Farm sale', 'Blue Ridge Tree Service (upgrading)',
     'Dealer trade-in', 'Estate sale, Cedar Knob Way', 'Pike Land Services (closing down)', 'Rental fleet sell-off', 'Old Mill Apartments maintenance'];
   const REFRESH = 4 * 60; // game minutes between batches
-  const TRAILER_IDS = ['equip', 'dump', 'gndump', 'gnflat', 'deckover', 'lowboy', 'logtrailer'];
+  const TRAILER_IDS = ['equip', 'dump', 'dump18', 'gndump', 'gnflat', 'deckover', 'lowboy', 'logtrailer'];
 
   // what can turn up used: anything sold new in the shop
   function pool() {

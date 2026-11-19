@@ -179,6 +179,15 @@ its checklist and clock where you left them.
 **Co-op job board.** Everyone in a co-op game sees the host's job board. When anyone takes a job it comes off
 the board for everybody.
 
+**More jobs.** Lawn mowing, hazard tree removal (dead trees leaning at the house), firewood delivery, mulch
+delivery, field rock picking and fence line clearing (mulcher head or brush cutter).
+
+**Trailers.** The gooseneck dump is now a 20 ft box (26 units, 8 t, two small machines when empty). A 16 ft tandem
+dump trailer holds 18. The old "bigger dump trailer" upgrade is gone (refunded). Logs take one spot on log
+trucks, the log trailer and the forwarder. Loads in dump boxes are heaped like the real thing. Attachments set
+down near a trailer deck (at any arm height) land on the deck. Yards have three-bay concrete-block bins in their
+debris storage. The firewood processor comes with the Firewood Yard ($30,000). Equipment prices are about 10% higher.
+
 **Loading limits.** Every flat trailer has a rated payload and won't take more: 20 ft equipment trailer 5 t,
 deck-over 10 t, 40 ft gooseneck flat deck 13.5 t, gooseneck dump 6 t (one machine, empty box), lowboy 40 t.
 Machines, pallets and attachments all count, and the towing hint shows the load. A flatbed pickup's bed holds

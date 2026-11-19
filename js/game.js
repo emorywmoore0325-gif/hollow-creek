@@ -305,7 +305,7 @@
   const frontSlot = (a) => a.kind !== 'bushhog';
   const attachPoint = (u, a) => HC.baseOf(u.kind) === 'tractor' && !(a && a.kind === 'forks') ? { x: u.x - Math.cos(u.a) * 24, y: u.y - Math.sin(u.a) * 24 } : { x: u.x + Math.cos(u.a) * (HC.baseOf(u.kind) === 'tractor' ? 40 : 28), y: u.y + Math.sin(u.a) * (HC.baseOf(u.kind) === 'tractor' ? 40 : 28) };
   function attachmentNear(u, S) {
-    return (S.attachments || []).filter((a) => (!a.on || a.on.startsWith('trailer:') || a.on.startsWith('truck:')) && attFits(a, u)).find((a) => { const p = attachPoint(u, a); return HC.dist(a.x, a.y, p.x, p.y) < 24 && Math.abs(HC.angDiff(u.a, a.a)) < 0.9; });
+    return (S.attachments || []).filter((a) => (!a.on || a.on.startsWith('trailer:') || a.on.startsWith('truck:')) && attFits(a, u)).find((a) => { const p = attachPoint(u, a); return HC.dist(a.x, a.y, p.x, p.y) < 34 && Math.abs(HC.angDiff(u.a, a.a)) < 1.3; });
   }
   // Q in the skid steer: drop what's on the quick-attach, or lock on the attachment in front of you
   function attachToggle(u, S) {
@@ -320,12 +320,18 @@
       else cur = mine.find((m) => m.kind === 'forks') || mine[0];
     }
     if (cur) {
-      const p = attachPoint(u, cur);
-      const onto = S.trailers.some((t) => HC.Units.onDeck(t, p)) || Object.values(S.units).some((t) => (HC.FLATBEDS || []).includes(HC.baseOf(t.kind)) && t !== u && HC.dist(t.x - Math.cos(t.a) * 17, t.y - Math.sin(t.a) * 17, p.x, p.y) < 26);
-      if (!onto && u.armT > 0.3) return toast(HC.baseOf(u.kind) === 'tractor' ? 'Lower the hitch (hold G) to set the bush hog down.' : 'Lower the arms (hold G) to set the attachment down.');
-      if (onto && cur.kind !== 'bushhog' && u.armT < 0.3) return toast('Raise the arms (hold T) to lift it up onto the deck, then press Q.');
+      let p = attachPoint(u, cur);
+      // a trailer deck close by takes it: right on the deck, just off its edge, or the deck you're standing on (any arm height)
+      const deckNear = S.trailers.find((t) => HC.Units.onDeck(t, p)) || S.trailers.find((t) => {
+        const d = HC.TRAILERS[t.kind].deck; if (!d || t.cargo && t.cargo.length) return false;
+        const dx = p.x - t.x, dy = p.y - t.y, c = Math.cos(t.a), s2 = Math.sin(t.a), al = dx * c + dy * s2, sd = -dx * s2 + dy * c;
+        return al > d[0] - 16 && al < d[1] + 16 && Math.abs(sd) < d[2] + 18;
+      }) || S.trailers.find((t) => HC.TRAILERS[t.kind].deck && (u.on ? u.on.id === t.id : HC.Units.onDeck(t, u)));
+      if (deckNear) { const d = HC.TRAILERS[deckNear.kind].deck, c = Math.cos(deckNear.a), s2 = Math.sin(deckNear.a), dx = p.x - deckNear.x, dy = p.y - deckNear.y;
+        const al = HC.clamp(dx * c + dy * s2, d[0] + 6, d[1] - 6), sd = HC.clamp(-dx * s2 + dy * c, -d[2] + 4, d[2] - 4); p = { x: deckNear.x + c * al - s2 * sd, y: deckNear.y + s2 * al + c * sd }; }
       Object.assign(cur, { on: null, x: p.x, y: p.y, a: u.a });
-      const deck = S.trailers.find((t) => HC.Units.onDeck(t, p));
+      const deck = deckNear;
+      if (deck && HC.TRAILERS[deck.kind].payload && HC.deckLoad(S, deck) + (HC.ATT_T[cur.kind] || 0.4) > HC.payloadOf(deck) + 0.05) { Object.assign(cur, { on: u.kind }); return toast(`Over the ${HC.TRAILERS[deck.kind].name.toLowerCase()}'s rated load.`, 'warn'); }
       const truck = !deck && Object.values(S.units).find((t) => (HC.FLATBEDS || []).includes(HC.baseOf(t.kind)) && t !== u && HC.dist(t.x - Math.cos(t.a) * 17, t.y - Math.sin(t.a) * 17, p.x, p.y) < 26);
       if (truck && HC.bedBlocked(S, truck)) { Object.assign(cur, { on: u.kind }); return toast('The gooseneck is hitched in that bed. Unhook it to carry an attachment there.', 'warn'); }
       if (truck && HC.deckLoad(S, truck, true) + (HC.ATT_T[cur.kind] || 0.4) > HC.BED_PAYLOAD) { Object.assign(cur, { on: u.kind }); return toast(`Too heavy for the truck bed (${HC.BED_PAYLOAD} t max).`, 'warn'); }
@@ -718,8 +724,8 @@
     if (t && t.kind === 'logbed') return HC.EQUIP.logtruck.bed;
     if (t && t.kind === 'fwdbed') return HC.EQUIP.forwarder.bed;
     if (t && t.kind === 'logtrailer') return HC.TRAILERS.logtrailer.cap;
-    if (t && HC.TRAILERS[t.kind] && HC.TRAILERS[t.kind].cap) return HC.TRAILERS[t.kind].cap + HC.Co.level('trailer') * 6;
-    return HC.TRAILER_CAP + HC.Co.level('trailer') * 6;
+    if (t && HC.TRAILERS[t.kind] && HC.TRAILERS[t.kind].cap) return HC.TRAILERS[t.kind].cap;
+    return HC.TRAILER_CAP;
   }
   function loadTrailer(u, tr) {
     const cap = trailerCap(tr);
@@ -727,7 +733,7 @@
     if ((tr.kind === 'logbed' || tr.kind === 'logtrailer' || tr.kind === 'fwdbed') && u.carrying.some((c) => c.kind !== 'log')) { toast('The log truck only takes logs. Brush, rock and stumps go in a dump trailer or the dump truck.', 'warn'); return; }
     let n = 0;
     while (u.carrying.length) {
-      const it = u.carrying[0], l = HC.LOAD[it.kind] || 1;
+      const it = u.carrying[0], l = HC.loadOf(it, tr);
       if (tr.load + l > cap) break;
       tr.load += l; tr.cargo.push(it); u.carrying.shift(); n++;
     }
@@ -752,7 +758,7 @@
     for (const c of take) {
       if (c.kind === 'log' && mill) { logs += Math.round((c.value || 0) * HC.MILL_PRICE); nl++; } else fees += HC.dumpFee(c);
     }
-    tr.cargo = keep; tr.load = keep.reduce((a, c) => a + (HC.LOAD[c.kind] || 1), 0);
+    tr.cargo = keep; tr.load = keep.reduce((a, c) => a + HC.loadOf(c, tr), 0);
     if (S.job) { S.logSales += logs; S.costs.dump += fees; }
     HC.company.money += logs - fees;
     HC.company.stats.logsSold += nl;
@@ -764,7 +770,7 @@
 
   // Sell rocks at a quarry you own (the rest of the load stays aboard)
   // X in a dump truck (or a truck towing a dump trailer): tip the whole load into a pile right where you are
-  const DUMP_BOX = ['dump', 'dump2', 'gndump', 'bed'];
+  const DUMP_BOX = ['dump', 'dump2', 'dump18', 'gndump', 'bed'];
   // the sawmill log yard or the county dump under this point
   function padAt(x, y) {
     const S = HC.session;
@@ -999,7 +1005,7 @@
     HC.Audio.stopLoops();
     const jt = HC.JOBS[S.job.type] || {};
     if (jt.disposal === 'haul') {
-      const left = debrisOn(S, S.job.parcel, S.job.type === 'lot_clearing' || S.job.type === 'hardscape');
+      const left = debrisOn(S, S.job.parcel, ['lot_clearing', 'hardscape', 'rock_picking'].includes(S.job.type));
       if (left) {
         const fine = left * HC.DUMPING_FINE;
         S.penalties.push({ id: 'dumping', label: `Debris left on the property (${left} piece${left > 1 ? 's' : ''})`, cost: fine });

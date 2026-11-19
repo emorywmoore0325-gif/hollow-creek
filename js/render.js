@@ -919,26 +919,26 @@
       const bk = '#1d1f22', bk2 = '#2a2d31', L = HC.TRAILERS.gndump.len / 32 * 3, p = [];
       const tape = (x, y, z, l) => { for (let i = 0; i < l / 0.3; i++) p.push(Pm('box', i % 2 ? '#e8e8e8' : '#d0261e', [x - l / 2 + 0.15 + i * 0.3, y, z], [0.3, 0.05, 0.01])); };
       // chassis: rails, crossmembers, neck, ball coupler, hoist, axles, fixed jack legs
-      p.push(...[1, -1].map((s) => Pm('box', bk, [0.8, 0.82, s * 0.48], [4.9, 0.26, 0.12])),
-        ...[-1.4, -0.4, 0.6, 1.6, 2.6].map((x) => Pm('box', bk, [x, 0.9, 0], [0.1, 0.1, 1.1])),
-        Pm('box', bk, [3.42, 1.3, 0], [0.28, 1.05, 1.0]), Pm('box', bk, [(3.3 + L + 0.45) / 2, 1.78, 0], [L + 0.45 - 3.3, 0.36, 0.86]), // riser and neck beam
-        ...[1, -1].map((s) => Pm('box', bk, [3.75, 1.35, s * 0.4], [0.75, 0.1, 0.08], [0, 0, 0.85])), // gussets
+      p.push(...[1, -1].map((s) => Pm('box', bk, [1.4, 0.82, s * 0.48], [6.1, 0.26, 0.12])),
+        ...[-1.4, -0.4, 0.6, 1.6, 2.6, 3.6].map((x) => Pm('box', bk, [x, 0.9, 0], [0.1, 0.1, 1.1])),
+        Pm('box', bk, [4.62, 1.3, 0], [0.28, 1.05, 1.0]), Pm('box', bk, [(4.5 + L + 0.45) / 2, 1.78, 0], [L + 0.45 - 4.5, 0.36, 0.86]), // riser and neck beam
+        ...[1, -1].map((s) => Pm('box', bk, [4.95, 1.35, s * 0.4], [0.75, 0.1, 0.08], [0, 0, 0.85])), // gussets
         Pm('box', bk, [L + 0.42, 1.78, 0], [0.06, 0.36, 0.9]), Pm('box', COL.amber, [L + 0.46, 1.86, 0.36], [0.03, 0.07, 0.08]), Pm('box', COL.amber, [L + 0.46, 1.86, -0.36], [0.03, 0.07, 0.08]),
         Pm('cyl', bk, [L, 1.42, 0], [0.2, 0.36, 0.2]), Pm('cyl', COL.steel, [L, 1.22, 0], [0.15, 0.12, 0.15]), Pm('cyl', '#2b2d30', [L, 1.18, 0], [0.22, 0.05, 0.22]), // coupler tube and cup
         Pm('cyl', '#2a2a2a', [L - 0.35, 1.62, 0.3], [0.03, 0.5, 0.03], [0.6, 0, 0.5]), // safety chains and pigtail
-        ...[1, -1].map((s) => Pm('box', bk2, [3.6, 0.8, s * 0.55], [0.14, 1.0, 0.14])), ...[1, -1].map((s) => Pm('box', bk2, [3.6, 0.3, s * 0.55], [0.3, 0.05, 0.3])),
-        Pm('cyl', COL.chrome, [2.2, 1.0, 0], [0.18, 1.2, 0.18], [0, 0, 1.25]), Pm('box', bk, [2.6, 0.95, 0], [0.9, 0.08, 0.7]), // hoist and scissor arm
-        Pm('box', '#2b2b2b', [4.3, 1.78, 0.44], [0.5, 0.26, 0.02]), Pm('box', '#e6e6e6', [4.3, 1.78, 0.45], [0.4, 0.1, 0.01]),
-        ...[-0.55, 0.55].flatMap((x) => [...wheelM(x, 0.4, 0.74, 0.4, 0.24), ...wheelM(x, 0.4, -0.74, 0.4, 0.24), ...wheelM(x, 0.4, 1.0, 0.4, 0.24), ...wheelM(x, 0.4, -1.0, 0.4, 0.24)]),
-        Pm('cyl', '#3a3b3d', [0.55, 0.4, 0], [0.14, 1.6, 0.14], [Math.PI / 2, 0, 0]), Pm('cyl', '#3a3b3d', [-0.55, 0.4, 0], [0.14, 1.6, 0.14], [Math.PI / 2, 0, 0]));
-      tape(4.0, 1.9, 0.44, 0.9); tape(4.0, 1.9, -0.44, 0.9);
+        ...[1, -1].map((s) => Pm('box', bk2, [4.8, 0.8, s * 0.55], [0.14, 1.0, 0.14])), ...[1, -1].map((s) => Pm('box', bk2, [4.8, 0.3, s * 0.55], [0.3, 0.05, 0.3])),
+        Pm('cyl', COL.chrome, [3.1, 1.0, 0], [0.18, 1.4, 0.18], [0, 0, 1.25]), Pm('box', bk, [3.6, 0.95, 0], [1.1, 0.08, 0.7]), // hoist and scissor arm
+        Pm('box', '#2b2b2b', [5.5, 1.78, 0.44], [0.5, 0.26, 0.02]), Pm('box', '#e6e6e6', [5.5, 1.78, 0.45], [0.4, 0.1, 0.01]),
+        ...[-0.25, 0.85].flatMap((x) => [...wheelM(x, 0.4, 0.74, 0.4, 0.24), ...wheelM(x, 0.4, -0.74, 0.4, 0.24), ...wheelM(x, 0.4, 1.0, 0.4, 0.24), ...wheelM(x, 0.4, -1.0, 0.4, 0.24)]),
+        Pm('cyl', '#3a3b3d', [0.85, 0.4, 0], [0.14, 1.6, 0.14], [Math.PI / 2, 0, 0]), Pm('cyl', '#3a3b3d', [-0.25, 0.4, 0], [0.14, 1.6, 0.14], [Math.PI / 2, 0, 0]));
+      tape(5.2, 1.9, 0.44, 0.9); tape(5.2, 1.9, -0.44, 0.9);
       // the box (tips on the rear hinge): floor, high sides with posts and top rail, front wall, ramp slots under the floor
-      const box = [Pm('box', bk, [0.8, 1.08, 0], [4.9, 0.08, 2.25]), Pm('box', bk2, [0.8, 0.98, 0], [4.9, 0.12, 2.0]),
-        ...[1, -1].flatMap((s) => [Pm('box', bk, [0.8, 1.7, s * 1.13], [4.9, 1.2, 0.05]), Pm('box', bk2, [0.8, 2.32, s * 1.15], [4.95, 0.1, 0.12]), Pm('box', bk2, [0.8, 1.12, s * 1.15], [4.95, 0.14, 0.1]),
-          ...[-1.0, -0.2, 0.6, 1.4, 2.2].map((x) => Pm('box', bk2, [x, 1.7, s * 1.17], [0.08, 1.15, 0.05])), Pm('box', '#c22', [-1.66, 1.2, s * 0.95], [0.03, 0.1, 0.18])]),
-        Pm('box', bk, [3.24, 1.7, 0], [0.06, 1.2, 2.25]), Pm('box', bk2, [3.3, 2.5, 0], [0.5, 0.06, 2.3]), // front wall with a cab shield lip
-        ...[1, -1].map((s) => Pm('box', '#3b3f44', [-0.5, 0.96, s * 0.62], [2.6, 0.08, 0.5]))];
-      for (const s of [1, -1]) { const q = []; const tp = (x, y, z, l) => { for (let i = 0; i < l / 0.3; i++) q.push(Pm('box', i % 2 ? '#e8e8e8' : '#d0261e', [x - l / 2 + 0.15 + i * 0.3, y, z], [0.3, 0.05, 0.01])); }; tp(0.8, 2.2, s * 1.16, 4.8); tp(0.8, 1.2, s * 1.21, 4.8); box.push(...q); }
+      const box = [Pm('box', bk, [1.4, 1.08, 0], [6.1, 0.08, 2.25]), Pm('box', bk2, [1.4, 0.98, 0], [6.1, 0.12, 2.0]),
+        ...[1, -1].flatMap((s) => [Pm('box', bk, [1.4, 1.7, s * 1.13], [6.1, 1.2, 0.05]), Pm('box', bk2, [1.4, 2.32, s * 1.15], [6.15, 0.1, 0.12]), Pm('box', bk2, [1.4, 1.12, s * 1.15], [6.15, 0.14, 0.1]),
+          ...[-1.0, -0.2, 0.6, 1.4, 2.2, 3.0, 3.8].map((x) => Pm('box', bk2, [x, 1.7, s * 1.17], [0.08, 1.15, 0.05])), Pm('box', '#c22', [-1.66, 1.2, s * 0.95], [0.03, 0.1, 0.18])]),
+        Pm('box', bk, [4.44, 1.7, 0], [0.06, 1.2, 2.25]), Pm('box', bk2, [4.5, 2.5, 0], [0.5, 0.06, 2.3]), // front wall with a cab shield lip
+        ...[1, -1].map((s) => Pm('box', '#3b3f44', [-0.3, 0.96, s * 0.62], [2.6, 0.08, 0.5]))];
+      for (const s of [1, -1]) { const q = []; const tp = (x, y, z, l) => { for (let i = 0; i < l / 0.3; i++) q.push(Pm('box', i % 2 ? '#e8e8e8' : '#d0261e', [x - l / 2 + 0.15 + i * 0.3, y, z], [0.3, 0.05, 0.01])); }; tp(1.4, 2.2, s * 1.16, 6.0); tp(1.4, 1.2, s * 1.21, 6.0); box.push(...q); }
       p.push(...BX(box));
       return p;
     },
@@ -2163,6 +2163,16 @@
       const q = world.quarry, sx = U(q.x + q.w / 2) + 4.5, sz = U(q.y + q.h) + 0.6, sy = gh(q.x + q.w / 2, q.y + q.h);
       parts.push(P('box', '#5a3a26', [sx - 0.9, sy + 0.6, sz], [0.12, 1.2, 0.12]), P('box', '#5a3a26', [sx + 0.9, sy + 0.6, sz], [0.12, 1.2, 0.12]), P('box', '#6b6f75', [sx, sy + 1.1, sz], [2.2, 0.6, 0.08]));
     }
+    // debris storage at every yard: three bays of stacked concrete blocks (2x2x5 ft "lego" blocks) along the back of the area
+    for (const st of world.storage || []) {
+      const m = MM, x0 = U(st.x), z0 = U(st.y), w = U(st.w) / m, h = U(st.h) / m; // metres
+      const BL = 1.5, BH = 0.75, BW = 0.75, col = (i) => ['#d6d3cb', '#c9c6be', '#dcd9d1'][i % 3];
+      const blk = (xm, zm, ym, rot) => { const gx = st.x + (xm / m) * 32 / 3 * m * 0, wy = gh(st.x + xm * 32 / 3, st.y + zm * 32 / 3);
+        parts.push(P('box', col(Math.round(xm * 7 + zm * 3 + ym * 5)), [x0 + xm * m, wy + (ym + BH / 2) * m, z0 + zm * m], rot ? [BW * m * 0.98, BH * m * 0.96, BL * m * 0.98] : [BL * m * 0.98, BH * m * 0.96, BW * m * 0.98])); };
+      const back = 0.6, depth = Math.min(4.5, h * 0.6), bays = 3, bw = (w - 1.2) / bays;
+      for (let c = 0; c < 3; c++) for (let xm = 0.6 + (c % 2 ? BL / 2 : 0); xm < w - 0.6 - BL / 2 + 0.01; xm += BL) blk(xm + BL / 2, back, c * BH, false); // back wall, staggered courses
+      for (let d = 0; d <= bays; d++) { const xm = 0.6 + d * bw; for (let c = 0; c < 3; c++) for (let zm = back + BW / 2 + BL / 2; zm < back + depth; zm += BL) blk(xm, zm, c * BH, true); } // dividers
+    }
     if (world.fwStand) { // roadside firewood stand, to scale (metres): 2.6 m wide, 1.3 m deep, sloped green roof at 2.2 m, two shelves; 8 ft ricks in the yard
       const st = world.fwStand, x = U(st.x), z = U(st.y), y = gh(st.x, st.y), m = MM;
       for (const [dx, dz] of [[-1.25, -0.6], [1.25, -0.6], [-1.25, 0.6], [1.25, 0.6]]) parts.push(P('box', '#6b4a2b', [x + dx * m, y + 1.05 * m, z + dz * m], [0.1 * m, 2.1 * m, 0.1 * m]));
@@ -2648,7 +2658,45 @@
   // dump boxes: parts tagged .box ride a group hinged at the back of the box, so the box can tip up
   const BX = (list) => list.map((q) => Object.assign(q, { box: true }));
   const DUMPBOX = { dumptruck: { hinge: [-3.86, 1.38], parts: () => BIG_MODELS.dumptruckParts() }, dumptruck2: { hinge: [-4.72, 1.48], parts: () => BIG_MODELS.dumptruck2Parts() }, dumptruck3: { hinge: [-5.92, 1.5], parts: () => BIG_MODELS.dumptruck3Parts() },
-    dump: { hinge: [-2.22, 0.74], parts: () => TRAILER_GEO.dumpParts() }, gndump: { hinge: [-1.68, 0.95], parts: () => TRAILER_GEO.gndumpParts() }, chiptruck: { hinge: [-3.86, 1.2], parts: () => BIG_MODELS.chiptruckParts() }, chiptruck2: { hinge: [-5.11, 1.2], parts: () => BIG_MODELS.chiptruck2Parts() } };
+    dump: { hinge: [-2.22, 0.74], parts: () => TRAILER_GEO.dumpParts() }, dump18: { hinge: [-2.22 * 1.2, 0.74], parts: () => TRAILER_GEO.dumpParts().map((q) => (q.wh ? q : Object.assign({}, q, { pos: [q.pos[0] * 1.2, q.pos[1], q.pos[2]], scl: [q.scl[0] * 1.2, q.scl[1], q.scl[2]] }))) }, gndump: { hinge: [-1.68, 0.95], parts: () => TRAILER_GEO.gndumpParts() }, chiptruck: { hinge: [-3.86, 1.2], parts: () => BIG_MODELS.chiptruckParts() }, chiptruck2: { hinge: [-5.11, 1.2], parts: () => BIG_MODELS.chiptruck2Parts() } };
+  // the inside of each dump box (metres, in the body's frame): rear and front of the box, floor height, half-width
+  const LOAD_BOX = { dump: [-2.1, 2.1, 0.84, 0.9], dump2: [-2.1, 2.1, 0.84, 0.9], dump18: [-2.55, 2.55, 0.84, 0.9], gndump: [-1.55, 4.35, 1.13, 1.02],
+    dumptruck: [-3.75, -0.45, 1.46, 0.95], dumptruck2: [-4.6, -0.15, 1.56, 1.0], dumptruck3: [-5.8, -0.2, 1.58, 1.02] };
+  // a load as it really sits in a dump box: a heap, high in the middle, of the actual pieces (logs lengthwise, brush tangled, root balls, rocks)
+  function loadHeap(cargo, box, cap) {
+    const [x0, x1, fy, hw] = box, L = x1 - x0, mid = (x0 + x1) / 2, p = [], f = Math.min(1, cargo.length / Math.max(1, cap));
+    const bulk = cargo.filter((c) => c.kind === 'mulch' || c.kind === 'chips');
+    if (bulk.length) { // a mound of mulch or chips
+      const col = bulk.every((c) => c.kind === 'chips') ? '#c9a26a' : '#3a2618', g = bulk.length / Math.max(1, cap), h = 0.12 + g * 1.1;
+      p.push(Pm('box', col, [mid, fy + h / 2, 0], [L * 0.98, h, hw * 1.96]), Pm('sph', HC.shade(col, 0.05), [mid, fy + h, 0], [L * 0.9, 0.25 + g * 0.6, hw * 1.8]));
+    }
+    const pieces = cargo.filter((c) => c.kind !== 'mulch' && c.kind !== 'chips');
+    const perLayer = Math.max(4, Math.round(L * hw * 1.4));
+    pieces.forEach((c, i) => {
+      const r = rnd(i * 97 + c.kind.charCodeAt(0) * 13 + 7);
+      const layer = Math.floor(i / perLayer), x = x0 + 0.35 + r() * (L - 0.7), z = (r() * 2 - 1) * (hw - 0.3);
+      const crown = (1 - Math.abs(x - mid) / (L / 2)) * 0.35 * f; // heaped up toward the middle
+      const y = fy + 0.05 + layer * 0.32 + crown + r() * 0.1;
+      if (c.kind === 'log') {
+        const rad = HC.clamp(((c.w || 14) / TS) * 0.42 * 3, 0.16, 0.34), len = Math.min(L * 0.92, 2.6 + r() * 1.4), yaw = (r() - 0.5) * 0.35, pitch = (r() - 0.5) * 0.12;
+        const bark = c.wood === 'pine' ? '#8a5f39' : c.wood === 'dead' ? '#9d8f7c' : ['#6f4d32', '#7a5434', '#654630'][i % 3];
+        const lx = HC.clamp(x, x0 + len / 2, x1 - len / 2);
+        p.push(Pm('cyl', bark, [lx, y + rad, z], [rad * 2, len, rad * 2], [yaw, pitch, Math.PI / 2]),
+          Pm('cyl', '#e3c08a', [lx + Math.cos(yaw) * (len / 2 + 0.01), y + rad, z - Math.sin(yaw) * (len / 2 + 0.01)], [rad * 1.75, 0.02, rad * 1.75], [yaw, 0, Math.PI / 2]));
+      } else if (c.kind === 'brush') { // a tangle: crooked limbs and leafy clumps, some sticking up over the sides
+        for (let k = 0; k < 4; k++) p.push(Pm('cyl6', '#5e4127', [x + (r() - 0.5) * 0.5, y + 0.25 + r() * 0.35, z + (r() - 0.5) * 0.4], [0.06, 0.9 + r() * 0.8, 0.06], [r() * 3, r() * 3, r() * 3]));
+        for (let k = 0; k < 5; k++) p.push(Pm('ico0', ['#4d7d2e', '#6a9a3a', '#3f6b27', '#7a8f3a'][(i + k) % 4], [x + (r() - 0.5) * 0.8, y + 0.3 + r() * 0.55, z + (r() - 0.5) * 0.7], [0.35 + r() * 0.3, 0.3 + r() * 0.25, 0.35 + r() * 0.3], [r() * 3, r() * 3, 0]));
+      } else if (c.kind === 'stump') { // a root ball with roots sticking out
+        p.push(Pm('dode', '#6b4b30', [x, y + 0.3, z], [0.7, 0.55, 0.7], [r(), r() * 3, r()]), Pm('cyl', '#7a5434', [x, y + 0.5, z], [0.42, 0.3, 0.42]), Pm('cyl', '#e3c08a', [x, y + 0.66, z], [0.36, 0.02, 0.36]));
+        for (let k = 0; k < 4; k++) p.push(Pm('cyl6', '#5a3f28', [x + (r() - 0.5) * 0.5, y + 0.25, z + (r() - 0.5) * 0.5], [0.07, 0.6, 0.07], [r() * 3, r() * 3, 1.2]));
+      } else if (c.kind === 'rock') {
+        p.push(Pm('dode', ['#8b8e93', '#9a958c', '#7d8085'][i % 3], [x, y + 0.22, z], [0.6 + r() * 0.25, 0.42 + r() * 0.15, 0.55 + r() * 0.2], [r() * 3, r() * 3, r() * 3]));
+      } else if (c.kind === 'firewood') {
+        p.push(Pm('box', ['#b58a5a', '#c9a26a', '#9a7048'][i % 3], [x, y + 0.08, z], [0.42, 0.14, 0.14], [r() * 0.6, r() * 3, r() * 0.6]));
+      } else p.push(Pm('ico0', '#5a8a33', [x, y + 0.2, z], [0.8, 0.6, 0.8]));
+    });
+    return p;
+  }
   function dumpRig(key, grp) {
     const D = DUMPBOX[key];
     let parts = null; const P = () => parts || (parts = D.parts());
@@ -2949,6 +2997,7 @@
               const bx = HC.baseOf(k) === 'chiptruck2' ? [-2.25, 5.5] : [-1.62, 4.25];
               parts.push(Pm('box', col, [bx[0], 1.32 + h / 2, 0], [bx[1], h, 2.22]), Pm('sph', HC.shade(col, 0.06), [bx[0] + 0.22, 1.32 + h, 0], [bx[1] - 0.65, 0.35 + f * 0.5, 2.0]));
             } }
+            else if (LOAD_BOX[HC.baseOf(k)]) { if (!i) parts.push(...loadHeap(bed.cargo, LOAD_BOX[HC.baseOf(k)], HC.Game.trailerCap(bed))); }
             else parts.push(Pm(c.kind === 'log' ? 'cyl' : c.kind === 'rock' ? 'dode' : c.kind === 'mulch' || c.kind === 'chips' ? 'sph' : c.kind === 'firewood' ? 'box' : 'ico0', c.kind === 'log' ? '#7a5434' : c.kind === 'rock' ? '#8b8e93' : c.kind === 'mulch' ? '#3a2618' : c.kind === 'chips' ? '#c9a26a' : c.kind === 'firewood' ? ['#b58a5a', '#c9a26a', '#9a7048'][i % 3] : '#5a8a33', [-3.3 + (i % 5) * 0.8, 1.75 + Math.floor(i / 15) * 0.45, -0.7 + (Math.floor(i / 5) % 3) * 0.7], [0.8, 0.65, 0.8], c.kind === 'log' ? [0, 0, Math.PI / 2] : [0, 0, 0]));
           });
           if (parts.length) addCargo(o, model(build(parts), false, true));
@@ -3021,7 +3070,7 @@
           if (parts.length) { const cm = model(build(parts), false, true); o.add(cm); o.userData.cargo = cm; }
         }
       }
-      if (t.kind === 'dump' || t.kind === 'dump2' || t.kind === 'gndump') {
+      if (t.kind === 'dump' || t.kind === 'dump2' || t.kind === 'dump18' || t.kind === 'gndump') {
         animateTip(o, t);
         if (o.userData.gate && o.userData.tipStart) o.userData.gate.rotation.z = -0.9 * o.userData.dumpBox.rotation.z; // the gate swings open as it tips
         const sig = t.cargo.map((c) => c.kind[0]).join('');
@@ -3029,13 +3078,7 @@
           o.userData.sig = sig;
           dropCargo(o);
           const parts = [];
-          t.cargo.forEach((c, i) => {
-            const gn = t.kind === 'gndump', x = (gn ? -1.0 : -1.6) + (i % 5) * (gn ? 0.92 : 0.8), z = -0.6 + (Math.floor(i / 5) % 3) * 0.6, y = (gn ? 1.12 : 1.0) + Math.floor(i / 15) * 0.4, lx = gn ? 0.8 : 0;
-            if (c.kind === 'log') parts.push(Pm('cyl', '#7a5434', [lx, y + 0.1, z], [0.4, 3.8, 0.4], [0, 0, Math.PI / 2]), Pm('cyl', '#e3c08a', [lx + 1.91, y + 0.1, z], [0.34, 0.02, 0.34], [0, 0, Math.PI / 2]));
-            else if (c.kind === 'firewood') parts.push(Pm('box', ['#b58a5a', '#c9a26a', '#9a7048'][i % 3], [x, y + 0.15, z], [0.42, 0.14, 0.14], [0, i, 0]));
-            else if (c.kind === 'rock' || c.kind === 'stump') parts.push(Pm('dode', c.kind === 'rock' ? '#8b8e93' : '#6b4b30', [x, y + 0.15, z], [0.7, 0.55, 0.7]));
-            else parts.push(Pm(c.kind === 'mulch' || c.kind === 'chips' ? 'sph' : 'ico0', c.kind === 'mulch' ? '#3a2618' : c.kind === 'chips' ? '#c9a26a' : '#5a8a33', [x, y + 0.2, z], [0.9, 0.7, 0.9]));
-          });
+          parts.push(...loadHeap(t.cargo, LOAD_BOX[t.kind] || LOAD_BOX.dump, HC.Game.trailerCap(t)));
           if (parts.length) addCargo(o, model(build(parts), false, true));
         }
       }
@@ -3309,7 +3352,7 @@
   function syncMowMarks(S, dt) {
     mowT -= dt;
     const job = S.job && !S.preview && S.stage === 'onsite' ? S.job : null;
-    const mows = job && ['sod_planting', 'bush_hog', 'mulching'].includes(job.type);
+    const mows = job && ['sod_planting', 'bush_hog', 'mulching', 'lawn_mowing', 'fence_line'].includes(job.type);
     if (!mowMesh) {
       const g = new THREE.PlaneGeometry(0.94, 0.94); g.rotateX(-Math.PI / 2);
       mowMesh = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ color: '#ffd84a', transparent: true, opacity: 0.3, depthWrite: false }), 1600);
@@ -3319,7 +3362,7 @@
     if (!mows) { mowMesh.count = 0; return; }
     if (mowT > 0) return;
     mowT = 0.4;
-    const W = S.lot, p = world.parcels.find((q) => q.id === job.parcel), r = job.type === 'sod_planting' ? p : (W.zone || p);
+    const W = S.lot, p = world.parcels.find((q) => q.id === job.parcel), r = job.type === 'sod_planting' || job.type === 'lawn_mowing' ? p : (W.zone || p);
     if (!r) { mowMesh.count = 0; return; }
     let n = 0;
     const x0 = Math.floor(r.x / TS), x1 = Math.ceil((r.x + r.w) / TS), y0 = Math.floor(r.y / TS), y1 = Math.ceil((r.y + r.h) / TS);

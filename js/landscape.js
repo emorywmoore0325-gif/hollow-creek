@@ -225,6 +225,8 @@
     baseUpd.apply(this, arguments);
     const S = HC.session;
     if (!S || S.preview || !HC.company) return;
+    if (HC.company.upRefund) { delete HC.company.upRefund; HC.Game.toast('The bigger dump trailer upgrade is gone: you got your money back. The 16 ft tandem dump trailer (18 units) is in the shop.', 'call'); }
+    if (HC.company.procRefund) { delete HC.company.procRefund; HC.Game.toast('The firewood processor now comes with the Firewood Yard, so yours was refunded ($24,000). Buy the yard and the processor is included.', 'call'); }
     if (HC.company.landRefund) { delete HC.company.landRefund; HC.Game.toast('The landscaping crew has retired: you\'ve been refunded $1,500. Buy sod, shrubs and pavers on pallets (and bulk mulch) at the landscape supply, and lay them yourself on foot.', 'call'); }
     follow(S);
   };

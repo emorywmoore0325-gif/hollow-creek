@@ -400,4 +400,91 @@
     return false;
   };
   G.counterOdds = () => Math.round(HC.clamp(0.3 + (HC.Co.rating() - 3) * 0.28, 0.12, 0.85) * 100);
+
+  // ================= more kinds of work =================
+  const lawnZone = (lot) => ({ x: TS * 2, y: TS * 2, w: lot.pw - TS * 4, h: lot.roadY - TS * 4 });
+  const edgeZone = (lot) => ({ x: TS * 1.5, y: TS * 1.5, w: lot.pw - TS * 3, h: TS * 3.2 }); // the strip along the back line
+  const dropZone = (lot) => ({ x: lot.drive.x + lot.drive.w + TS * 0.5, y: lot.roadY - TS * 7, w: TS * 4, h: TS * 3.5 }); // beside the drive
+  Object.assign(G.ESTIMATE, {
+    lawn_mowing(tier) { return { pay: 190 + tier * 110, par: 35 + tier * 15, summary: 'An overgrown lawn to mow, front and back' }; },
+    hazard_tree(tier) {
+      const count = 1 + (tier > 1 ? 1 : 0) + (HC.chance(0.35) ? 1 : 0);
+      return { count, pay: 520 * count + 180 + tier * 120, par: 40 * count + 40, summary: `${count} dead hazard tree${count > 1 ? 's' : ''} leaning toward the house` };
+    },
+    firewood_delivery(tier) { const count = HC.randi(8, 14) + tier * 4; return { count, pay: count * 50 + 60, par: 45 + count * 2, summary: `${count} units of split firewood, dropped beside the drive` }; },
+    mulch_delivery(tier) { const count = HC.randi(6, 12) + tier * 4; return { count, pay: count * 50 + 80, par: 40 + count * 2, summary: `${count} units of mulch, dumped beside the drive` }; },
+    rock_picking(tier) { const count = HC.randi(10, 16) + tier * 5; return { count, pay: count * 26 + 140, par: 30 + count * 4, summary: `${count} rocks to pick off a field and haul away` }; },
+    fence_line(tier) {
+      const bushes = HC.randi(10, 16) + tier * 5, saplings = HC.randi(6, 10) + tier * 3;
+      return { bushes, saplings, pay: 260 + bushes * 26 + saplings * 24, par: 30 + (bushes + saplings) * 2.6, summary: `A grown-up fence line: ${bushes} brush thickets and ${saplings} saplings` };
+    },
+  });
+  Object.assign(L.GEN, {
+    lawn_mowing(lot) {
+      L.scatterTrees(lot, 4, ['oak', 'maple']);
+      const z = tilesOf(lawnZone(lot));
+      for (let y = z.y0; y < z.y1; y++) for (let x = z.x0; x < z.x1; x++) if (lot.tiles[y * lot.w + x] === T.GRASS && HC.chance(0.85)) lot.set(x, y, T.TALL);
+      lot.zone = null;
+      clearUnmowable(lot);
+    },
+    hazard_tree(lot, job) {
+      L.scatterTrees(lot, Math.round(lot.w * lot.h / 50), ['oak', 'maple', 'pine']);
+      const h = lot.house;
+      for (let i = 0, tries = 0; i < job.count && tries < 400; tries++) {
+        const side = HC.chance(0.5) ? -1 : 1, x = side < 0 ? h.x - HC.rand(TS * 1.6, TS * 3.2) : h.x + h.w + HC.rand(TS * 1.6, TS * 3.2), y = HC.rand(h.y - TS, h.y + h.h + TS);
+        if (x < TS * 1.5 || x > lot.pw - TS * 1.5 || y < TS * 1.5) continue;
+        lot.trees = lot.trees.filter((t) => HC.dist(t.x, t.y, x, y) > 50);
+        const t = L.makeTree('dead', x, y, HC.rand(1.05, 1.3)); t.marked = true; lot.trees.push(t); i++;
+      }
+    },
+    firewood_delivery(lot) { L.scatterTrees(lot, Math.round(lot.w * lot.h / 45), ['oak', 'maple', 'pine']); lot.zone = dropZone(lot); lot.trees = lot.trees.filter((t) => !HC.circleRectHit(t.x, t.y, t.trunkR + 24, lot.zone)); },
+    mulch_delivery(lot) { L.scatterTrees(lot, Math.round(lot.w * lot.h / 45), ['oak', 'maple', 'pine']); lot.zone = dropZone(lot); lot.trees = lot.trees.filter((t) => !HC.circleRectHit(t.x, t.y, t.trunkR + 24, lot.zone)); },
+    rock_picking(lot, job) {
+      const z = (lot.zone = sideZone(lot));
+      clearArea(lot, z);
+      L.scatterTrees(lot, 3, ['oak', 'maple']);
+      lot.trees = lot.trees.filter((t) => !HC.circleRectHit(t.x, t.y, t.trunkR + 20, z));
+      for (let i = 0; i < job.count; i++) lot.items.push({ id: HC.uid(), kind: 'rock', x: HC.rand(z.x + 14, z.x + z.w - 14), y: HC.rand(z.y + 14, z.y + z.h - 14), a: HC.rand(0, 6), size: HC.rand(0.85, 1.25), value: 0 });
+    },
+    fence_line(lot, job) {
+      const z = (lot.zone = edgeZone(lot));
+      lot.trees = lot.trees.filter((t) => !HC.circleRectHit(t.x, t.y, t.trunkR + 10, z));
+      L.scatterTrees(lot, Math.round(lot.w * lot.h / 60), ['oak', 'maple', 'pine']);
+      lot.trees = lot.trees.filter((t) => !HC.circleRectHit(t.x, t.y, t.trunkR + 10, z));
+      for (let i = 0, tries = 0; i < job.saplings && tries < 2000; tries++) {
+        const x = HC.rand(z.x, z.x + z.w), y = HC.rand(z.y, z.y + z.h);
+        if (lot.trees.some((t) => HC.dist(x, y, t.x, t.y) < t.trunkR + 22)) continue;
+        const t = L.makeTree('sapling', x, y, HC.rand(0.8, 1.1)); t.marked = true; lot.trees.push(t); i++;
+      }
+      L.scatterBushes(lot, job.bushes, z);
+      const tz = tilesOf(z);
+      for (let y = tz.y0; y < tz.y1; y++) for (let x = tz.x0; x < tz.x1; x++) if (HC.chance(0.6)) lot.set(x, y, T.TALL);
+    },
+  });
+  const inZone = (S, o) => S.lot.zone && HC.inRect(o.x, o.y, S.lot.zone);
+  Object.assign(G.OBJECTIVES, {
+    lawn_mowing(S) {
+      const p = HC.world.parcels.find((q) => q.id === S.job.parcel), W = S.lot;
+      let tall = 0;
+      if (p) for (let y = Math.floor(p.y / TS); y < Math.ceil((p.y + p.h) / TS); y++) for (let x = Math.floor(p.x / TS); x < Math.ceil((p.x + p.w) / TS); x++) if (W.tiles[y * W.w + x] === T.TALL) tall++;
+      S.init = S.init || { tall };
+      const ok = Math.floor(S.init.tall * 0.04);
+      return [{ label: 'Mow the lawn', n: tall <= ok ? 1 : 0, of: 1, left: Math.max(0, tall - ok) }];
+    },
+    hazard_tree: (S) => G.OBJECTIVES.tree_removal(S),
+    firewood_delivery(S) {
+      const n = pieces(S, (i) => inZone(S, i), ['firewood']);
+      return [{ label: `Drop ${S.job.count} units of firewood in the marked spot`, n: Math.min(n, S.job.count), of: S.job.count, left: Math.max(0, S.job.count - n) }];
+    },
+    mulch_delivery(S) {
+      const n = pieces(S, (i) => inZone(S, i), ['mulch']);
+      return [{ label: `Dump ${S.job.count} units of mulch in the marked spot`, n: Math.min(n, S.job.count), of: S.job.count, left: Math.max(0, S.job.count - n) }];
+    },
+    rock_picking(S) {
+      const left = pieces(S, (i) => inZone(S, i), ['rock']);
+      S.init = S.init || { left: Math.max(left, S.job.count) };
+      return [{ label: 'Pick the rocks off the field', n: Math.max(0, S.init.left - left), of: S.init.left, left }];
+    },
+    fence_line: (S) => G.OBJECTIVES.mulching(S),
+  });
 })();

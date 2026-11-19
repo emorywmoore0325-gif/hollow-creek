@@ -13,7 +13,7 @@ HC.TREES = {
 };
 
 // Game version: co-op players must match (bump whenever the game changes)
-HC.VERSION = '2026.11.19-4';
+HC.VERSION = '2026.11.19-6';
 HC.MAP_VER = 4; // bump whenever the world layout changes (saves then park everything back at the yard)
 
 // Equipment. key = number key. fuel in units, use per second.
@@ -645,3 +645,44 @@ for (const [k, p] of Object.entries({
   tractor: 24000, bucket: 24000, fwproc: 24000,
 })) if (HC.EQUIP[k]) HC.EQUIP[k].price = p;
 for (const [k, p] of Object.entries({ deckover: 9000, gnflat: 10500, gndump: 11500, lowboy: 15000 })) if (HC.TRAILERS[k]) HC.TRAILERS[k].price = p;
+
+// the gooseneck dump stretched to a 20 ft box: more load, and two small machines when it's empty
+Object.assign(HC.TRAILERS.gndump, { name: 'Gooseneck Dump Trailer (20 ft, high sides)', len: 69, cap: 26, deck: [-17, 46, 12], slots: [30, 0], payload: 8 });
+
+// the firewood processor is part of the Firewood Yard: it comes with the yard and isn't sold on its own
+HC.EQUIP.fwproc.price = 0;
+HC.YARDS.firewood.price = 30000;
+HC.BLURB.fwproc = 'Firewood processor: part of the Firewood Yard.';
+
+HC.TRAILERS.equip.price = HC.TRAILERS.equip.price || 4500; HC.TRAILERS.dump.price = HC.TRAILERS.dump.price || 2400;
+// ================= Everything about 10% dearer (machines, trucks, attachments, trailers, saws), rounded to the nearest $100 =================
+for (const e of Object.values(HC.EQUIP)) if (e.price) e.price = Math.round(e.price * 1.1 / 100) * 100;
+for (const t of Object.values(HC.TRAILERS)) if (t.price) t.price = Math.round(t.price * 1.1 / 100) * 100;
+for (const c of Object.values(HC.CHAINSAWS)) if (c.price) c.price = Math.round(c.price * 1.1 / 10) * 10;
+
+// ================= more kinds of work =================
+Object.assign(HC.JOBS, {
+  lawn_mowing: { name: 'Lawn Mowing', color: '#5aa83f', needs: ['mower'], disposal: 'place', blurb: 'An overgrown lawn, front and back. Mow it all.' },
+  hazard_tree: { name: 'Hazard Tree', color: '#b0452a', needs: ['saw'], disposal: 'haul', blurb: 'Dead trees leaning toward the house. Drop them safely (a bucket truck helps) and haul the wood away.' },
+  firewood_delivery: { name: 'Firewood Delivery', color: '#a8743c', needs: ['fwproc'], disposal: 'place', blurb: 'Bring split firewood from your Firewood Yard and dump it in the marked spot beside the drive.' },
+  mulch_delivery: { name: 'Mulch Delivery', color: '#5b3b24', needs: ['skid'], disposal: 'place', blurb: 'Bring mulch (bought at the landscape supply or ground yourself) and dump it in the marked spot.' },
+  rock_picking: { name: 'Field Rock Picking', color: '#8b8e93', needs: ['skid'], disposal: 'haul', blurb: 'Pick the rocks off the field with a grapple or loader and haul them away (the quarry buys them if you own it).' },
+  fence_line: { name: 'Fence Line Clearing', color: '#6d7d2a', needs: ['mulcher'], disposal: 'place', blurb: 'The back fence line has grown up in brush and saplings. Cut it back with a mulcher head or brush cutter.' },
+});
+Object.assign(HC.REQUESTS, {
+  lawn_mowing: ['We were away all summer and the yard is a hayfield. Can you mow it?', 'Grass is up to my knees. Front and back, please.', 'Renters moved out and left the lawn a jungle. Need it cut.'],
+  hazard_tree: ['There\'s a dead tree leaning right at my bedroom. Please hurry.', 'Two dead ash trees by the house. I lie awake when it\'s windy.', 'Arborist says the dead one by the garage could go any day.'],
+  firewood_delivery: ['Need {n} units of firewood for the winter, stacked by the drive.', 'Can you drop off {n} units of split hardwood?', 'Woodstove season: {n} units, please.'],
+  mulch_delivery: ['Need {n} units of mulch dumped by the driveway. We\'ll spread it.', 'Garden club order: {n} units of mulch beside the drive.'],
+  rock_picking: ['Plowed the back field and turned up {n} rocks. Can you pick them and haul them off?', 'Want to seed this side lot but it\'s all rocks. About {n} of them.'],
+  fence_line: ['The fence along the back is buried in brush. Can you clear it out?', 'Can\'t even see my back fence anymore. Brush and little trees all along it.'],
+});
+HC.KIND_ALIAS.mulcher = ['mulcher', 'fmulcher', 'brushcut'];
+
+// ================= No more "bigger dump trailer" upgrade: buy the bigger trailer instead =================
+delete HC.UPGRADES.trailer;
+HC.TRAILERS.dump18 = { name: 'Tandem Dump Trailer (16 ft)', len: 48, r: 20, solid: true, cap: 18, price: 4200 };
+
+// logs ride log trucks, the log trailer and the forwarder one spot apiece (bunks are built for them)
+HC.LOG_CARRIERS = ['logbed', 'logtrailer', 'fwdbed'];
+HC.loadOf = (c, t) => (c.kind === 'log' && t && HC.LOG_CARRIERS.includes(t.kind) ? 1 : HC.LOAD[c.kind] || 1);

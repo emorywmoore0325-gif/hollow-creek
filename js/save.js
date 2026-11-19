@@ -108,6 +108,10 @@
           if (HC.company.cond[k] === undefined) HC.company.cond[k] = 100;
         }
         const Cm = HC.company, up = Cm.upgrades || {};
+        if (up.trailer) { Cm.money += [0, 900, 2700][up.trailer] || 2700; delete up.trailer; Cm.upRefund = true; } // the trailer upgrade is gone: money back
+        // the processor now comes with the Firewood Yard: yard owners get one, a processor bought without the yard is refunded
+        if ((Cm.yards || {}).firewood && !Cm.owned.fwproc) { Cm.owned.fwproc = true; Cm.cond.fwproc = 100; }
+        else if (!(Cm.yards || {}).firewood && Cm.owned.fwproc) { Cm.owned.fwproc = false; Cm.money += 24000; Cm.procRefund = true; }
         if (Cm.owned.land) { Cm.owned.land = false; Cm.money += 1500; Cm.landRefund = true; } // the landscaping crew retired: you lay the materials yourself now
         if (Cm.owned.saw && !Cm.sawKind) Cm.sawKind = (up.chain || 0) >= 2 ? 's90' : up.chain === 1 ? 's70' : 's60'; // the old chain upgrade became a better saw
         delete up.chain;

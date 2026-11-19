@@ -267,9 +267,9 @@
     const trucks = keys.filter((k) => HC.EQUIP[k].move === 'car').map(card).join('');
     C.trailers = C.trailers || { equip: true, dump: true };
     HC.TRAILERS.equip.price = HC.TRAILERS.equip.price || 4500; HC.TRAILERS.dump.price = HC.TRAILERS.dump.price || 2400;
-    const trl = ['equip', 'dump', 'gndump', 'gnflat', 'deckover', 'lowboy', 'logtrailer'].filter((id) => HC.TRAILERS[id] && HC.TRAILERS[id].price).map((id) => {
+    const trl = ['equip', 'dump', 'dump18', 'gndump', 'gnflat', 'deckover', 'lowboy', 'logtrailer'].filter((id) => HC.TRAILERS[id] && HC.TRAILERS[id].price).map((id) => {
       const t = HC.TRAILERS[id], own = C.trailers[id], tcount = Object.keys(C.trailers).filter((q) => C.trailers[q] && HC.trailerKindOf(q) === id).length;
-      const desc = id === 'equip' ? '20 ft tandem-axle trailer with ramps. Carries two small machines (mini loader, skid steer, grinder, mower, mini excavator, tractor).' : id === 'dump' ? '14 ft dump trailer for logs, brush, rock and stumps (12 units).' : id === 'logtrailer' ? 'A spread-axle log trailer with four bunks for the semi (40 units, logs only). Load it with the excavators, forwarder or grapple; unload it at the log pad.' : id === 'gndump' ? 'Gooseneck dump with 4 ft high sides on tandem duals (18 units). When it\'s empty, the ramps slide out from under the box and one small machine (skid steer, mini, mower, tractor) drives right in. Pulled by the flatbed pickups and the dually.' : id === 'gnflat' ? '40 ft gooseneck flat deck on three axles with a dovetail and slide-out ramps. Three small machines (skid steers, minis, mowers), or one up to 9 t plus a small one. Pulled by the flatbed pickups and the dually.' : id === 'deckover' ? '25 ft heavy-duty deck-over on tandem dual axles with fold-up ramps. Two small machines, or one mid-size machine up to 9 t (the compact dozer). Any truck can tow it.' : id === 'lowboy' ? 'Low deck for heavy machines: the excavator, big dozer, harvester, forwarder, loader or tracked mulcher, plus a small machine if there\'s no heavy one. The semi or heavy-haul tractor pulls it.' : 'A second dump trailer, so one can be loading on site while the other runs to the pad.';
+      const desc = id === 'equip' ? '20 ft tandem-axle trailer with ramps. Carries two small machines (mini loader, skid steer, grinder, mower, mini excavator, tractor).' : id === 'dump' ? '14 ft dump trailer for logs, brush, rock and stumps (12 units).' : id === 'logtrailer' ? 'A spread-axle log trailer with four bunks for the semi (40 units, logs only). Load it with the excavators, forwarder or grapple; unload it at the log pad.' : id === 'dump18' ? '16 ft tandem-axle dump trailer: 18 units of logs, brush, rock or stumps. Any pickup pulls it.' : id === 'gndump' ? '20 ft gooseneck dump with 4 ft high sides on tandem duals (26 units, 8 t). When it\'s empty, the ramps slide out from under the box and up to two small machines (skid steer, mini, mower, tractor) drive right in. Pulled by the flatbed pickups and the dually.' : id === 'gnflat' ? '40 ft gooseneck flat deck on three axles with a dovetail and slide-out ramps. Three small machines (skid steers, minis, mowers), or one up to 9 t plus a small one. Pulled by the flatbed pickups and the dually.' : id === 'deckover' ? '25 ft heavy-duty deck-over on tandem dual axles with fold-up ramps. Two small machines, or one mid-size machine up to 9 t (the compact dozer). Any truck can tow it.' : id === 'lowboy' ? 'Low deck for heavy machines: the excavator, big dozer, harvester, forwarder, loader or tracked mulcher, plus a small machine if there\'s no heavy one. The semi or heavy-haul tractor pulls it.' : 'A second dump trailer, so one can be loading on site while the other runs to the pad.';
       const img = HC.Render.thumb(id, true);
       return `<article class="shop-item">${img ? `<img class="thumb" src="${img}" alt="${esc(t.name)}">` : ''}<h4>${esc(t.name)}</h4><p>${desc}</p>
         <div class="buy-row">${own ? `<span class="chip ok">Owned${tcount > 1 ? ' ×' + tcount : ''}</span>` : ''}<button class="btn buy-tr" data-id="${id}" ${C.money < t.price ? 'disabled' : ''}>${own ? 'Buy another' : 'Buy'} ${HC.money(t.price)}</button></div></article>`;
@@ -282,7 +282,7 @@
       3: { price: 22000, text: 'Put up a second pole barn on the expansion with five more covered machine bays.' } };
     const expCard = lvl < 3 && HC.world.yard.id === 'hq' ? `<article class="shop-item"><h4>Home Yard expansion <span class="lvl">${'■'.repeat(lvl)}${'□'.repeat(3 - lvl)}</span></h4><p>${EXP[lvl + 1].text}</p>
       <button class="btn buy-exp" ${C.money < EXP[lvl + 1].price ? 'disabled' : ''}>Level ${lvl + 1}: ${HC.money(EXP[lvl + 1].price)}</button></article>` : '';
-    const yards = expCard + quarryCard + HC.world.yards.filter((y) => !y.owned && !y.coop).map((y) => `<article class="shop-item"><h4>${esc(y.name)}</h4><p>A fenced equipment yard with a pole shed, parking bays and a fuel pump on Fox Run, across town. Park, fuel and repair equipment there.</p>
+    const yards = expCard + quarryCard + HC.world.yards.filter((y) => !y.owned && !y.coop).map((y) => `<article class="shop-item"><h4>${esc(y.name)}</h4><p>${y.id === 'firewood' ? 'Out on Hemlock Hollow Rd: a fenced yard with a permanent firewood processor, a roadside firewood stand, debris storage, parking bays and a fuel pump. Bring logs, run them through the processor, and stock the stand.' : 'A fenced equipment yard with a pole shed, parking bays and a fuel pump on Fox Run, across town. Park, fuel and repair equipment there.'}</p>
       <button class="btn buy-yard" data-id="${y.id}" ${C.money < y.price ? 'disabled' : ''}>Buy ${HC.money(y.price)}</button></article>`).join('');
     const trade = HC.Game.sawTrade();
     const saws = Object.keys(HC.CHAINSAWS).map((id) => {
@@ -311,7 +311,7 @@
       if (here) repairAll += cost;
       fuelAll += fuel;
       const where = here ? '' : `<span class="chip no">${u && u.boarded ? 'In a truck' : 'Not in a yard'}</span>`;
-      const sellable = HC.EQUIP[k].move !== 'walk' && k !== 'saw';
+      const sellable = HC.EQUIP[k].move !== 'walk' && k !== 'saw' && !HC.EQUIP[HC.baseOf(k)].fixed; // the firewood processor is part of its yard
       return `<tr><td>${k === 'saw' ? 'Chainsaw' : esc(HC.EQUIP[k].name)}</td><td><div class="bar"><i style="width:${C.cond[k]}%;background:${C.cond[k] < 30 ? '#d9483b' : '#4f9a3c'}"></i></div></td>
         <td class="num">${Math.round(C.cond[k])}%</td><td>${!cost ? '<span class="chip ok">Good</span>' : here ? `<button class="btn sm repair" data-k="${k}" ${C.money < cost ? 'disabled' : ''}>Fix ${HC.money(cost)}</button>` : where}</td>
         <td>${!sellable ? '' : S && S.active === k ? '<span class="chip no">You\'re in it</span>' : u && u.on ? '<span class="chip no">On a trailer</span>' : here ? `<button class="btn sm ghost-dark sell-u" data-k="${k}">Sell ${HC.money(HC.Game.resaleValue(k))}</button>` : '<span class="chip no">Park it at your yard to sell</span>'}</td></tr>`;
@@ -522,8 +522,9 @@
       const C = HC.company, y = HC.world.yards.find((q) => q.id === d.id);
       if (!y || C.money < y.price) return null;
       C.money -= y.price; y.owned = true; C.yards[y.id] = true;
+      if (y.id === 'firewood' && !C.owned.fwproc) { C.owned.fwproc = true; C.cond.fwproc = 100; C.fuel.fwproc = HC.EQUIP.fwproc.fuelCap; HC.Game.addUnit('fwproc', true); } // the processor comes with the yard
       HC.Audio.cash(); HC.Save.save();
-      return `${y.name} is yours. Park, fuel and repair equipment there.`;
+      return y.id === 'firewood' ? `${y.name} is yours, firewood processor and roadside stand included. Bring logs to the processor's deck.` : `${y.name} is yours. Park, fuel and repair equipment there.`;
     },
     '.buy-saw'(d) { HC.Game.buySaw(d.id); return null; },
     '.buy-saw2'() { return HC.Game.buyExtraSaw(); },
