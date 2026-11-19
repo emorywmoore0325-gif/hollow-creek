@@ -36,7 +36,8 @@
     },
     sod_planting(tier) {
       const sodW = HC.randi(4, 6) + tier * 2, sodH = HC.randi(3, 4) + tier, beds = HC.randi(5, 8) + tier * 2, shrubs = HC.randi(3, 5) + tier;
-      return { sodW, sodH, beds, shrubs, pay: sodW * sodH * 14 + beds * 10 + shrubs * 55 + 220, par: sodW * sodH * 1.5 + beds + shrubs * 3 + 70,
+      const mat = Math.ceil(sodW * sodH / 12) * 140 + beds * 48 + Math.ceil(shrubs / 6) * 160;
+      return { sodW, sodH, beds, shrubs, pay: Math.round(sodW * sodH * 14 + beds * 10 + shrubs * 40 + 220 + mat * 1.2), par: sodW * sodH * 1.5 + beds + shrubs * 3 + 70,
         summary: `${sodW * sodH} sq of sod, ${shrubs} shrubs, ${beds} bed tiles and a mow` };
     },
     bush_hog(tier) {
@@ -45,11 +46,23 @@
     },
     hardscape(tier) {
       const pw = HC.randi(4, 6) + tier * 2, ph = HC.randi(3, 5) + tier, rocks = HC.randi(3, 5) + tier;
-      return { pw, ph, rocks, pay: pw * ph * 30 + rocks * 35, par: pw * ph * 1.6 + rocks * 8 + 30, summary: `${pw}×${ph} paver patio, ${rocks} rocks to pull` };
+      return { pw, ph, rocks, pay: Math.round(pw * ph * 30 + rocks * 35 + Math.ceil(pw * ph / 10) * 190 * 1.2), par: pw * ph * 1.6 + rocks * 8 + 30, summary: `${pw}×${ph} paver patio, ${rocks} rocks to pull` };
     },
   });
 
   // ---------- lot helpers ----------
+  // grass the mower can't get to doesn't count: knock it back to plain grass next to houses and porches, under trunks and on fence lines
+  function clearUnmowable(lot) {
+    const keep = (x, y) => {
+      const cx = x * TS + 16, cy = y * TS + 16;
+      for (const h of lot.houses || []) if (HC.inRect(cx, cy, { x: h.x - TS * 1.4, y: h.y - TS * 1.2, w: h.w + TS * 2.8, h: h.h + TS * 3.2 })) return false;
+      for (const t of lot.trees || []) if (t.state !== 'gone' && HC.dist(cx, cy, t.x, t.y) < (t.trunkR || 8) + 22) return false;
+      for (const f of lot.fences || []) if (HC.segRectHit(f.x, f.y, f.x + (f.w || 0), f.y + (f.h || 0), 2, { x: cx - 18, y: cy - 18, w: 36, h: 36 })) return false;
+      return true;
+    };
+    for (let y = 0; y < lot.h; y++) for (let x = 0; x < lot.w; x++) if (lot.tiles[y * lot.w + x] === T.TALL && !keep(x, y)) lot.set(x, y, T.GRASS);
+  }
+
   function sideZone(lot) {
     const h = lot.house, hc = h.x + h.w / 2;
     const y0 = TS * 2.5, y1 = lot.roadY - TS * 3;
@@ -163,6 +176,7 @@
       const tz = tilesOf(z);
       for (let y = tz.y0; y < tz.y1; y++) for (let x = tz.x0; x < tz.x1; x++) if (HC.chance(0.7)) lot.set(x, y, T.TALL);
       L.scatterTrees(lot, 4, ['oak', 'maple']);
+      clearUnmowable(lot);
     },
     bush_hog(lot, job) {
       const z = (lot.zone = sideZone(lot));
@@ -178,6 +192,7 @@
       }
       L.scatterBushes(lot, job.bushes, z);
       L.scatterTrees(lot, 3, ['oak', 'maple']);
+      clearUnmowable(lot);
     },
     sod_planting(lot, job) {
       const h = lot.house, dtx = Math.floor(lot.drive.x / TS);
@@ -209,6 +224,7 @@
       L.scatterTrees(lot, 5, ['oak', 'maple']);
       lot.trees = lot.trees.filter((t) => !lot.targets.some((g) => HC.dist(t.x, t.y, g.tx * TS + 16, g.ty * TS + 16) < t.trunkR + 30));
       L.scatterRocks(lot, 2);
+      clearUnmowable(lot);
     },
     hardscape(lot, job) {
       const h = lot.house;

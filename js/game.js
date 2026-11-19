@@ -74,6 +74,35 @@
     return key;
   }
   // chainsaws: buying one trades in the saw you have for 40% of what it cost
+  function sawProps(S) {
+    if (Object.getOwnPropertyDescriptor(S, 'saw') && Object.getOwnPropertyDescriptor(S, 'saw').get) return;
+    S.saws = S.saws || [];
+    Object.defineProperty(S, 'saw', {
+      configurable: true, enumerable: false,
+      get() {
+        const L = S.saws; if (!L || !L.length) return null;
+        const who = (HC.Net && HC.Net.actor && (HC.Net.actor.unit || HC.Net.actor.walker)) || S.active;
+        const mine = L.find((s) => s.holder === who); if (mine) return mine;
+        const u = S.units && S.units[who], free = L.filter((s) => !s.holder || !S.units[s.holder]);
+        if (!free.length) return L.length === 1 ? L[0] : L.find((s) => S.units[s.holder] && S.units[s.holder].boarded) || L[0];
+        if (!u) return free[0];
+        const pos = (s) => (s.holder && S.units[s.holder] ? S.units[s.holder] : s);
+        return free.sort((a, b) => HC.dist(pos(a).x, pos(a).y, u.x, u.y) - HC.dist(pos(b).x, pos(b).y, u.x, u.y))[0];
+      },
+      set(v) { S.saws = v ? [v] : []; },
+    });
+  }
+  // another chainsaw of the same model (handy in co-op: everyone on foot can cut)
+  function buyExtraSaw() {
+    const S = HC.session, C = HC.company, spec = HC.CHAINSAWS[C.sawKind];
+    if (!spec || !C.owned.saw) return 'Buy your first chainsaw first.';
+    if (C.money < spec.price) return `You need ${HC.money(spec.price)}.`;
+    C.money -= spec.price; C.sawCount = (C.sawCount || 1) + 1;
+    const Y = HC.world.yard, o = Y.office || Y.spawn;
+    S.saws.push({ x: o.x + 20 + S.saws.length * 10, y: o.y + 24, a: 0, holder: null, fuel: HC.Units.SAW_CAP });
+    HC.Audio.cash(); HC.Save.save();
+    return `Another ${spec.name.toLowerCase()} is waiting by the office at your yard (${C.sawCount} saws now). Walk up and press G to pick it up.`;
+  }
   function buySaw(id) {
     const S = HC.session, C = HC.company, spec = HC.CHAINSAWS[id];
     if (!spec || C.sawKind === id) return false;
@@ -81,7 +110,7 @@
     if (C.money < spec.price - trade) return false;
     C.money -= spec.price - trade;
     C.sawKind = id; C.owned.saw = true; C.cond.saw = 100;
-    if (!S.saw && S.units.op) S.saw = { x: S.units.op.x + 12, y: S.units.op.y, a: 0, holder: 'op', fuel: HC.Units.SAW_CAP };
+    if (!S.saws.length && S.units.op) S.saw = { x: S.units.op.x + 12, y: S.units.op.y, a: 0, holder: 'op', fuel: HC.Units.SAW_CAP };
     HC.Audio.cash(); HC.Save.save();
     toast(`Bought the ${spec.name.toLowerCase()} (${spec.spec})${trade ? `, ${HC.money(trade)} off for your old saw` : ''}. It's with you: climb out (F) and press G to hold it.`, 'good');
     return true;
@@ -112,7 +141,7 @@
     S.trailers = S.trailers.filter((t) => !(HC.Units.isBed(t) && t.hitch === k));
     for (const t of S.trailers) if (t.hitch === k) t.hitch = null;
     if (S.hose && (S.hose.from === k || S.hose.to === k)) S.hose = null;
-    if (S.saw && S.saw.holder === k) S.saw.holder = null;
+    for (const sw of S.saws || []) if (sw.holder === k) sw.holder = null;
     delete S.units[k];
     C.owned[k] = false; C.clones = (C.clones || []).filter((c) => c.key !== k);
     C.money += value; HC.Audio.cash(); HC.Save.save();
@@ -131,12 +160,16 @@
     toast(`Sold the ${HC.TRAILERS[HC.trailerKindOf(id)].name.toLowerCase()} for ${HC.money(value)}.`, 'good');
     return true;
   }
-  function sellAttachment(kind) {
-    const S = HC.session, C = HC.company, a = (S.attachments || []).find((q) => q.id === kind);
+  function sellAttachment(id) {
+    const S = HC.session, C = HC.company, a = (S.attachments || []).find((q) => q.id === id) || (S.attachments || []).find((q) => q.kind === id);
+    const kind = a && a.kind;
     if (!a || !C.owned[kind]) return false;
-    if (a.on && !a.on.startsWith('trailer:')) { toast('Unhook it first (Q).', 'warn'); return false; }
+    if (a.on && !a.on.startsWith('trailer:') && !a.on.startsWith('truck:')) { toast('Unhook it first (Q).', 'warn'); return false; }
     const value = resaleValue(kind);
-    S.attachments = S.attachments.filter((q) => q !== a); C.owned[kind] = false;
+    S.attachments = S.attachments.filter((q) => q !== a);
+    const left = S.attachments.filter((q) => q.kind === kind).length;
+    C.attCount = C.attCount || {}; C.attCount[kind] = left;
+    if (!left) C.owned[kind] = false;
     C.money += value; HC.Audio.cash(); HC.Save.save();
     toast(`Sold the ${HC.EQUIP[kind].name.toLowerCase()} for ${HC.money(value)}.`, 'good');
     return true;
@@ -174,15 +207,17 @@
     for (const id of Object.keys(C.trailers)) if (C.trailers[id] && HC.TRAILERS[HC.trailerKindOf(id)]) addTrailer(id, true);
     for (const k in HC.EQUIP) if (C.owned[k] && !HC.EQUIP[k].noUnit) addUnit(k, true);
     // the chainsaw (if you've bought one) rides with you
+    sawProps(S);
     S.saw = C.owned.saw && S.units.op ? { x: S.units.op.x + 12, y: S.units.op.y, a: 0, holder: 'op', fuel: C.sawFuel ?? HC.Units.SAW_CAP } : null;
+    if (S.saws.length) { const o = HC.world.yard.office || HC.world.yard.spawn; for (let i = 1; i < (C.sawCount || 1); i++) S.saws.push({ x: o.x + 20 + i * 10, y: o.y + 24, a: 0, holder: null, fuel: HC.Units.SAW_CAP }); }
     // skid steer attachments are separate objects: the grapple starts on the machine, the mulcher head in the yard
     S.attachments = [];
     for (const k in S.units) if (HC.baseOf(k) === 'skid') S.attachments.push({ id: k === 'skid' ? 'grapple' : 'grapple-' + k, kind: 'grapple', on: k, x: S.units[k].x, y: S.units[k].y, a: S.units[k].a });
-    if (C.owned.mulcher) addAttachment('mulcher', true);
-    if (C.owned.bushhog) addAttachment('bushhog', true);
-    if (C.owned.brushcut) addAttachment('brushcut', true);
+    for (const k of Object.keys(HC.EQUIP).filter((q) => HC.EQUIP[q].attachTo)) if (C.owned[k]) for (let i = 1; i <= ((C.attCount || {})[k] || 1); i++) addAttachment(k, true, i === 1 ? k : `${k}_${i}`);
     restore(C.pos);
-    if (S.saw && C.pos && C.pos.saw) { Object.assign(S.saw, C.pos.saw); if (S.saw.holder && !S.units[S.saw.holder]) S.saw.holder = 'op'; }
+    for (const k in S.units) if (HC.EQUIP[k] && HC.EQUIP[HC.baseOf(k)].fixed) placeFixed(S.units[k]);
+    if (S.saws.length && C.pos && C.pos.saw) { Object.assign(S.saws[0], C.pos.saw); if (S.saws[0].holder && !S.units[S.saws[0].holder]) S.saws[0].holder = 'op'; }
+    if (C.pos && C.pos.saws) C.pos.saws.forEach((s, i) => { if (S.saws[i + 1]) { Object.assign(S.saws[i + 1], s); if (s.holder && !S.units[s.holder]) S.saws[i + 1].holder = null; } });
     if (C.pos && C.pos.attachments) for (const a of C.pos.attachments) { const m = S.attachments.find((q) => q.id === a.id); if (m) Object.assign(m, a); }
     // you start in the crew truck (or the machine you saved in)
     // you start in the crew truck (or the machine you saved in); with nothing bought yet, you're on foot at the office
@@ -233,57 +268,91 @@
       const gid = k === 'skid' ? 'grapple' : 'grapple-' + k;
       if (!S.attachments.some((q) => q.id === gid)) S.attachments.push({ id: gid, kind: 'grapple', on: k, x, y, a });
     }
-    if (!initial) toast(`${spec.name} delivered to your yard.`, 'good');
+    if (spec.fixed) placeFixed(u);
+    if (!initial) toast(spec.fixed ? `${spec.name} installed at the Firewood Yard.` : `${spec.name} delivered to your yard.`, 'good');
   }
 
   // ---------- skid steer attachments ----------
-  function addAttachment(kind, initial) {
+  function addAttachment(kind, initial, id = kind) {
     const S = HC.session, Y = HC.world.yard;
-    if (S.attachments.some((a) => a.id === kind)) return;
+    if (S.attachments.some((a) => a.id === id)) return;
     const shed = HC.world.sheds.find((sh) => sh.yard === 'hq');
-    const x = shed ? shed.x + shed.w - 40 : Y.spawn.x + 60, y = shed ? shed.y + shed.h + 34 : Y.spawn.y;
+    const n = S.attachments.filter((a) => !a.on && a.kind !== 'grapple').length;
+    const x = (shed ? shed.x + shed.w - 40 : Y.spawn.x + 60) - (n % 4) * 34, y = shed ? shed.y + shed.h + 34 : Y.spawn.y;
     const bh = kind === 'bushhog';
-    S.attachments.push({ id: kind, kind, on: null, x: bh ? x - 70 : x, y: bh ? y + 30 : y, a: bh ? Math.PI / 2 : -Math.PI / 2 });
-    if (!initial) toast(bh ? 'Bush hog delivered to your equipment yard. Back the tractor up square to it and press Q.' : `${kind === 'brushcut' ? 'Brush cutter' : 'Forestry mulcher head'} delivered to your equipment yard. Take the skid steer over, drop the grapple (Q) and pick up the new head (Q).`, 'good');
+    S.attachments.push({ id, kind, on: null, x: bh ? x - 70 : x, y: bh ? y + 30 : y, a: bh ? Math.PI / 2 : -Math.PI / 2 });
+    if (!initial) toast(bh ? 'Bush hog delivered to your equipment yard. Back the tractor up square to it and press Q.' : kind === 'forks' ? 'Pallet forks delivered to your equipment yard. Skid steer: drop the grapple (Q) and lock the forks on (Q). Tractor: drive the loader bucket up square to them and press Q.' : `${kind === 'brushcut' ? 'Brush cutter' : 'Forestry mulcher head'} delivered to your equipment yard. Take the skid steer over, drop the grapple (Q) and pick up the new head (Q).`, 'good');
   }
-  const ATT_NAME = { mulcher: 'Mulcher head', grapple: 'Grapple', bushhog: 'Bush hog', brushcut: 'Brush cutter' };
-  const attFits = (a, u) => (a.kind === 'bushhog' ? 'tractor' : 'skid') === HC.baseOf(u.kind);
-  // skid steer attachments lock on the front plate; the tractor's three-point hitch is behind it
-  const attachPoint = (u) => HC.baseOf(u.kind) === 'tractor' ? { x: u.x - Math.cos(u.a) * 24, y: u.y - Math.sin(u.a) * 24 } : { x: u.x + Math.cos(u.a) * 28, y: u.y + Math.sin(u.a) * 28 };
+  // another of an attachment you already own (two skid steers, two mulcher heads...)
+  // a fixed installation sits on its station (the firewood processor at the Firewood Yard)
+  function placeFixed(u) {
+    const sp = HC.baseOf(u.kind) === 'fwproc' && HC.world.fwProcSpot;
+    if (!sp) return;
+    Object.assign(u, { x: sp.x, y: sp.y, a: sp.a, hitch: null, v: 0 });
+  }
+  function buyAttachment(kind) {
+    const C = HC.company; C.attCount = C.attCount || {};
+    const S = HC.session; let n = 2;
+    while (S.attachments.some((a) => a.id === `${kind}_${n}`)) n++;
+    C.attCount[kind] = S.attachments.filter((a) => a.kind === kind).length + 1;
+    addAttachment(kind, false, `${kind}_${n}`);
+  }
+  const ATT_NAME = { mulcher: 'Mulcher head', grapple: 'Grapple', bushhog: 'Bush hog', brushcut: 'Brush cutter', forks: 'Pallet forks' };
+  // forks go on a skid steer's quick-attach or clamp onto the tractor's loader bucket; the bush hog hangs on the tractor's three-point hitch
+  const attFits = (a, u) => (a.kind === 'forks' ? ['skid', 'tractor'].includes(HC.baseOf(u.kind)) : (a.kind === 'bushhog' ? 'tractor' : 'skid') === HC.baseOf(u.kind));
+  const frontSlot = (a) => a.kind !== 'bushhog';
+  const attachPoint = (u, a) => HC.baseOf(u.kind) === 'tractor' && !(a && a.kind === 'forks') ? { x: u.x - Math.cos(u.a) * 24, y: u.y - Math.sin(u.a) * 24 } : { x: u.x + Math.cos(u.a) * (HC.baseOf(u.kind) === 'tractor' ? 40 : 28), y: u.y + Math.sin(u.a) * (HC.baseOf(u.kind) === 'tractor' ? 40 : 28) };
   function attachmentNear(u, S) {
-    const p = attachPoint(u);
-    return (S.attachments || []).filter((a) => (!a.on || a.on.startsWith('trailer:')) && attFits(a, u)).find((a) => HC.dist(a.x, a.y, p.x, p.y) < 24 && Math.abs(HC.angDiff(u.a, a.a)) < 0.9);
+    return (S.attachments || []).filter((a) => (!a.on || a.on.startsWith('trailer:') || a.on.startsWith('truck:')) && attFits(a, u)).find((a) => { const p = attachPoint(u, a); return HC.dist(a.x, a.y, p.x, p.y) < 24 && Math.abs(HC.angDiff(u.a, a.a)) < 0.9; });
   }
   // Q in the skid steer: drop what's on the quick-attach, or lock on the attachment in front of you
   function attachToggle(u, S) {
     if (Math.abs(u.v) > 4) return toast('Stop first.');
     if (u.carrying && u.carrying.length) return toast('Drop what the grapple is holding first.');
-    const cur = (S.attachments || []).find((a) => a.on === u.kind);
+    if (HC.Landscape && HC.Landscape.list().some((p) => p.ride && p.ride.held === u.kind)) return toast('Set the pallet down first (E).');
+    const mine = (S.attachments || []).filter((a) => a.on === u.kind);
+    let cur = mine[0];
+    if (HC.baseOf(u.kind) === 'tractor') { // two places to hang things: pick up into a free one first, else drop (forks before the bush hog)
+      const nearA = attachmentNear(u, S);
+      if (nearA && !mine.some((m) => frontSlot(m) === frontSlot(nearA))) cur = null;
+      else cur = mine.find((m) => m.kind === 'forks') || mine[0];
+    }
     if (cur) {
-      if (u.armT > 0.3) return toast(HC.baseOf(u.kind) === 'tractor' ? 'Lower the hitch (hold G) to set the bush hog down.' : 'Lower the arms (hold G) to set the attachment down.');
-      const p = attachPoint(u);
+      const p = attachPoint(u, cur);
+      const onto = S.trailers.some((t) => HC.Units.onDeck(t, p)) || Object.values(S.units).some((t) => (HC.FLATBEDS || []).includes(HC.baseOf(t.kind)) && t !== u && HC.dist(t.x - Math.cos(t.a) * 17, t.y - Math.sin(t.a) * 17, p.x, p.y) < 26);
+      if (!onto && u.armT > 0.3) return toast(HC.baseOf(u.kind) === 'tractor' ? 'Lower the hitch (hold G) to set the bush hog down.' : 'Lower the arms (hold G) to set the attachment down.');
+      if (onto && cur.kind !== 'bushhog' && u.armT < 0.3) return toast('Raise the arms (hold T) to lift it up onto the deck, then press Q.');
       Object.assign(cur, { on: null, x: p.x, y: p.y, a: u.a });
       const deck = S.trailers.find((t) => HC.Units.onDeck(t, p));
+      const truck = !deck && Object.values(S.units).find((t) => (HC.FLATBEDS || []).includes(HC.baseOf(t.kind)) && t !== u && HC.dist(t.x - Math.cos(t.a) * 17, t.y - Math.sin(t.a) * 17, p.x, p.y) < 26);
+      if (truck && HC.bedBlocked(S, truck)) { Object.assign(cur, { on: u.kind }); return toast('The gooseneck is hitched in that bed. Unhook it to carry an attachment there.', 'warn'); }
+      if (truck && HC.deckLoad(S, truck, true) + (HC.ATT_T[cur.kind] || 0.4) > HC.BED_PAYLOAD) { Object.assign(cur, { on: u.kind }); return toast(`Too heavy for the truck bed (${HC.BED_PAYLOAD} t max).`, 'warn'); }
       if (deck) { const dx = p.x - deck.x, dy = p.y - deck.y, c = Math.cos(deck.a), s2 = Math.sin(deck.a); Object.assign(cur, { on: 'trailer:' + deck.id, along: dx * c + dy * s2, side: -dx * s2 + dy * c, ra: u.a - deck.a }); }
+      else if (truck) Object.assign(cur, { on: 'truck:' + truck.kind, along: -16, side: 0, ra: Math.PI });
       HC.Audio.drop();
-      return toast(`${ATT_NAME[cur.kind]} unhooked${deck ? ' on the trailer deck' : ''}.`);
+      return toast(`${ATT_NAME[cur.kind]} unhooked${deck ? ' on the trailer deck' : truck ? ' on the truck bed' : ''}.`);
     }
     const a = attachmentNear(u, S);
     if (!a) return toast(HC.baseOf(u.kind) === 'tractor' ? 'Nothing to hook up. Back up square to the bush hog and press Q.' : 'Nothing to hook up. Line the quick-attach up square with an attachment and press Q.');
     if (u.armT > 0.3) return toast(HC.baseOf(u.kind) === 'tractor' ? 'Lower the hitch (hold G) to line up the lift arms.' : 'Lower the arms (hold G) to scoop the attachment up.');
     a.on = u.kind;
     HC.Audio.pick();
-    toast(`${ATT_NAME[a.kind]} ${a.kind === 'bushhog' ? 'hooked to the three-point hitch' : 'locked on'}.`, 'good');
+    toast(`${ATT_NAME[a.kind]} ${a.kind === 'bushhog' ? 'hooked to the three-point hitch' : a.kind === 'forks' && HC.baseOf(u.kind) === 'tractor' ? 'clamped onto the loader bucket' : 'locked on'}.`, 'good');
   }
   function followAttachments(S) {
     for (const a of S.attachments || []) {
       if (!a.on) continue;
-      if (a.on.startsWith('trailer:')) {
+      if (a.on.startsWith('truck:')) {
+        const t = S.units[a.on.slice(6)];
+        if (!t) { a.on = null; continue; }
+        const c = Math.cos(t.a), s2 = Math.sin(t.a);
+        a.x = t.x + c * a.along - s2 * a.side; a.y = t.y + s2 * a.along + c * a.side; a.a = t.a + (a.ra || 0);
+      } else if (a.on.startsWith('trailer:')) {
         const t = S.trailers.find((q) => q.id === a.on.slice(8));
         if (!t) { a.on = null; continue; }
         const c = Math.cos(t.a), s2 = Math.sin(t.a);
         a.x = t.x + c * a.along - s2 * a.side; a.y = t.y + s2 * a.along + c * a.side; a.a = t.a + (a.ra || 0);
-      } else { const u = S.units[a.on]; if (u) { const p = attachPoint(u); a.x = p.x; a.y = p.y; a.a = u.a; } }
+      } else { const u = S.units[a.on]; if (u) { const p = attachPoint(u, a); a.x = p.x; a.y = p.y; a.a = u.a; } }
     }
   }
 
@@ -299,8 +368,10 @@
     for (const t of S.trailers) if (HC.EQUIP[t.kind] === undefined || !HC.EQUIP[t.kind].move) trailers[t.id] = { x: t.x, y: t.y, a: t.a, hitch: t.hitch, load: t.load, cargo: t.cargo };
     if (S.saw) HC.company.sawFuel = S.saw.fuel;
     // loose things left out in the world (dumped loads, mulch piles, dropped logs) that aren't part of a job lot
-    const items = S.lot.items.filter((i) => !i.parcel && !i.z);
-    return { units, trailers, items, active: S.active, driver: S.driver || null, saw: S.saw ? { ...S.saw } : null, attachments: (S.attachments || []).map((a) => ({ ...a })) };
+    // keep everything lying in a yard (debris storage, rocks, logs) or anywhere off a customer's lot, wherever it came from
+    const offLot = (i) => !!HC.World.yardAt(i.x, i.y, false) || !HC.world.parcels.some((p) => HC.inRect(i.x, i.y, p));
+    const items = S.lot.items.filter((i) => !i.feedTo && (!i.parcel || offLot(i)) && offLot(i)).map((i) => Object.assign({}, i, { z: 0, vz: 0, parcel: undefined, hp: undefined }));
+    return { units, trailers, items, active: S.active, driver: S.driver || null, saw: S.saws && S.saws[0] ? { ...S.saws[0] } : null, saws: (S.saws || []).slice(1).map((s) => ({ ...s })), attachments: (S.attachments || []).map((a) => ({ ...a })) };
   }
   function restore(pos) {
     const S = HC.session;
@@ -584,60 +655,74 @@
       tr.load += l; tr.cargo.push(it); u.carrying.shift(); n++;
     }
     if (n) HC.Audio.drop();
-    if (u.carrying.length) toast(`Dump trailer is full (${tr.load}/${cap}). Hitch it to a truck and run it to the log pad.`, 'warn');
+    if (u.carrying.length) toast(`Dump trailer is full (${tr.load}/${cap}). Hitch it to a truck: logs to the sawmill, brush and stumps to the county dump.`, 'warn');
     else if (tr.load >= cap - 1) toast(`Dump trailer is nearly full (${tr.load}/${cap}).`);
   }
   // Unload at the yard pad: sell logs, pay dump fees for brush/rock
-  function haul(tr) {
+  // unload at a pad: the sawmill buys logs (nothing else); the county dump takes logs free and charges for brush, stumps and rock
+  function haul(tr, pad) {
     const S = HC.session;
     if (!tr || !tr.cargo.length) return;
+    const rig = tr.hitch && S.units[tr.hitch];
+    pad = pad || padAt(tr.x, tr.y) || (rig && padAt(rig.x, rig.y)) || { type: 'dump' };
+    const mill = pad.type === 'mill';
+    const takes = (c) => (mill ? c.kind === 'log' : ['log', 'brush', 'stump', 'rock'].includes(c.kind));
+    const take = tr.cargo.filter(takes), keep = tr.cargo.filter((c) => !takes(c));
+    if (!take.length) {
+      return toast(mill ? 'The sawmill only buys logs. Brush, stumps and rock go to the county brush & stump dump.' : 'The dump doesn\'t take those. Firewood, mulch and chips sell at the landscape supply (firewood also at your stand).');
+    }
     let logs = 0, fees = 0, nl = 0;
-    const keep = tr.cargo.filter((c) => c.kind === 'firewood' || c.kind === 'mulch' || c.kind === 'chips'); // products stay aboard to sell
-    for (const c of tr.cargo) {
-      if (keep.includes(c)) continue;
-      if (c.kind === 'log') { logs += c.value; nl++; } else fees += HC.DUMP_FEE * (HC.LOAD[c.kind] || 1);
+    for (const c of take) {
+      if (c.kind === 'log' && mill) { logs += Math.round((c.value || 0) * HC.MILL_PRICE); nl++; } else fees += HC.dumpFee(c);
     }
     tr.cargo = keep; tr.load = keep.reduce((a, c) => a + (HC.LOAD[c.kind] || 1), 0);
-    if (!logs && !fees && keep.length) return toast('The pad doesn\'t buy those. Firewood, mulch and chips sell at the landscape supply (firewood also at your stand).');
     if (S.job) { S.logSales += logs; S.costs.dump += fees; }
     HC.company.money += logs - fees;
     HC.company.stats.logsSold += nl;
     S.time += 10; if (S.stage === 'onsite') S.workMins += 10;
     HC.Audio.cash();
-    toast(`Dumped the trailer. Logs sold for ${HC.money(logs)}, dump fees ${HC.money(fees)}.`, 'good');
+    const left = keep.length ? ` ${keep.length} piece(s) stay aboard.` : '';
+    toast(mill ? `The sawmill bought ${nl} log(s) for ${HC.money(logs)}.${left}` : `Unloaded at the county dump: ${take.length} piece(s), fees ${HC.money(fees)}${take.some((c) => c.kind === 'log') ? ' (logs taken free: the sawmill pays for them)' : ''}.${left}`, 'good');
   }
 
   // Sell rocks at a quarry you own (the rest of the load stays aboard)
   // X in a dump truck (or a truck towing a dump trailer): tip the whole load into a pile right where you are
   const DUMP_BOX = ['dump', 'dump2', 'gndump', 'bed'];
-  // an owned log & dump pad under this point (the public pads in town, or the ones in yards you own)
+  // the sawmill log yard or the county dump under this point
   function padAt(x, y) {
     const S = HC.session;
-    return (S.lot.pads || [S.lot.pad]).find((p) => p && HC.inRect(x, y, p) && (!p.yard || (S.lot.yards.find((q) => q.id === p.yard) || {}).owned));
+    return (S.lot.pads || []).find((p) => p && HC.inRect(x, y, p));
+  }
+  // debris storage at a yard you own: dump there for free, it stays until you come back for it
+  function storageAt(x, y) {
+    const S = HC.session;
+    return (S.lot.storage || []).find((p) => HC.inRect(x, y, p) && (S.lot.yards.find((q) => q.id === p.yard) || {}).owned);
   }
   // debris lying on a pad (dumped, dropped by a loader or grapple) is taken in: logs sold, the rest charged the dump fee
   function sweepPads() {
     const S = HC.session;
     if (!S || !S.lot || S.preview) return;
     let logs = 0, fees = 0, nl = 0, n = 0;
-    const take = (c) => { if (c.kind === 'log') { logs += c.value || 0; nl++; } else fees += HC.DUMP_FEE * (HC.LOAD[c.kind] || 1); n++; };
+    const take = (c, mill) => { if (c.kind === 'log' && mill) { logs += Math.round((c.value || 0) * HC.MILL_PRICE); nl++; } else fees += HC.dumpFee(c); n++; };
     S.lot.items = S.lot.items.filter((i) => {
-      if (!padAt(i.x, i.y)) return true;
+      const pad = padAt(i.x, i.y);
+      if (!pad) return true;
+      const mill = pad.type === 'mill', ok = (c) => (mill ? c.kind === 'log' : DEBRIS.includes(c.kind) || c.kind === 'rock');
       if (i.kind === 'pile') {
         if (i.mulch || i.chips || i.firewood) return true;
-        const keep = i.content.filter((c) => !DEBRIS.includes(c.kind) && c.kind !== 'rock');
-        i.content.filter((c) => !keep.includes(c)).forEach(take);
+        const keep = i.content.filter((c) => !ok(c));
+        i.content.filter((c) => !keep.includes(c)).forEach((c) => take(c, mill));
         i.content = keep;
         return keep.length > 0;
       }
-      if (DEBRIS.includes(i.kind) || i.kind === 'rock') { take(i); return false; }
+      if (ok(i)) { take(i, mill); return false; }
       return true;
     });
     if (!n) return;
     if (S.job) { S.logSales += logs; S.costs.dump += fees; }
     HC.company.money += logs - fees; HC.company.stats.logsSold += nl;
     HC.Audio.cash();
-    toast(`The pad took ${n} piece(s): logs sold for ${HC.money(logs)}, dump fees ${HC.money(fees)}.`, 'good');
+    toast(`Taken in: ${n} piece(s). ${logs ? `Logs sold for ${HC.money(logs)}. ` : ''}${fees ? `Dump fees ${HC.money(fees)}.` : ''}`, 'good');
   }
   function dumpLoad(u) {
     const S = HC.session;
@@ -652,20 +737,35 @@
       const back = { dumptruck2: 58, dumptruck3: 72, dumptruck: 48, chiptruck: 50, chiptruck2: 62 }[HC.baseOf(u.kind)] || 48;
       const p = t.kind === 'bed' ? { x: u.x - Math.cos(u.a) * back, y: u.y - Math.sin(u.a) * back } : { x: t.x - Math.cos(t.a) * 32, y: t.y - Math.sin(t.a) * 32 };
       const junk = t.cargo.filter((c) => DEBRIS.includes(c.kind) || c.kind === 'rock').length;
-      if (junk && (padAt(p.x, p.y) || padAt(u.x, u.y) || padAt(t.x, t.y))) {
+      const pad = padAt(p.x, p.y) || padAt(u.x, u.y) || padAt(t.x, t.y);
+      if (junk && pad) {
         const before = t.cargo.length;
-        haul(t); n += before - t.cargo.length; t.tipT = 1; t.tipN = (t.tipN || 0) + 1;
+        haul(t, pad); n += before - t.cargo.length; t.tipT = 1; t.tipN = (t.tipN || 0) + 1;
         for (let i = 0; i < 6; i++) dust(p.x + HC.rand(-14, 14), p.y + HC.rand(-14, 14), '#8a6a44', 3, 80);
         if (!t.cargo.length) continue;
       }
-      if (junk && !HC.World.yardAt(p.x, p.y, true) && !padAt(p.x, p.y)) { // not at your own yard
+      if (junk && storageAt(p.x, p.y)) toast('Dumped in your debris storage. It stays here until you haul it to the sawmill or the county dump.');
+      else if (junk && !HC.World.yardAt(p.x, p.y, true) && !padAt(p.x, p.y)) { // not at your own yard
         const onJob = S.job && HC.world.parcels.some((q) => q.id === S.job.parcel && HC.inRect(p.x, p.y, { x: q.x - 8, y: q.y - 8, w: q.w + 16, h: q.h + 16 }));
         if (!onJob) { const fine = junk * HC.DUMPING_FINE; HC.company.money -= fine; if (S.job) S.costs.damage += fine; toast(`Illegal dumping: ${junk} piece(s) of debris tipped out off the job and away from your yard. Fined ${HC.money(fine)}.`, 'bad'); }
-        else if ((HC.JOBS[S.job.type] || {}).disposal === 'haul') toast('This job is haul-away: anything left on the property is fined at the invoice. Take it to a log & dump pad.', 'warn');
+        else if ((HC.JOBS[S.job.type] || {}).disposal === 'haul') toast('This job is haul-away: anything left on the property is fined at the invoice. Logs go to the sawmill, brush and stumps to the county dump.', 'warn');
       }
       if (!t.cargo.length) continue;
       const mulch = t.cargo.every((c) => c.kind === 'mulch'), chips = !mulch && t.cargo.every((c) => c.kind === 'chips'), firewood = !mulch && !chips && t.cargo.every((c) => c.kind === 'firewood');
       piled = true;
+      if (!mulch && !chips && !firewood) { // logs, brush, stumps and rock land as separate pieces, spread out behind the box
+        const back = t.kind === 'bed' ? u.a : t.a, k = t.cargo.length;
+        t.cargo.forEach((c, i) => {
+          const d = 6 + Math.sqrt(i / Math.max(1, k)) * (10 + Math.sqrt(k) * 5), ang = back + Math.PI + HC.rand(-0.9, 0.9);
+          Object.assign(c, { x: p.x + Math.cos(ang) * d * 0.6, y: p.y + Math.sin(ang) * d * 0.6 + HC.rand(-4, 4), z: 0, vz: 0, a: HC.rand(0, 6.28) });
+          if (c.kind === 'log') c.a = back + HC.rand(-0.5, 0.5);
+          if (!c.id) c.id = HC.uid();
+          S.lot.items.push(c);
+        });
+        n += k; t.cargo = []; t.load = 0; t.tipT = 1; t.tipN = (t.tipN || 0) + 1;
+        for (let i = 0; i < 6; i++) dust(p.x + HC.rand(-14, 14), p.y + HC.rand(-14, 14), '#8a6a44', 3, 80);
+        continue;
+      }
       let pile = S.lot.items.find((it) => it.kind === 'pile' && !!it.mulch === mulch && !!it.chips === chips && !!it.firewood === firewood && HC.dist(it.x, it.y, p.x, p.y) < 30);
       if (!pile) { pile = { id: HC.uid(), kind: 'pile', mulch, chips, firewood, x: p.x, y: p.y, a: HC.rand(0, 6.28), size: 0.6, content: [] }; S.lot.items.push(pile); }
       for (const c of t.cargo) { Object.assign(c, { x: pile.x, y: pile.y, z: 0 }); pile.content.push(c); }
@@ -674,7 +774,7 @@
       for (let i = 0; i < 6; i++) dust(p.x + HC.rand(-14, 14), p.y + HC.rand(-14, 14), mulch ? '#3a2618' : '#8a6a44', 3, 80);
     }
     HC.Audio.drop(); S.time += 2; if (S.stage === 'onsite') S.workMins += 2;
-    if (piled) toast(`Box up: dumped ${n} piece(s) in a pile. A grapple or loader can pick it back up.`);
+    if (piled) toast(`Box up: dumped ${n} piece(s). A grapple or loader can pick them back up.`);
   }
   function sellMulch(loads) {
     const S = HC.session;
@@ -716,7 +816,7 @@
       t.load -= rocks.length * (HC.LOAD.rock || 3);
       n += rocks.length;
     }
-    if (!n) return toast('No rocks in the load. Logs go to the log pad at your home yard.');
+    if (!n) return toast('No rocks in the load. Logs sell at the sawmill.');
     const pay = n * HC.ROCK_PRICE;
     HC.company.money += pay;
     if (S.job) S.logSales += pay;
@@ -876,6 +976,7 @@
     HC.company.minute = S.time;
     if (S.time >= DAY_END) return endOfDay(S);
     for (const k in S.units) if (!S.units[k].hidden && !(HC.Net && HC.Net.drive(k, S.units[k], dt, S))) HC.Units.update(S.units[k], dt, S, k === S.active); // co-op guests drive their own machines
+    HC.Units.snapRiders(S); // strapped machines follow their trailer in the same frame (no lag, no shake)
     arriveCheck(S);
     calls(S);
     for (const t of S.lot.trees) {
@@ -922,8 +1023,8 @@
   }
 
   HC.Game = {
-    buySaw, sawTrade, stockStand, makeJob, makeBoard, rollWeather, boot, accept, addUnit, buyAnother, sellUnit, sellTrailer, sellAttachment, resaleValue, trailerResale, buyTrailer, registerClone, addAttachment, attachToggle, attachmentNear, select, take, climb, nearestMachine, update, finish, snapshot, toast, hintOnce, float, dust, penalty, setTile,
+    buySaw, sawTrade, buyAttachment, buyExtraSaw, sawProps, stockStand, makeJob, makeBoard, rollWeather, boot, accept, addUnit, buyAnother, sellUnit, sellTrailer, sellAttachment, resaleValue, trailerResale, buyTrailer, registerClone, addAttachment, attachToggle, attachmentNear, select, take, climb, nearestMachine, update, finish, snapshot, toast, hintOnce, float, dust, penalty, setTile,
     spray, fell, fallGeom, predictHits, spreadDeg, buck, cutBush, loadTrailer, haul, trailerCap, sellRocks, sellMulch, dumpLoad, dropItems, takeItem,
-    objectives, inZone, jobHint, debrisOn, padAt, sweepPads, bucketTree, addTrailer, ESTIMATE, OBJECTIVES, DAY_START, DAY_END,
+    objectives, inZone, jobHint, debrisOn, padAt, storageAt, sweepPads, bucketTree, addTrailer, ESTIMATE, OBJECTIVES, DAY_START, DAY_END,
   };
 })();

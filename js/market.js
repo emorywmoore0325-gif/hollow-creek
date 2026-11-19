@@ -95,7 +95,7 @@
     HC.Game.toast(`Firewood stand: a customer bought ${n} bundle${n > 1 ? 's' : ''} for ${HC.money(pay)}. ${st.stock ? st.stock + ' left on the stand.' : 'The stand is sold out.'}`, 'good');
   };
 
-  // the log & dump pads collect whatever debris is left lying on them
+  // the sawmill and the county dump take in whatever is left lying on their pads
   let padAcc = 0;
   const baseUpd2 = HC.Game.update;
   HC.Game.update = function (dt) {

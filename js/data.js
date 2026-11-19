@@ -13,8 +13,8 @@ HC.TREES = {
 };
 
 // Game version: co-op players must match (bump whenever the game changes)
-HC.VERSION = '2026.11.19-1';
-HC.MAP_VER = 3; // bump whenever the world layout changes (saves then park everything back at the yard)
+HC.VERSION = '2026.11.19-3';
+HC.MAP_VER = 4; // bump whenever the world layout changes (saves then park everything back at the yard)
 
 // Equipment. key = number key. fuel in units, use per second.
 HC.EQUIP = {
@@ -164,7 +164,7 @@ Object.assign(HC.EQUIP.chipper, {
 });
 Object.assign(HC.EQUIP.truck, {
   name: 'Crew Truck', short: 'Truck',
-  help: 'Crew-cab dually. R hitches or drops a trailer. Crews press E beside it to ride along. E on the log pad unloads the dump trailer.',
+  help: 'Crew-cab dually. R hitches or drops a trailer. Crews press E beside it to ride along. E at the sawmill sells logs from the dump trailer; E at the county brush dump unloads the rest.',
 });
 HC.EQUIP.truck2 = {
   name: 'Second Truck', short: 'Truck 2', key: 8, move: 'car', speed: 150, turn: 2.2, r: 16,
@@ -210,12 +210,12 @@ Object.assign(HC.EQUIP, {
   dumptruck: {
     name: 'Single-Axle Dump Truck', short: 'Dump truck', move: 'car', speed: 135, turn: 2.0, r: 18,
     fuelCap: 160, fuelUse: 0.4, wear: 0.02, price: 14000, repair: 10, bed: 18,
-    help: 'Has its own 18-unit dump bed (load it like a trailer) and can still tow a trailer. E on the log pad dumps everything.',
+    help: 'Has its own 18-unit dump bed (load it like a trailer) and can still tow a trailer. E at the county brush dump (or the sawmill, for logs) unloads it.',
   },
   logtruck: {
     name: 'Knuckleboom Log Truck', short: 'Log truck', move: 'car', speed: 125, turn: 1.8, r: 20, bed: 30, logsOnly: true,
     fuelCap: 200, fuelUse: 0.5, wear: 0.02, price: 22000, repair: 12,
-    help: 'Loads itself: park beside logs and press E to swing them aboard with the crane (30 units, logs only). Sells the whole load at the log pad.',
+    help: 'Loads itself: park beside logs and press E to swing them aboard with the crane (30 units, logs only). Sells the whole load at the sawmill.',
   },
   bucket: {
     name: 'Bucket Truck (60 ft)', short: 'Bucket', move: 'car', speed: 130, turn: 2.0, r: 18,
@@ -280,7 +280,7 @@ Object.assign(HC.EQUIP, {
   miniex: {
     name: 'Mini Excavator (3.5 t)', short: 'Mini ex', move: 'tank', speed: 24, turn: 1.3, r: 17, mass: 3.5, reach: 38, cap: 2,
     fuelCap: 60, fuelUse: 0.25, work: 0.35, wear: 0.03, price: 9000, repair: 7,
-    help: 'Small enough for the equipment trailer. E grabs two pieces at a time; hold left click on a stump to pull it (slower than the big excavator).',
+    help: 'Small enough for the equipment trailer. E grabs three pieces at a time; hold left click on a stump to pull it (slower than the big excavator).',
   },
   dozerS: {
     name: 'Compact Dozer (D3 class)', short: 'Dozer', move: 'tank', speed: 28, turn: 1.1, r: 20, mass: 8, heavy: true, blade: 28,
@@ -300,7 +300,7 @@ Object.assign(HC.EQUIP, {
   forwarder: {
     name: 'Forwarder (14 t)', short: 'Forwarder', move: 'tank', artic: true, wheelbase: 5.6, speed: 38, turn: 0.95, r: 26, mass: 14, heavy: true, bed: 24, logsOnly: true, reach: 100,
     fuelCap: 220, fuelUse: 0.6, work: 0.6, wear: 0.03, price: 52000, repair: 16,
-    help: 'Off-road log hauler. Park within crane reach of logs and press E to load them onto the bunks (24 units). At the log pad, a log truck or the log trailer, press E to unload everything into it. Rides the lowboy.',
+    help: 'Off-road log hauler. Park within crane reach of logs and press E to load them onto the bunks (24 units). At the sawmill, a log truck or the log trailer, press E to unload everything into it. Rides the lowboy.',
   },
 });
 HC.TRAILERS.logtrailer = { name: 'Log trailer', len: 115, r: 24, solid: true, price: 16000, heavy: true, cap: 40, logsOnly: true };
@@ -336,7 +336,7 @@ HC.EQUIP.fueltruck.tows = true; HC.EQUIP.fueltruck.hitchOff = 44;
 HC.EQUIP.dumptruck2 = {
   name: 'Tandem-Axle Dump Truck', short: 'Tandem dump', move: 'car', speed: 125, turn: 1.7, r: 20, mass: 12, wheelbase: 5.3,
   fuelCap: 220, fuelUse: 0.5, wear: 0.02, price: 28000, repair: 12, bed: 30,
-  help: 'Twin rear axles and a 16 ft box: 30 units in its own bed, and it can still tow a trailer. E on the log pad dumps everything.',
+  help: 'Twin rear axles and a 16 ft box: 30 units in its own bed, and it can still tow a trailer. E at the county brush dump (or the sawmill, for logs) unloads it.',
 };
 HC.EQUIP.semiHD = {
   name: 'Heavy-Haul Tractor (tri-axle)', short: 'Heavy tractor', move: 'car', speed: 128, turn: 1.3, r: 22, mass: 10, wheelbase: 6.4, heavyHaul: true, power: 1.5,
@@ -429,11 +429,11 @@ HC.BLURB = {
   chipper: 'Tow-behind disc chipper for brush. Shoots chips into a chip truck.', truck: 'Crew-cab pickup. Tows the equipment and dump trailers.',
   mower: 'Zero-turn mower for tall grass jobs.', land: 'A landscaping hand: sod, shrubs, pavers and bed mulch.',
   mulcher: 'Forestry mulcher head for the skid steer. Grinds brush where it stands.', truck2: 'A second pickup, so two rigs can run at once.',
-  dually: 'Lifted 1-ton dually. Pulls the deck-over and heavy trailers.', excavator: '20 t excavator with a thumb: loads trucks, rips stumps. Lowboy only.',
+  dually: 'Lifted 1-ton dually. Pulls the deck-over and heavy trailers.', excavator: '20 t excavator with a thumb: grabs 5, loads trucks, rips stumps fast. Lowboy only.',
   fmulcher: 'Dedicated tracked mulcher: twice as fast as the skid head.', chipper2: 'Big whole-tree chipper. Eats brush and logs.',
   dumptruck: 'Single-axle dump truck, 18 units.', logtruck: 'Log truck with its own knuckleboom crane, 30 units of logs.',
   bucket: '60 ft bucket truck for trees over houses and lines.', semi: 'Road tractor for the lowboy and log trailer.',
-  miniex: '3.5 t mini excavator. Grabs 2, pulls stumps, fits the equipment trailer.', dozerS: 'Compact dozer: shoves piles and strips ground.',
+  miniex: '3.5 t mini excavator. Grabs 3, pulls stumps, fits the equipment trailer.', dozerS: 'Compact dozer: shoves piles and strips ground.',
   dozerL: 'D6-class dozer: big blade, pushes over small trees.', harvester: 'Fells, delimbs and cuts trees to length in one go.',
   forwarder: 'Hauls 24 units of logs out of the woods.', fueltruck: 'Brings fuel to machines on the job with a hose.',
   dumptruck2: 'Tandem dump truck, 30 units.', semiHD: 'Tri-axle heavy-haul tractor for the biggest lowboy loads.',
@@ -465,7 +465,7 @@ HC.LANDOWNERS = ['Pike Timber Co.', 'Haddix Family Trust', 'Cobb Land & Cattle',
 // ================= More kinds of work =================
 Object.assign(HC.JOBS, {
   timber_harvest: { name: 'Timber Harvest', color: '#6b4a2b', needs: ['saw', 'skid'], tract: true,
-    blurb: 'Out in the woods: fell the marked timber, buck it, and skid the logs to the landing (or haul them to your log pad to sell).' },
+    blurb: 'Out in the woods: fell the marked timber, buck it, and skid the logs to the landing (or haul them to the sawmill to sell).' },
   woodland_clear: { name: 'Woodland Clearing', color: '#8a6d2f', needs: ['dozerS'], tract: true,
     blurb: 'Turn a scrubby woodlot into open ground: push over the saplings, grub out the brush and stumps, and pile it all.' },
   storm_cleanup: { name: 'Storm Cleanup', color: '#4a6a8a', needs: ['saw', 'skid'],
@@ -493,7 +493,7 @@ HC.KIND_ALIAS = { dozerS: ['dozerS', 'dozerL', 'trackloader'], // a job's "needs
 HC.EQUIP.dumptruck3 = {
   name: 'Tri-Axle Dump Truck', short: 'Tri-axle dump', move: 'car', speed: 120, turn: 1.5, r: 24, mass: 15, wheelbase: 6.4,
   fuelCap: 280, fuelUse: 0.6, wear: 0.02, price: 39000, repair: 14, bed: 44, tows: true, hitchOff: 66,
-  help: 'Three rear axles and a 20 ft box: 44 units in its own bed, and it still tows a trailer. X tips the box anywhere; E on the log pad dumps everything.',
+  help: 'Three rear axles and a 20 ft box: 44 units in its own bed, and it still tows a trailer. X tips the box anywhere; E at the county brush dump (or the sawmill, for logs) unloads it.',
 };
 HC.BLURB.dumptruck3 = 'The big one: tri-axle dump truck, 44 units, still tows a trailer.';
 
@@ -557,7 +557,7 @@ HC.BLURB.fwproc = 'Red towable firewood processor: logs in, split firewood out t
 
 // ================= What happens to the debris: every job says so, and leaving it behind is illegal dumping =================
 HC.DISPOSAL = {
-  haul: { short: 'Haul away', text: 'Haul it away: every log, limb and stump has to leave the property (dump trailer or truck to a log & dump pad, or sell it). Anything left on the property is illegal dumping and gets fined.' },
+  haul: { short: 'Haul away', text: 'Haul it away: every log, limb and stump has to leave the property (logs to the sawmill, brush and stumps to the county brush dump). Anything left on the property is illegal dumping and gets fined.' },
   pile: { short: 'Pile on site', text: 'Push it into piles on site: the piles stay. No need to haul anything.' },
   place: { short: 'Leave in place', text: 'Cut material stays where it falls (mulched or mowed). Nothing to haul.' },
   landing: { short: 'Logs to the landing', text: 'Skid the logs to the landing by the road; tops and limbs (slash) can stay in the woods.' },
@@ -580,5 +580,59 @@ HC.camMode = () => ((HC.company && HC.company.prefs) || {}).cam || 'auto';
 // ================= Gooseneck trailers: ball in the bed of the flatbed pickups =================
 // len = coupler (the gooseneck ball) to the middle axle, px. deck = [rear, front, half-width] px along the trailer.
 HC.TRAILERS.gndump = { name: 'Gooseneck Dump Trailer (16 ft, high sides)', len: 56, r: 22, solid: true, gooseneck: true, cap: 18, deck: [-17, 34, 12], slots: [10], price: 16500 };
-HC.TRAILERS.gnflat = { name: 'Gooseneck Flat Deck (32 ft, 3-axle)', len: 74, r: 22, gooseneck: true, hd: true, deck: [-33, 52, 15], slots: [32, 0], price: 13500 };
+HC.TRAILERS.gnflat = { name: 'Gooseneck Flat Deck (32 ft, 3-axle)', len: 80, r: 22, gooseneck: true, hd: true, deck: [-35, 55, 15], slots: [36, 4], price: 13500 };
 for (const [k, off, h] of [['truck', 19, 1.15], ['truck2', 19, 1.15], ['dually', 17, 1.55]]) Object.assign(HC.EQUIP[k], { gooseneck: true, gnOff: off, gnBall: h });
+
+// ================= Disposal: the sawmill buys logs, the county brush dump takes the rest; yards only store debris =================
+HC.DUMP_FEES = { brush: 30, stump: 12, rock: 12, log: 0 }; // $ per load unit at the county dump (logs are taken free; the mill pays for them)
+HC.dumpFee = (c) => (HC.DUMP_FEES[c.kind] ?? HC.DUMP_FEE) * (HC.LOAD[c.kind] || 1);
+HC.MILL_PRICE = 1.3;   // the sawmill pays 30% over the old pad price for logs
+HC.FUEL_BURN = 0.55;   // everything burns fuel at 55% of the old rate
+
+// ================= Excavators: more muscle =================
+Object.assign(HC.EQUIP.excavator, { speed: 40, turn: 1.15, cap: 5, reach: 54 });
+Object.assign(HC.EQUIP.miniex, { speed: 30, turn: 1.5, cap: 3, reach: 40 });
+
+// ================= A bigger, stronger compact track loader (white and orange, cab with a door) =================
+HC.EQUIP.skidXL = Object.assign({}, HC.EQUIP.skid, {
+  base: 'skid', shop: true, name: 'Large Track Loader (110 hp CTL)', short: 'Big skid', start: false, price: 16500, grab: 7, reach: 28,
+  speed: 54, turn: 1.75, r: 16, mass: 5.2, heavy: true, power: 1.45, fuelCap: 140, fuelUse: 0.42, repair: 11,
+  help: 'A big 110 hp compact track loader: 7 pieces in the grapple, 45% more push behind the mulcher head and brush cutter, faster on the tracks. Too heavy for the 20 ft equipment trailer: it rides the deck-over, the gooseneck flat deck or the lowboy. Takes every skid steer attachment (Q).',
+  ext: [2.65, 1.6],
+});
+HC.BLURB.skidXL = 'Big 110 hp track loader: grabs 7, mulches and cuts 45% faster. Rides the deck-over or gooseneck.';
+
+// the firewood processor is installed for good at the Firewood Yard (it can't be hitched or moved)
+HC.EQUIP.fwproc.fixed = true;
+HC.EQUIP.fwproc.help = 'A firewood processor installed at your Firewood Yard: log deck, saw, 6-way wedge splitter and a belt conveyor. Bring logs to the yard and load them onto the side deck with the grapple, loader or excavator; it cuts and splits them and the conveyor drops firewood into a dump trailer or truck parked under its end, or onto a pile. Stock your firewood stand with it, or sell it at the landscape supply.';
+HC.BLURB.fwproc = 'Firewood processor, installed for good at your Firewood Yard: logs in, split firewood out the conveyor.';
+// the 40 ft gooseneck flat deck: room for three small machines
+Object.assign(HC.TRAILERS.gnflat, { name: 'Gooseneck Flat Deck (40 ft, 3-axle)', len: 104, deck: [-45, 79, 15], slots: [58, 20, -18] });
+HC.PALLET_DECKS_GN = 10;
+
+// ================= Payload: every flat deck (and a flatbed's bed) has a rated load in tonnes =================
+for (const [k, t] of Object.entries({ equip: 5, deckover: 10, gnflat: 13.5, gndump: 6, lowboy: 40 })) if (HC.TRAILERS[k]) HC.TRAILERS[k].payload = t;
+HC.BED_PAYLOAD = 2.5;     // a 1-ton flatbed pickup's bed
+HC.PALLET_T = { sod: 1.1, shrub: 0.5, paver: 1.5 }; // full pallet, tonnes
+HC.ATT_T = { grapple: 0.3, mulcher: 1.2, brushcut: 0.6, forks: 0.15, bushhog: 0.6 };
+HC.massOf = (k) => (HC.EQUIP[k] && (HC.EQUIP[k].mass || HC.EQUIP[HC.baseOf(k)].mass)) || 3;
+// what's riding on a trailer deck (or a truck's bed), in tonnes
+HC.deckLoad = (S, host, isTruck) => {
+  const id = isTruck ? 'truck:' + host.kind : host.id;
+  let t = 0;
+  if (!isTruck) for (const k in S.units) { const u = S.units[k]; if (u.on && u.on.id === host.id) t += HC.massOf(k); }
+  for (const p of (HC.company.pallets || [])) if (p.ride && (isTruck ? p.ride.u === host.kind : p.ride.t === host.id)) t += (HC.PALLET_T[p.mat] || 1) * (p.qty / ((HC.PALLETS[p.mat] || {}).per || 10));
+  for (const a of (S.attachments || [])) if (a.on === (isTruck ? id : 'trailer:' + host.id)) t += HC.ATT_T[a.kind] || 0.4;
+  return Math.round(t * 10) / 10;
+};
+HC.payloadOf = (host, isTruck) => (isTruck ? HC.BED_PAYLOAD : (HC.TRAILERS[host.kind] || {}).payload || 99);
+// the flatbed's bed is out of use while a gooseneck is hitched in it
+HC.bedBlocked = (S, truck) => S.trailers.some((t) => t.hitch === truck.kind && HC.TRAILERS[t.kind] && HC.TRAILERS[t.kind].gooseneck);
+
+// ================= A big self-propelled 4x4 stump grinder (after the reference: yellow, boom-mounted wheel, rear control station) =================
+HC.EQUIP.grinderXL = Object.assign({}, HC.EQUIP.grinder, {
+  base: 'grinder', shop: true, name: 'Self-Propelled Stump Grinder (4x4, 55 hp)', short: 'Big grinder', price: 14500,
+  speed: 34, turn: 1.5, r: 15, mass: 3.3, power: 2.4, reachG: 26, artic: true, wheelbase: 1.5, fuelCap: 90, fuelUse: 0.35, repair: 9, ext: [2.1, 1.6],
+  help: 'A 55 hp four-wheel-drive stump grinder with the cutter wheel on a swinging boom out front. Grinds about two and a half times as fast as the walk-behind, and reaches bigger stumps. Hold left click with the wheel over a stump. Rides the deck-over or the gooseneck flat deck (3.3 t).',
+});
+HC.BLURB.grinderXL = '55 hp 4x4 stump grinder: grinds 2.4x faster than the walk-behind.';

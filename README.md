@@ -45,8 +45,8 @@ equipment, trailers, yards and crew cost you.
 | Lot clearing (everything inside the tape, including brush and rocks) | Chainsaw, skid steer/excavator, chipper, dump trailer |
 | Stump grinding | Stump grinder, or the excavator to rip stumps out whole |
 | Forestry mulching (brush and saplings; keep off the keeper trees) | Skid steer + mulcher head, or the tracked mulcher |
-| Sod and planting | Landscaping crew, mower |
-| Hardscape patio (pull the rocks, lay the pavers) | Landscaping crew, skid steer |
+| Sod and planting | Mower, pallet forks (plus the sod, shrubs and mulch it lists) |
+| Hardscape patio (pull the rocks, lay the pavers) | Skid steer, pallet forks (plus the pavers it lists) |
 | Bush hogging (cut an overgrown field: tall grass, briars, saplings) | Tractor + bush hog |
 | Timber harvest, out on a woodland tract (fell the marked timber, buck it, skid the logs to the landing) | Chainsaw or harvester, skid steer or forwarder |
 | Woodland clearing, on a tract (push over saplings, grub out brush and stumps, pile it all) | Any dozer or the track loader |
@@ -85,7 +85,6 @@ Number keys follow your owned fleet in order (shown on the HUD bar); **[ ]** cyc
 | Equipment | Notes | Moves on |
 | --- | --- | --- |
 | **Chainsaw** (an item) | You hold it on foot and fell and buck; six sizes in the shop. **G** picks it up / sets it down. To fuel it, carry it to a truck or a pump at a yard you own and press **E** | Carried |
-| Landscaping crew | Sod, shrubs, pavers, bed mulch (Q picks) | Rides in any truck |
 | **Mowers** | 48" residential zero-turn (starter price), 61" commercial zero-turn, 52" stand-on, 96" wide-area with wings | Equipment trailer |
 | **Track loader** (crawler, 27 t) | Bucket down: pushes like a dozer and strips ground. E scoops 12 pieces. Slow to push trees over | Lowboy |
 | **Tri-axle dump truck** | 44 units, still tows a trailer | Drives |
@@ -141,10 +140,26 @@ hard hit stops you and costs condition. Real top speeds: skid steer ~15 km/h, bi
 place*, *Logs to the landing* or *Chip it*. On haul-away jobs anything still lying on the property at the
 invoice (even if you dumped it back out) is illegal dumping: $40 a piece and a hit to the rating. Tipping
 logs, brush, stumps or rocks out anywhere other than the job, your own yard or a pad is fined on the spot.
-Products (firewood, mulch, chips) can go anywhere. Debris left lying on a log & dump pad is collected
-automatically: logs paid, the rest charged the dump fee.
+Products (firewood, mulch, chips) can go anywhere.
 
-**Firewood.** Buy the Firewood Yard on Hemlock Hollow Rd and the towable firewood processor. Load logs on its
+**Where debris goes.** Logs sell at **Hemlock Hollow Sawmill** (timber country, 30% over the old pad price).
+Brush, stumps and rock go to the **County Brush & Stump Dump** on Bottom Rd: brush $30 a unit, stumps and
+rock $12 a unit; logs are taken free there. Press E on either pad, or tip the load out (X) on it: same
+thing. Anything left lying on a pad is taken in. Your yards no longer buy debris: each has a **debris
+storage** area where you can tip loads for free and come back for them later. Dumped loads land as
+separate pieces, spread out behind the box.
+
+**Landscaping materials.** There's no landscaping crew any more. Buy sod, shrubs and pavers on pallets, and
+bulk mulch by the unit, in the shop (Landscape supply); it all waits in the pickup area at the landscape
+supply. Pallets need **pallet forks** (skid steer, mini skid, or clamp-on forks for the tractor's loader) and
+ride on flat deck trailers or the flatbed pickups' beds (never dump trailers). Mulch loads with a grapple or
+loader into a dump trailer or truck. Every sod and hardscape job card lists exactly what to buy and bring.
+On the job, park near the marked tiles, climb out (saw down) and hold click on each tile.
+
+**Mowing.** Contract lawns no longer grow tall grass right against houses, porches, trunks or fences, and the
+grass that still needs cutting on the job glows yellow.
+
+**Firewood.** Buy the Firewood Yard on Hemlock Hollow Rd and the firewood processor, which is installed there for good. Load logs on its
 side deck with a grapple, loader or excavator; it saws and splits them and the conveyor drops firewood into a
 dump trailer or truck parked under it (or a pile). Back the load up to the roadside stand to stock it (60
 max): drive-by customers buy a bundle or three now and then for $50–70, busiest around lunch and late
@@ -152,8 +167,23 @@ afternoon. Leftovers sell at the landscape supply for $28.
 
 **Gooseneck trailers.** The flatbed pickups and the dually have a ball in the bed. The 16 ft gooseneck dump
 (high sides, 18 units) slides its ramps out from under the box when it's empty, so one small machine can
-ride in it; it takes no load while a machine is aboard. The 32 ft gooseneck flat deck on three axles carries
-two small machines or one up to 9 t.
+ride in it; it takes no load while a machine is aboard. The 40 ft gooseneck flat deck on three axles carries
+three small machines, or one up to 9 t plus a small one.
+
+**Loading limits.** Every flat trailer has a rated payload and won't take more: 20 ft equipment trailer 5 t,
+deck-over 10 t, 40 ft gooseneck flat deck 13.5 t, gooseneck dump 6 t (one machine, empty box), lowboy 40 t.
+Machines, pallets and attachments all count, and the towing hint shows the load. A flatbed pickup's bed holds
+2.5 t of pallets or attachments (raise the arms and press Q to set an attachment on it), but not while a
+gooseneck is hitched in the bed, and a gooseneck won't hitch until the bed is clear.
+
+**Bigger stump grinder.** A 55 hp articulated 4x4 stump grinder with the wheel on a boom: grinds about 2.4x as
+fast as the walk-behind; the operator stands at the rear console.
+
+**Also new.** A large 110 hp track loader (grabs 7, mulches and cuts 45% faster, rides the deck-over or a
+gooseneck). Excavators are stronger (the big one grabs 5, the mini 3; faster swing, boom and stump pulling)
+and their arms bend at the boom, stick and bucket. Fuel lasts nearly twice as long. In co-op, buy extra
+chainsaws and more than one of any attachment. Name your save slots on the title screen (Rename) or in
+Company > Game; the version number shows on the title screen. Camera modes: C or Company > Game.
 
 **Systems.** Fuel (trucks carry it; pumps at owned yards), wear and repairs, weather (sun, overcast,
 wind, rain, storms), an 8 AM–6 PM day with wages, ratings and tiers, upgrades, crew hires, and saving to
@@ -210,7 +240,7 @@ The title screen has three save slots. Each card shows the bank, day, jobs, rati
 | C | Camera: Auto, Follow behind, Free, Overhead (also in Company > Game) |
 | G | Pick up or set down the chainsaw (on foot) |
 | F | Climb out of the machine you're in, or into the one you're standing beside |
-| Q | Drop / pick up a skid steer attachment; change landscaping tool |
+| Q | Drop / pick up an attachment (grapple, mulcher, brush cutter, forks, bush hog) |
 | T / G | Raise / lower arms or boom (G on foot picks up the chainsaw) |
 | Shift | Sprint on foot |
 | J (or Tab) | Phone: calls, shop & yard, company |

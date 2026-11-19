@@ -183,7 +183,7 @@
           delete Net.players[p.id]; HC.UI.toast(`${p.name} left the game.`); Net.refreshChip(); return;
         }
         if (p.unit && s.units[p.unit] && p.unit !== s.active) s.units[p.unit].occupied = false;
-        if (p.walker) { if (s.saw && s.saw.holder === p.walker) s.saw.holder = null; delete s.units[p.walker]; }
+        if (p.walker) { for (const sw of s.saws || []) if (sw.holder === p.walker) sw.holder = null; delete s.units[p.walker]; }
         delete Net.players[p.id]; HC.UI.toast(`${p.name} left the game.`); Net.refreshChip();
       });
     };
@@ -313,7 +313,7 @@
     const sig = (key, val) => { const j = JSON.stringify(val); if (prevSig[key] === j) return undefined; prevSig[key] = j; return val; };
     const msg = {
       type: 'tick', t: s.time, st: s.stage, wm: s.workMins, paused: !!s.paused, m: C.money, day: C.day,
-      units, trailers, at: s.attachments, saw: s.saw, hose: s.hose || null, items: W.items.map(itemOut),
+      units, trailers, at: s.attachments, saws: s.saws || [], hose: s.hose || null, items: W.items.map(itemOut),
       tc, brm, bhp, ti,
       stumps: sig('stumps', W.stumps.map(prim)), fences: sig('fences', W.fences.map((f, i) => (f.broken ? i : -1)).filter((i) => i >= 0)),
       wires: sig('wires', W.wires.map((w, i) => (w.down ? i : -1)).filter((i) => i >= 0)), houses: sig('houses', W.houses.map((h) => (h.damaged || []).length)),
@@ -453,7 +453,7 @@
       keepT.push(t);
     }
     s.trailers = keepT.concat(tw.map((t) => s.units[t.id]).filter(Boolean));
-    s.attachments = m.at; s.saw = m.saw; s.hose = m.hose;
+    s.attachments = m.at; if (HC.Game.sawProps) HC.Game.sawProps(s); s.saws = m.saws || (m.saw ? [m.saw] : []); s.hose = m.hose;
     // the world
     const byId = new Map(W.items.map((it) => [it.id, it]));
     W.items = m.items.map((o) => { const it = byId.get(o.id); if (it) { const n = itemIn(o); Object.assign(it, n); if (!n.content) delete it.content; return it; } return itemIn(o); });
@@ -484,6 +484,7 @@
       if (!o._t) continue;
       o.x += (o._t.x - o.x) * f; o.y += (o._t.y - o.y) * f; o.a = lerpA(o.a, o._t.a, f);
     }
+    HC.Units.snapRiders(s); // a strapped machine glides with its trailer, not on its own
     for (const p of s.particles) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z = Math.max(0, p.z + p.vz * dt); p.vz -= 220 * dt; if (!p.ballistic) { p.vx *= 0.94; p.vy *= 0.94; } }
     s.particles = s.particles.filter((p) => p.t < p.life);
     for (const fl of s.floats) fl.t += dt;
@@ -661,6 +662,14 @@
       if (!o._t) continue;
       o.x += (o._t.x - o.x) * f; o.y += (o._t.y - o.y) * f; o.a = lerpA(o.a, o._t.a, f);
     }
+    // another company's strapped machines ride their trailers too
+    for (const u of Object.values(s.remote)) {
+      if (!u.on) continue;
+      const t = (s.remoteTrailers || []).find((q) => q.id === u.on.id);
+      if (!t || !HC.TRAILERS[t.kind]) continue;
+      const off = u.on.off ?? (HC.TRAILERS[t.kind].slots || [0])[u.on.slot] ?? 0;
+      u.x = t.x + Math.cos(t.a) * off; u.y = t.y + Math.sin(t.a) * off; u.a = t.a;
+    }
   }
   Net.busyParcel = (pid) => Object.values(Net.remote).some((R) => R.job === pid);
   // the picture a friend bringing their own company needs: the shared world, and everybody else's machines
@@ -677,8 +686,10 @@
   function onOwnWelcome(m) {
     Net.role = 'peer'; Net.mode = 'own'; Net.myId = m.you; myTag = m.tag; Net.code = m.code; Net.homeYard = m.yard;
     const C = HC.company, job = C.active;
+    C.homeItems = (C.pos && C.pos.items) || C.homeItems || []; // what's stored at your home yard waits for your next solo game
     C.active = null; C.pos = null; // park everything at your co-op yard; your job site comes back below
     HC.Game.boot();
+    if (C.coopItems && C.coopItems.yard === m.yard) for (const it of C.coopItems.items || []) { it.id = HC.uid(); for (const c of it.content || []) c.id = HC.uid(); S().lot.items.push(it); } // what you left in this co-op yard last time
     const s = S(), W = HC.world;
     for (const st of m.stamps) { const p = W.parcels.find((q) => q.id === st.pid); if (p) { applyingRemote = true; try { HC.World.stamp(W, p, unserialLot(st.lot), false); } finally { applyingRemote = false; } } }
     W.tiles.set(unb64(m.tiles));

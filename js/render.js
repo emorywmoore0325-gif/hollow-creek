@@ -614,10 +614,11 @@
   }
   // pivots (metres) the renderer animates around
   const PIV = { skidArm: [-0.85, 1.75, 0], exArm: [0.95, 1.8, -0.25], boom: [-3.4, 2.75, 0] };
+  const EX_PIV = { boom: [0, 0], stick: [3.45, 1.8], bucket: [3.66, -0.92] }; // excavator: boom foot, boom nose, bucket pin
   const RAMP = { equip: { x: -2.6, y: 0.35, len: 1.8 }, lowboy: { x: -1.6, y: 1.0, len: 2.5 }, deckover: { x: -2.8, y: 0.95, len: 2.6 },
-    gndump: { x: -1.68, y: 1.05, len: 2.4, slide: true }, gnflat: { x: -3.1, y: 0.78, len: 2.1, slide: true } }; // slide: the ramps slide out from under the deck
+    gndump: { x: -1.68, y: 1.05, len: 2.4, slide: true }, gnflat: { x: -4.9, y: 0.78, len: 2.1, slide: true } }; // slide: the ramps slide out from under the deck
   const DECK_H = { equip: 0.6, lowboy: 0.56, deckover: 0.98, gndump: 1.1, gnflat: 0.98 };
-  const SEATS = { miniex: [0.3, 0.8, 0.39], dozerS: [-0.5, 1.45, 0], dozerL: [-0.65, 1.95, 0], harvester: [1.35, 1.95, 0], forwarder: [2.5, 1.8, 0], skid: [0.05, 0.95, 0], mower: [-0.25, 0.75, 0], mowerZT: [-0.25, 0.92, 0], mowerSO: [-0.85, 0.25, 0], mowerWA: [-0.28, 0.98, 0], excavator: [0.55, 1.92, 0.7], fmulcher: [0.4, 1.95, 0], grinder: [-1.35, 0, 0], loader: [-0.45, 1.85, 0], trackloader: [-0.65, 2.4, 0], skidder: [0.8, 1.7, 0], tractor: [-0.65, 1.6, 0] };
+  const SEATS = { grinderXL: [-1.45, 0, 0], miniex: [0.3, 0.8, 0.39], dozerS: [-0.5, 1.45, 0], dozerL: [-0.65, 1.95, 0], harvester: [1.35, 1.95, 0], forwarder: [2.5, 1.8, 0], skid: [0.05, 0.95, 0], mower: [-0.25, 0.75, 0], mowerZT: [-0.25, 0.92, 0], mowerSO: [-0.85, 0.25, 0], mowerWA: [-0.28, 0.98, 0], excavator: [0.55, 1.92, 0.7], fmulcher: [0.4, 1.95, 0], grinder: [-1.35, 0, 0], loader: [-0.45, 1.85, 0], trackloader: [-0.65, 2.4, 0], skidder: [0.8, 1.7, 0], tractor: [-0.65, 1.6, 0] };
 
   function skidBase() {
     const p = [...trackM(2.0, 0.69, 0.5, 0.32), ...trackM(2.0, -0.69, 0.5, 0.32),
@@ -628,6 +629,42 @@
       Pm('box', COL.frame, [0.1, 0.8, 0], [1.0, 0.12, 0.98]), Pm('box', COL.black, [-0.12, 1.05, 0], [0.45, 0.35, 0.55]), Pm('box', COL.black, [-0.32, 1.35, 0], [0.08, 0.55, 0.55]),
       ...cabM(0.1, 0.86, 1.12, 0.92, 0.95, COL.cat),
       Pm('cyl', COL.chrome, [-1.0, 1.65, -0.35], [0.08, 0.35, 0.08])];
+    return build(p);
+  }
+  function skidXLBase() { // after the photo: white body, black frame and cab pillars, rounded engine cover, orange accents
+    const W = '#f1f1ec', Wd = '#dcddd7', B = COL.black, G2 = '#2a2c2f', X = Math.PI / 2;
+    const p = [...trackM(2.15, 0.72, 0.56, 0.34), ...trackM(2.15, -0.72, 0.56, 0.34),
+      Pm('box', G2, [0.05, 0.7, 0], [2.05, 0.3, 1.02]), // undercarriage / main frame
+      // engine bay: white sides, a rounded white cover, black grille and taillights at the back
+      Pm('box', W, [-0.78, 1.12, 0], [1.05, 0.62, 1.22]), Pm('cyl', W, [-0.78, 1.43, 0], [0.5, 1.05, 0.5], [0, 0, X]), Pm('box', W, [-0.78, 1.5, 0], [1.05, 0.2, 1.0]),
+      Pm('box', B, [-1.31, 1.12, 0], [0.04, 0.5, 0.9]), ...[0.96, 1.06, 1.16, 1.26].map((y) => Pm('box', '#3a3c3f', [-1.33, y, 0], [0.02, 0.03, 0.82])),
+      ...[1, -1].flatMap((s) => [Pm('box', '#c42a24', [-1.32, 1.4, s * 0.52], [0.03, 0.12, 0.12]), Pm('box', COL.amber, [-1.32, 1.27, s * 0.52], [0.03, 0.06, 0.12]),
+        // tall side towers carrying the arm pivots: white, with a black step and a small black badge
+        Pm('box', W, [-0.88, 1.32, s * 0.63], [0.62, 1.12, 0.14]), Pm('box', Wd, [-0.88, 1.9, s * 0.63], [0.5, 0.06, 0.15]),
+        Pm('box', B, [-0.88, 1.0, s * 0.705], [0.3, 0.12, 0.01]), Pm('box', B, [0.62, 0.95, s * 0.58], [0.22, 0.06, 0.14])]),
+      Pm('box', G2, [0.1, 0.87, 0], [1.05, 0.08, 0.98]),
+      ...cabM(0.1, 0.92, 1.16, 0.96, 1.0, B),
+      Pm('box', W, [0.1, 2.06, 0], [1.16, 0.07, 1.04]), Pm('box', B, [0.1, 2.1, 0], [1.0, 0.02, 0.9]), // roof
+      Pm('box', '#f2d14e', [0.58, 2.02, 0.4], [0.06, 0.06, 0.12]), Pm('box', '#f2d14e', [0.58, 2.02, -0.4], [0.06, 0.06, 0.12]), // work lights
+      Pm('box', '#a9c0cc', [0.6, 1.47, 0], [0.02, 0.9, 0.86]), Pm('box', B, [0.61, 1.47, 0], [0.025, 0.92, 0.03]), Pm('box', '#d0d2d4', [0.62, 1.4, 0.32], [0.04, 0.03, 0.12]), // glass door, handle
+      Pm('cyl', COL.chrome, [-1.0, 1.8, -0.38], [0.08, 0.4, 0.08])]; // exhaust
+    return build(p);
+  }
+  // its arms: two-piece radial-lift booms in white with the orange decal, black cross tube, chrome lift rams
+  function skidXLArms() {
+    const W = '#f1f1ec', O = '#e8661c', B = COL.black, p = [];
+    const seg = (c, a, b, t, w, z) => { const dx = b[0] - a[0], dy = b[1] - a[1]; p.push(Pm('box', c, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, z], [Math.hypot(dx, dy), t, w], [0, 0, Math.atan2(dy, dx)])); };
+    const A = [0, 0], M = [1.35, -0.12], E = [2.18, -1.2];
+    for (const s of [1, -1]) {
+      const z = s * 0.66;
+      seg(W, A, M, 0.34, 0.14, z); seg(W, M, E, 0.28, 0.13, z);
+      p.push(Pm('cyl', W, [M[0], M[1], z], [0.3, 0.14, 0.3], [Math.PI / 2, 0, 0]), Pm('cyl', '#2a2c2f', [0, 0, z], [0.22, 0.18, 0.22], [Math.PI / 2, 0, 0]));
+      seg(O, [0.25, -0.02], [1.15, -0.1], 0.16, 0.01, z + s * 0.072); // the orange decal on the outside of each arm
+      seg(B, [0.25, 0.08], [1.15, 0.0], 0.03, 0.01, z + s * 0.072);
+      seg('#3a3c3f', [0.05, -1.02], [0.62, -0.42], 0.13, 0.13, s * 0.6); seg(COL.chrome, [0.62, -0.42], [1.05, -0.12], 0.07, 0.07, s * 0.6); // lift ram
+      seg('#3a3c3f', [1.75, -0.5], [2.02, -0.85], 0.1, 0.1, s * 0.5); // tilt ram
+    }
+    p.push(Pm('cyl', B, [1.62, -0.48, 0], [0.16, 1.3, 0.16], [Math.PI / 2, 0, 0]), Pm('box', COL.frame, [2.22, -1.32, 0], [0.12, 0.6, 1.55])); // cross tube, quick-attach plate
     return build(p);
   }
   // the skid steer's arms end in a quick-attach plate; attachments are separate models whose origin is that plate
@@ -649,6 +686,12 @@
         Pm('box', nvd, [3.0, -1.3, 0], [0.6, 0.38, 0.55]), Pm('box', b, [3.0, -1.1, 0], [0.5, 0.06, 0.45]), // motor housing
         Pm('box', b, [2.62, -1.15, 0.22], [0.6, 0.05, 0.05], [0, 0, -0.35]), Pm('box', b, [2.62, -1.15, -0.22], [0.6, 0.05, 0.05], [0, 0, -0.35])); // hoses
       for (let i = 0; i < 16; i++) p.push(Pm('box', '#b9bdc2', [4.25, -1.72, -0.85 + i * 0.113], [0.03, 0.2, 0.06])); // chain guard
+    } else if (mode === 'forks') { // pallet fork carriage: frame, backrest grid, two tines along the ground
+      const f = '#2b2d30';
+      p.push(Pm('box', f, [2.32, -1.3, 0], [0.1, 0.62, 1.3]), Pm('box', f, [2.38, -1.62, 0], [0.12, 0.1, 1.25]), Pm('box', f, [2.38, -1.0, 0], [0.12, 0.1, 1.25]));
+      for (const z of [-0.6, -0.3, 0, 0.3, 0.6]) p.push(Pm('box', f, [2.4, -0.62, z], [0.05, 0.8, 0.05]));
+      p.push(Pm('box', f, [2.4, -0.24, 0], [0.06, 0.06, 1.25]));
+      for (const z of [-0.36, 0.36]) p.push(Pm('box', '#3a3c3f', [2.45, -1.32, z], [0.1, 0.62, 0.12]), Pm('box', '#3a3c3f', [3.05, -1.66, z], [1.22, 0.06, 0.12]), Pm('box', '#c9cdd2', [3.66, -1.665, z], [0.04, 0.05, 0.12]));
     } else if (mulcher) { // open-rotor head: gray hood, orange toothed drum, side skids, tall push bar
       const hood = '#3b3e43', drum = '#e8a21a';
       p.push(Pm('box', hood, [2.5, -1.12, 0], [0.75, 0.32, 2.05]), Pm('box', hood, [2.82, -1.2, 0], [0.4, 0.18, 2.05], [0, 0, -0.6]), Pm('box', '#2a2c30', [2.35, -1.0, 0], [0.5, 0.04, 2.1]));
@@ -902,28 +945,38 @@
     gndump: () => build(TRAILER_GEO.gndumpParts()),
     gnGate: () => build([Pm('box', '#1d1f22', [-0.03, -0.6, 0], [0.06, 1.2, 2.2]), ...[-0.25, -0.65, -1.05].map((y) => Pm('box', '#2a2d31', [-0.07, y, 0], [0.04, 0.08, 2.2])),
       ...[1, -1].map((s) => Pm('box', '#c22', [-0.08, -1.0, s * 0.9], [0.02, 0.1, 0.16]))]),
-    // 32 ft gooseneck flat deck after the reference: black I-beam frame, wood deck, dovetail, triple axles, 8 ft upper deck with spare tyre
+    // 32 ft gooseneck flat deck after the reference: one long deck all the way to the neck, a tall boxed gooseneck rising off the
+    // front with a diagonal brace, a long top beam out over the truck bed and the coupler tube down to the ball; triple axles, dovetail
     gnflat: () => {
-      const bk = '#1b1c1e', L = HC.TRAILERS.gnflat.len / 32 * 3, p = [];
+      const bk = '#1b1c1e', bk2 = '#26282b', L = HC.TRAILERS.gnflat.len / 32 * 3, F = 7.45, R0 = -4.2, p = [];
       const tape = (x0, x1, y, z) => { for (let x = x0, i = 0; x < x1; x += 0.3, i++) p.push(Pm('box', i % 2 ? '#e8e8e8' : '#d0261e', [x + 0.15, y, z], [0.3, 0.05, 0.01])); };
-      p.push(...[1, -1].flatMap((s) => [Pm('box', bk, [1.2, 0.66, s * 0.48], [7.4, 0.32, 0.12]), Pm('box', bk, [1.2, 0.9, s * 1.26], [7.4, 0.14, 0.08]),
-          Pm('box', bk, [6.2, 1.5, s * 1.26], [2.6, 0.14, 0.08]), Pm('box', bk, [-2.8, 0.82, s * 1.26], [0.62, 0.12, 0.08], [0, 0, 0.36]),
-          Pm('box', '#c22', [-3.1, 0.72, s * 1.1], [0.03, 0.1, 0.18]), Pm('box', COL.amber, [4.8, 0.9, s * 1.3], [0.06, 0.06, 0.03])]),
-        ...[-2.2, -1.2, -0.2, 0.8, 1.8, 2.8, 3.8].map((x) => Pm('box', bk, [x, 0.78, 0], [0.1, 0.1, 2.5])),
-        Pm('box', '#93704a', [1.2, 0.95, 0], [7.4, 0.07, 2.5]), Pm('box', '#93704a', [-2.8, 0.85, 0], [0.62, 0.06, 2.5], [0, 0, 0.36]), // main deck and dovetail
-        Pm('box', bk, [4.95, 1.2, 0], [0.16, 0.66, 2.5]), Pm('box', '#8f6a42', [6.2, 1.57, 0], [2.6, 0.07, 2.5]), Pm('box', bk, [6.2, 1.45, 0], [2.6, 0.18, 0.9]), // step and upper deck over the bed
-        Pm('box', bk, [7.5, 1.5, 0], [0.12, 0.3, 2.5]), Pm('box', '#e6e6e6', [7.57, 1.5, 0.5], [0.01, 0.1, 0.5]), // front plate
-        ...[1, -1].map((s) => Pm('box', COL.amber, [7.57, 1.55, s * 1.1], [0.02, 0.08, 0.1])),
-        Pm('box', bk, [L, 1.3, 0], [0.5, 0.12, 0.7]), Pm('cyl', bk, [L, 1.24, 0], [0.2, 0.18, 0.2]), Pm('cyl', COL.steel, [L, 1.21, 0], [0.15, 0.08, 0.15]), Pm('cyl', '#2b2d30', [L, 1.18, 0], [0.22, 0.05, 0.22]), // coupler
-        Pm('box', bk, [6.6, 1.82, 0.95], [0.9, 0.42, 0.5]), Pm('box', '#2a2c2f', [6.6, 2.04, 0.95], [0.92, 0.03, 0.52]), // tool box on the upper deck
-        Pm('cyl', '#1a1a1a', [5.55, 1.72, -0.5], [0.75, 0.22, 0.75]), Pm('cyl', '#b9bdc2', [5.55, 1.74, -0.5], [0.42, 0.24, 0.42]), // spare
-        ...[1, -1].map((s) => Pm('box', bk, [5.0, 0.8, s * 0.6], [0.14, 0.8, 0.14])), ...[1, -1].map((s) => Pm('box', bk, [5.0, 0.32, s * 0.6], [0.3, 0.05, 0.3])),
-        ...[-0.85, 0, 0.85].flatMap((x) => [...wheelM(x, 0.37, 0.98, 0.37, 0.22), ...wheelM(x, 0.37, -0.98, 0.37, 0.22), Pm('cyl', '#3a3b3d', [x, 0.37, 0], [0.12, 1.8, 0.12], [Math.PI / 2, 0, 0])]),
-        ...[1, -1].map((s) => Pm('box', '#3b3f44', [-1.8, 0.82, s * 0.62], [2.3, 0.07, 0.5])));
-      for (let x = -2.45; x < 4.85; x += 0.28) p.push(Pm('box', '#7b5a36', [x, 0.99, 0], [0.02, 0.01, 2.48]));
-      for (let x = 5.0; x < 7.45; x += 0.28) p.push(Pm('box', '#6e5030', [x, 1.61, 0], [0.02, 0.01, 2.48]));
-      for (const x of [-1.8, 0, 1.8, 3.6]) for (const s of [1, -1]) p.push(Pm('box', '#d0d2d4', [x, 1.0, s * 1.1], [0.1, 0.05, 0.05]));
-      for (const s of [1, -1]) { tape(-2.5, 4.9, 0.9, s * 1.31); tape(4.9, 7.5, 1.5, s * 1.31); }
+      const seg = (c, a, b, t, w, z = 0) => { const dx = b[0] - a[0], dy = b[1] - a[1]; p.push(Pm('box', c, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, z], [Math.hypot(dx, dy), t, w], [0, 0, Math.atan2(dy, dx)])); };
+      const mid = (R0 + F) / 2, len = F - R0;
+      // deck: I-beam mains, rub rails with stake pockets, crossmembers, wood floor, dovetail
+      p.push(...[1, -1].flatMap((s) => [Pm('box', bk, [mid, 0.64, s * 0.48], [len, 0.36, 0.12]), Pm('box', bk, [mid, 0.9, s * 1.26], [len, 0.14, 0.08]),
+          ...Array.from({ length: 14 }, (_, i) => Pm('box', bk2, [R0 + 0.3 + i * 0.8, 0.88, s * 1.29], [0.1, 0.16, 0.05])),
+          Pm('box', bk, [R0 - 0.35, 0.82, s * 1.26], [0.7, 0.12, 0.08], [0, 0, 0.36]), Pm('box', '#c22', [R0 - 0.68, 0.72, s * 1.1], [0.03, 0.1, 0.18]), Pm('box', COL.amber, [F - 0.1, 0.9, s * 1.3], [0.06, 0.06, 0.03])]),
+        ...Array.from({ length: 12 }, (_, i) => Pm('box', bk, [R0 + 0.4 + i * 0.95, 0.78, 0], [0.1, 0.1, 2.5])),
+        Pm('box', '#d4b56e', [mid, 0.95, 0], [len, 0.07, 2.5]), Pm('box', '#c9a85f', [R0 - 0.35, 0.85, 0], [0.7, 0.06, 2.5], [0, 0, 0.36]));
+      // under-frame truss along the mains (the V webs in the photo)
+      for (let x = R0 + 1.0; x < F - 0.4; x += 1.1) for (const s of [1, -1]) { seg(bk2, [x, 0.48], [x + 0.55, 0.3], 0.06, 0.06, s * 0.48); seg(bk2, [x + 0.55, 0.3], [x + 1.1, 0.48], 0.06, 0.06, s * 0.48); }
+      // the gooseneck: a full-width boxed upright off the front of the deck, then a tapered beam forward over the bed
+      p.push(Pm('box', bk, [F + 0.18, 1.55, 0], [0.36, 1.25, 1.6]), Pm('box', bk2, [F + 0.37, 1.55, 0], [0.02, 1.1, 1.4]),
+        Pm('box', bk, [(F + L + 0.25) / 2, 2.05, 0], [L + 0.25 - F, 0.3, 0.9]), Pm('box', bk, [L + 0.22, 1.95, 0], [0.1, 0.42, 0.8]));
+      for (const s of [1, -1]) seg(bk, [F + 0.36, 1.05], [F + 1.6, 1.92], 0.16, 0.14, s * 0.4); // diagonal braces under the beam
+      p.push(Pm('box', bk, [L, 1.62, 0], [0.24, 0.8, 0.24]), Pm('cyl', COL.steel, [L, 1.22, 0], [0.15, 0.08, 0.15]), Pm('cyl', '#2b2d30', [L, 1.18, 0], [0.22, 0.05, 0.22]), // coupler
+        Pm('cyl', '#9aa0a6', [L - 0.1, 1.45, 0.16], [0.025, 0.55, 0.025], [0.45, 0, 0.25]), Pm('cyl', '#9aa0a6', [L - 0.1, 1.45, -0.16], [0.025, 0.55, 0.025], [-0.45, 0, 0.25]), // chains
+        Pm('box', '#e8e8e8', [F + 0.6, 2.05, 0.46], [0.9, 0.12, 0.01]), Pm('box', '#c42a24', [F + 0.75, 2.05, 0.465], [0.12, 0.12, 0.01]), // name plate
+        Pm('box', COL.amber, [L + 0.28, 2.0, 0.34], [0.03, 0.08, 0.08]), Pm('box', COL.amber, [L + 0.28, 2.0, -0.34], [0.03, 0.08, 0.08]),
+        Pm('box', bk2, [F + 0.3, 1.25, 0.82], [0.2, 0.5, 0.12])); // light/plug box
+      tape(F + 0.3, L, 2.2, 0.46); tape(F + 0.3, L, 2.2, -0.46);
+      // jack legs at the front of the deck
+      for (const s of [1, -1]) p.push(Pm('box', bk, [F - 0.15, 0.62, s * 0.62], [0.14, 0.7, 0.14]), Pm('box', bk, [F - 0.15, 0.3, s * 0.62], [0.3, 0.05, 0.3]));
+      // triple axles, single tyres, slipper springs
+      p.push(...[-0.95, 0, 0.95].flatMap((x) => [...wheelM(x, 0.4, 1.0, 0.4, 0.24), ...wheelM(x, 0.4, -1.0, 0.4, 0.24), Pm('cyl', '#3a3b3d', [x, 0.4, 0], [0.12, 1.9, 0.12], [Math.PI / 2, 0, 0])]),
+        ...[1, -1].map((s) => Pm('box', '#3b3f44', [-2.0, 0.82, s * 0.62], [1.9, 0.07, 0.5])));
+      for (let x = R0 + 0.05; x < F - 0.05; x += 0.28) p.push(Pm('box', '#b8994f', [x, 0.99, 0], [0.02, 0.01, 2.48]));
+      for (const s of [1, -1]) tape(R0, F, 0.9, s * 1.31);
       return build(p);
     },
     // slide-out ramps: two aluminium planks with cleats, stowed under the deck
@@ -970,10 +1023,9 @@
       const yel = '#f2c200', p = [...trackM(1.2, 0.33, 0.3, 0.22, 3), ...trackM(1.2, -0.33, 0.3, 0.22, 3),
         Pm('box', COL.frame, [-0.1, 0.38, 0], [1.3, 0.12, 0.6]), Pm('box', yel, [-0.3, 0.68, 0], [0.75, 0.5, 0.62]), Pm('box', COL.black, [-0.3, 0.95, 0], [0.55, 0.06, 0.5]),
         Pm('cyl', '#333', [-0.5, 1.05, 0.18], [0.07, 0.25, 0.07]), Pm('box', yel, [0.42, 0.5, 0], [0.9, 0.16, 0.16], [0, 0, -0.18]),
-        Pm('cyl', '#9aa0a6', [0.95, 0.38, 0], [0.56, 0.05, 0.56], [Math.PI / 2, 0, 0]), Pm('box', COL.black, [0.9, 0.62, 0], [0.55, 0.06, 0.2], [0, 0, 0.25]),
+        Pm('box', COL.black, [0.9, 0.62, 0], [0.55, 0.06, 0.2], [0, 0, 0.25]),
         Pm('box', COL.frame, [-0.85, 0.85, 0.24], [0.06, 0.7, 0.06], [0, 0, 0.55]), Pm('box', COL.frame, [-0.85, 0.85, -0.24], [0.06, 0.7, 0.06], [0, 0, 0.55]),
         Pm('box', COL.frame, [-1.02, 1.12, 0], [0.06, 0.06, 0.62]), Pm('box', yel, [-0.98, 1.0, 0], [0.12, 0.18, 0.3])];
-      for (let i = 0; i < 12; i++) { const a = (i / 12) * 6.283; p.push(Pm('box', '#e8c84a', [0.95 + Math.cos(a) * 0.29, 0.38 + Math.sin(a) * 0.29, 0], [0.06, 0.06, 0.09], [0, 0, a])); }
       return build(p);
     },
     chipper: () => chipperM({ color: '#f2c200', len: 4.6, cpl: HC.TRAILERS.chipper.len, w: 1.6, axles: [0], eng: [0.95, 1.3], disc: -0.25, dr: 0.62, inf: -1.3, iw: 1.3, ch: 2.4 }),
@@ -1142,8 +1194,11 @@
         Pm('box', '#e6eef3', [1.3, 2.2, 0.25], [0.06, 0.1, 0.16])];
       return build(part === 'lower' ? lower : part === 'upper' ? p : lower.concat(p));
     },
-    excavatorArm: () => { // curved boom, stick and bucket on H-link, with paired boom cylinders, stick and bucket cylinders, hoses
+    // the arm in three pieces that each pivot: the boom on the house, the stick on the boom nose (C), the bucket on the stick pin (D)
+    excavatorArm: (part = 'all') => { // curved boom, stick and bucket on H-link, with paired boom cylinders, stick and bucket cylinders, hoses
       const y = COL.cat, X = Math.PI / 2, p = [];
+      let sec = 'boom';
+      const tag = () => { for (const q of p) if (!q.sec) q.sec = sec; };
       const seg = (c, a, b, t, w, z = 0) => { const dx = b[0] - a[0], dy = b[1] - a[1]; p.push(Pm('box', c, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, z], [Math.hypot(dx, dy), t, w], [0, 0, Math.atan2(dy, dx)])); };
       const ram = (a, b, r, z = 0) => { // barrel from a, chrome rod to b
         const m = [a[0] + (b[0] - a[0]) * 0.55, a[1] + (b[1] - a[1]) * 0.55];
@@ -1153,13 +1208,21 @@
       };
       const A = [0, 0], B = [2.1, 2.15], C = [3.45, 1.8], D = [3.62, -0.95];
       seg(y, A, B, 0.5, 0.46); seg(y, B, C, 0.46, 0.44); p.push(Pm('cyl', y, [B[0], B[1], 0], [0.5, 0.46, 0.5], [X, 0, 0]));
-      seg(y, C, D, 0.36, 0.34); p.push(Pm('cyl', y, [C[0], C[1], 0], [0.44, 0.4, 0.44], [X, 0, 0]));
       for (const z of [0.3, -0.3]) ram([0.35, -0.55], [1.5, 1.2], 0.11, z); // boom lift cylinders
       ram([1.7, 2.6], [3.35, 2.25], 0.1); // stick cylinder on top of the boom
-      ram([3.32, 1.55], [3.68, -0.55], 0.09, 0.0); // bucket cylinder down the stick
       for (const z of [0.12, -0.12]) { seg('#1c1d1f', [0.3, 0.32], [2.05, 2.48], 0.04, 0.04, z); seg('#1c1d1f', [2.05, 2.48], [3.35, 2.05], 0.04, 0.04, z); }
+      tag(); sec = 'stick';
+      seg(y, C, D, 0.36, 0.34); p.push(Pm('cyl', y, [C[0], C[1], 0], [0.44, 0.4, 0.44], [X, 0, 0]));
+      ram([3.32, 1.55], [3.68, -0.55], 0.09, 0.0); // bucket cylinder down the stick
       // H-link, a curled digging bucket (rounded back, round side plates, cutting edge, teeth pointing in toward the
       // machine) and a hydraulic thumb on the stick that closes against it
+      seg('#2b2d30', [3.68, -0.55], [3.86, -0.95], 0.08, 0.3); seg('#2b2d30', [3.6, -0.78], [3.86, -0.95], 0.08, 0.26); // H-link
+      // thumb: three curved tines hinged low on the stick, closing toward the bucket lip
+      const T0 = [3.5, -0.62], T1 = [3.2, -1.1], T2 = [3.12, -1.55];
+      for (const z of [-0.32, 0, 0.32]) { seg('#2b2d30', T0, T1, 0.1, 0.08, z); seg('#2b2d30', T1, T2, 0.09, 0.08, z); p.push(Pm('box', '#3a3b3d', [T2[0] + 0.04, T2[1] - 0.05, z], [0.12, 0.08, 0.09], [0, 0, -0.6])); }
+      seg('#2b2d30', [3.2, -1.1], [3.2, -1.1], 0.1, 0.72); p.push(Pm('box', '#2b2d30', [3.28, -0.98, 0], [0.12, 0.12, 0.72], [0, 0, -1.0])); // tine cross bar
+      ram([3.48, 0.2], [3.32, -0.9], 0.07, 0.0); // thumb cylinder
+      tag(); sec = 'bucket';
       const Cb = [3.74, -1.42], R = 0.5, BW = 1.0, arc = [];
       for (let i = 0; i <= 7; i++) { const a = (60 - i * 30) * Math.PI / 180; arc.push([Cb[0] + Math.cos(a) * R, Cb[1] + Math.sin(a) * R]); } // from the pin ear round the back to the lip
       for (let i = 0; i < arc.length - 1; i++) seg(y, arc[i], arc[i + 1], 0.07, BW);
@@ -1173,13 +1236,10 @@
       const lip = arc[arc.length - 1], prev = arc[arc.length - 2], la = Math.atan2(lip[1] - prev[1], lip[0] - prev[0]);
       p.push(Pm('box', '#c9cdd2', [lip[0], lip[1], 0], [0.14, 0.06, BW + 0.04], [0, 0, la])); // cutting edge
       for (const z of [-0.36, -0.12, 0.12, 0.36]) p.push(Pm('box', '#3a3b3d', [lip[0] + Math.cos(la) * 0.13, lip[1] + Math.sin(la) * 0.13, z], [0.2, 0.08, 0.1], [0, 0, la]));
-      seg('#2b2d30', [3.68, -0.55], [3.86, -0.95], 0.08, 0.3); seg('#2b2d30', [3.6, -0.78], [3.86, -0.95], 0.08, 0.26); // H-link
-      // thumb: three curved tines hinged low on the stick, closing toward the bucket lip
-      const T0 = [3.5, -0.62], T1 = [3.2, -1.1], T2 = [3.12, -1.55];
-      for (const z of [-0.32, 0, 0.32]) { seg('#2b2d30', T0, T1, 0.1, 0.08, z); seg('#2b2d30', T1, T2, 0.09, 0.08, z); p.push(Pm('box', '#3a3b3d', [T2[0] + 0.04, T2[1] - 0.05, z], [0.12, 0.08, 0.09], [0, 0, -0.6])); }
-      seg('#2b2d30', [3.2, -1.1], [3.2, -1.1], 0.1, 0.72); p.push(Pm('box', '#2b2d30', [3.28, -0.98, 0], [0.12, 0.12, 0.72], [0, 0, -1.0])); // tine cross bar
-      ram([3.48, 0.2], [3.32, -0.9], 0.07, 0.0); // thumb cylinder
-      return build(p);
+      tag();
+      if (part === 'all') return build(p);
+      const piv = EX_PIV[part] || [0, 0]; // each piece is built around its own pin so it can rotate there
+      return build(p.filter((q) => q.sec === part).map((q) => Object.assign({}, q, { pos: [q.pos[0] - piv[0] * MM, q.pos[1] - piv[1] * MM, q.pos[2]] })));
     },
     fmulcher: () => build([ // tracked mulcher: 6.7 m x 2.5 m x 2.7 m
       ...trackM(3.6, 1.0, 0.85, 0.55, 6), ...trackM(3.6, -1.0, 0.85, 0.55, 6),
@@ -1490,6 +1550,28 @@
         Pm('box', '#2b2d30', [-2.45, 0.42, 0], [0.3, 0.08, 0.12]), ...wheelM(-2.6, 0.2, 0.02, 0.2, 0.14, '#3a3b3d', { slick: true })];
       return build(p);
     },
+    // the big 4x4 grinder bends in the middle: front frame (engine, boom, cutter wheel) and rear frame (tanks, controls)
+    grinderXLParts: () => {
+      const Y = '#e8b21a', Yd = '#c9960f', B = '#1c1d1f', X = Math.PI / 2, p = [];
+      const seg = (c, a, b, t, w, z = 0) => { const dx = b[0] - a[0], dy = b[1] - a[1]; p.push(Pm('box', c, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, z], [Math.hypot(dx, dy), t, w], [0, 0, Math.atan2(dy, dx)])); };
+      for (const x of [0.75, -0.75]) for (const s of [1, -1]) p.push(...wheelM(x, 0.38, s * 0.72, 0.38, 0.3, '#2a2b2d'));
+      // front frame: engine box with a side grille, stack and air filter, fenders, the boom and cutter wheel
+      p.push(Pm('box', Yd, [0.55, 0.62, 0], [1.0, 0.3, 1.05]), Pm('box', Y, [0.5, 1.12, 0], [0.9, 0.75, 1.05]), Pm('box', '#2a2c2f', [0.5, 1.12, 0.53], [0.65, 0.5, 0.02]),
+        Pm('box', Yd, [0.5, 1.51, 0], [0.93, 0.05, 1.08]), Pm('cyl', '#3a3b3d', [0.7, 1.68, 0.3], [0.1, 0.32, 0.1]), Pm('box', B, [0.3, 1.62, -0.25], [0.3, 0.2, 0.25]),
+        ...[1, -1].map((s) => Pm('box', Y, [0.75, 0.82, s * 0.86], [0.85, 0.06, 0.3])));
+      seg(Y, [0.95, 0.95], [1.6, 0.65], 0.24, 0.3, -0.2); seg(B, [0.9, 1.15], [1.42, 0.9], 0.08, 0.08, -0.2);
+      p.push(Pm('box', Y, [1.75, 0.92, -0.2], [0.95, 0.06, 0.36], [0, 0, -0.1]), Pm('box', Y, [2.15, 0.62, -0.2], [0.06, 0.62, 0.36]), Pm('box', '#e8e4da', [1.65, 0.8, -0.02], [0.4, 0.2, 0.01]));
+      // the hinge: two plates and a pin
+      p.push(Pm('box', B, [0.06, 0.6, 0], [0.16, 0.34, 0.5]), Pm('cyl', COL.chrome, [0.0, 0.62, 0], [0.12, 0.42, 0.12]), Pm('box', B, [-0.06, 0.6, 0], [0.16, 0.34, 0.5]));
+      // rear frame: hydraulic and fuel tanks, fenders, and a walk-behind control console with a tall shield frame (no seat: the operator stands)
+      p.push(Pm('box', Yd, [-0.6, 0.62, 0], [0.95, 0.3, 1.05]), Pm('box', Y, [-0.6, 0.98, 0], [0.85, 0.45, 1.0]), Pm('box', Yd, [-0.6, 1.22, 0], [0.88, 0.04, 1.02]),
+        ...[1, -1].map((s) => Pm('box', Y, [-0.75, 0.82, s * 0.86], [0.85, 0.06, 0.3])),
+        Pm('box', Y, [-1.05, 1.1, 0], [0.14, 0.8, 0.3]), Pm('box', B, [-1.1, 1.52, 0], [0.32, 0.12, 0.55], [0, 0, 0.35]), // console post and its control panel
+        ...[-0.15, 0, 0.15].map((z) => Pm('box', '#d0261e', [-1.12, 1.66, z], [0.03, 0.14, 0.03])), Pm('box', Y, [-1.08, 1.42, 0.32], [0.22, 0.05, 0.05]), Pm('box', Y, [-1.08, 1.42, -0.32], [0.22, 0.05, 0.05]), // levers, handles
+        ...[1, -1].map((s) => Pm('box', Y, [-0.98, 1.75, s * 0.38], [0.05, 1.3, 0.05])), Pm('box', Y, [-0.98, 2.4, 0], [0.05, 0.05, 0.8]), Pm('box', '#bcd3dc', [-0.97, 2.05, 0], [0.01, 0.6, 0.72])); // shield frame and screen
+      return p;
+    },
+    grinderXL: () => build(BIG_MODELS.grinderXLParts()),
     grinderHG: () => { // tracked horizontal grinder: infeed hopper at the back, mill, engine, discharge conveyor out the front
       const teal = '#2f8f86', td = '#24706a', X = Math.PI / 2;
       const p = [...trackM(4.6, 1.05, 0.85, 0.55, 6), ...trackM(4.6, -1.05, 0.85, 0.55, 6),
@@ -1767,9 +1849,13 @@
       g.strokeRect(U(p.x) * G + 2, U(p.y) * G + 2, U(p.w) * G - 4, U(p.h) * G - 4); g.setLineDash([]);
       for (const pl of world.supply.piles) { g.fillStyle = 'rgba(46,31,20,0.55)'; g.beginPath(); g.ellipse(U(pl.x) * G, U(pl.y + 40) * G, 2.6 * G, 1.4 * G, 0, 0, Math.PI * 2); g.fill(); }
     }
-    for (const p of world.pads || [world.pad]) {
-      if (!p) continue;
+    for (const p of world.pads || []) {
       g.strokeStyle = '#f2c94c'; g.lineWidth = 2; g.setLineDash([6, 4]);
+      g.strokeRect(U(p.x) * G + 2, U(p.y) * G + 2, U(p.w) * G - 4, U(p.h) * G - 4); g.setLineDash([]);
+    }
+    if (world.supply && world.supply.pickup) { const p = world.supply.pickup; g.strokeStyle = '#7fd0ff'; g.lineWidth = 2; g.setLineDash([6, 4]); g.strokeRect(U(p.x) * G + 2, U(p.y) * G + 2, U(p.w) * G - 4, U(p.h) * G - 4); g.setLineDash([]); }
+    for (const p of world.storage || []) { // debris storage at the yards: a brown dashed outline
+      g.strokeStyle = '#a0703c'; g.lineWidth = 2; g.setLineDash([4, 4]);
       g.strokeRect(U(p.x) * G + 2, U(p.y) * G + 2, U(p.w) * G - 4, U(p.h) * G - 4); g.setLineDash([]);
     }
   }
@@ -1889,7 +1975,8 @@
     for (const o of [fenceMesh, poleMesh, wireLines, zoneLine, targetGroup, aimMesh, landMesh]) if (o) scene.remove(o);
     for (const k in unitObjs) scene.remove(unitObjs[k]);
     for (const k in trailerObjs) scene.remove(trailerObjs[k]);
-    if (sawObj) { scene.remove(sawObj); sawObj = null; }
+    while (sawObjs.length) scene.remove(sawObjs.pop());
+    for (const k in palObjs) { scene.remove(palObjs[k]); delete palObjs[k]; }
     for (const k in attObjs) { if (attObjs[k].parent) attObjs[k].parent.remove(attObjs[k]); delete attObjs[k]; }
     unitObjs = {}; trailerObjs = {}; zoneSig = ''; targetSig = '';
   }
@@ -2047,6 +2134,23 @@
       for (let i = 0; i < 12; i++) parts.push(P('cyl', i % 2 ? '#7a5434' : '#6e4e33', [x0 + 0.8 + (i % 6) * 0.55, y + 0.3 + Math.floor(i / 6) * 0.48, z0 - 0.6], [0.5, 2.6, 0.5], [Math.PI / 2, 0, 0]));
       parts.push(P('box', '#7d7d7d', [x0 + U(p.w) - 1.2, y + 0.7, z0 + 1.6], [1.8, 1.4, 2.2]), P('box', '#5a5a5a', [x0 + U(p.w) - 1.2, y + 1.45, z0 + 1.6], [1.9, 0.1, 2.3]));
     }
+    if (world.sawmill) { // the sawdust heap and its blower pipe, a log deck with a chain infeed into the mill, a parked log loader, a dry kiln
+      const sm = world.sawmill, m = MM, at = (q) => [U(q.x), gh(q.x, q.y), U(q.y)];
+      { const [x, y, z] = at(sm.sawdust); parts.push(P('cone', '#d9b98a', [x, y + 1.4 * m, z], [5.5 * m, 2.8 * m, 5.5 * m]), P('cone', '#cfae7c', [x + 0.4 * m, y + 1.9 * m, z - 0.3 * m], [3 * m, 1.8 * m, 3 * m]),
+        P('cyl', '#9aa0a6', [x - 1.5 * m, y + 4.0 * m, z + 0.2 * m], [0.35 * m, 5.5 * m, 0.35 * m], [0, 0, 1.35])); }
+      { const [x, y, z] = at(sm.deck); // skids of steel rails sloping to the mill, with logs waiting
+        for (const dz of [-1.2, 0, 1.2]) parts.push(P('box', '#3b3f44', [x, y + 0.6 * m, z + dz * m], [0.25 * m, 0.25 * m, 5 * m], [0.15, 0, 0]));
+        for (let i = 0; i < 5; i++) parts.push(P('cyl', i % 2 ? '#7a5434' : '#6e4e33', [x + (i - 2) * 0.55 * m, y + (0.95 + (i % 2) * 0.1) * m, z], [0.5 * m, 5.2 * m, 0.5 * m], [Math.PI / 2, 0, 0])); }
+      { const [x, y, z] = at(sm.loader); // a yellow knuckleboom log loader on a pedestal
+        parts.push(P('box', '#2a2c2f', [x, y + 0.5 * m, z], [2.2 * m, 1.0 * m, 2.2 * m]), P('box', '#e8b21a', [x, y + 1.5 * m, z], [1.8 * m, 1.0 * m, 1.6 * m]), P('box', '#4f6e80', [x + 0.5 * m, y + 2.3 * m, z], [0.8 * m, 0.7 * m, 1.0 * m]),
+          P('box', '#e8b21a', [x - 1.6 * m, y + 3.1 * m, z], [3.6 * m, 0.4 * m, 0.4 * m], [0, 0, -0.5]), P('box', '#e8b21a', [x - 3.6 * m, y + 2.4 * m, z], [2.2 * m, 0.32 * m, 0.32 * m], [0, 0, 0.9]), P('box', '#2a2c2f', [x - 4.2 * m, y + 1.3 * m, z], [0.7 * m, 0.6 * m, 0.9 * m])); }
+      { const [x, y, z] = at(sm.kiln); parts.push(P('box', '#b9bdc2', [x, y + 1.6 * m, z], [6 * m, 3.2 * m, 4 * m]), P('box', '#8e939a', [x, y + 3.3 * m, z], [6.2 * m, 0.2 * m, 4.2 * m]), P('box', '#5a5f66', [x, y + 1.4 * m, z + 2.02 * m], [4 * m, 2.6 * m, 0.04 * m])); }
+    }
+    if (world.sawmill) for (const l of world.sawmill.lumber) { const y = gh(l.x, l.y), x = U(l.x), z = U(l.y);
+      for (let k = 0; k < 6; k++) parts.push(P('box', k % 2 ? '#d9b98a' : '#cfae7c', [x, y + 0.12 + k * 0.2, z], [3.2, 0.18, 1.2]));
+      for (const dx of [-1.2, 0, 1.2]) parts.push(P('box', '#6b5a44', [x + dx, y + 0.05, z], [0.1, 0.1, 1.3])); }
+    if (world.dumpSite) for (const m of world.dumpSite.mounds) { const y = gh(m.x, m.y);
+      parts.push(P('cone', m.c, [U(m.x), y + m.r * 0.38, U(m.y)], [m.r * 2, m.r * 0.8, m.r * 2]), P('cone', HC.shade(m.c, 0.1), [U(m.x) + m.r * 0.2, y + m.r * 0.55, U(m.y) - m.r * 0.15], [m.r, m.r * 0.5, m.r])); }
     if (world.quarry) { // gravel stockpiles and a sign
       for (const pl of world.quarry.piles) { const y = gh(pl.x, pl.y); parts.push(P('cone', pl.c, [U(pl.x), y + pl.r * 0.42, U(pl.y)], [pl.r * 2, pl.r * 0.85, pl.r * 2]), P('cone', HC.shade(pl.c, 0.08), [U(pl.x) - pl.r * 0.15, y + pl.r * 0.6, U(pl.y) - pl.r * 0.1], [pl.r * 1.1, pl.r * 0.55, pl.r * 1.1])); }
       const pt = world.quarry.plant;
@@ -2059,13 +2163,17 @@
       const q = world.quarry, sx = U(q.x + q.w / 2) + 4.5, sz = U(q.y + q.h) + 0.6, sy = gh(q.x + q.w / 2, q.y + q.h);
       parts.push(P('box', '#5a3a26', [sx - 0.9, sy + 0.6, sz], [0.12, 1.2, 0.12]), P('box', '#5a3a26', [sx + 0.9, sy + 0.6, sz], [0.12, 1.2, 0.12]), P('box', '#6b6f75', [sx, sy + 1.1, sz], [2.2, 0.6, 0.08]));
     }
-    if (world.fwStand) { // roadside firewood stand: posts, a sloped green roof, two shelves, a sign; ricks of split wood in the yard
-      const st = world.fwStand, x = U(st.x), z = U(st.y), y = gh(st.x, st.y);
-      for (const [dx, dz] of [[-1.3, -0.6], [1.3, -0.6], [-1.3, 0.6], [1.3, 0.6]]) parts.push(P('box', '#6b4a2b', [x + dx, y + 0.75, z + dz], [0.1, 1.5, 0.1]));
-      parts.push(P('box', '#3e6b3a', [x, y + 1.62, z], [3.0, 0.08, 1.6], [0.12, 0, 0]), P('box', '#8a6440', [x, y + 0.45, z], [2.7, 0.06, 1.1]), P('box', '#8a6440', [x, y + 0.95, z - 0.2], [2.7, 0.06, 0.7]),
-        P('box', '#f2ead8', [x, y + 1.95, z + 0.75], [1.8, 0.45, 0.06]), P('box', '#c42a24', [x, y + 1.95, z + 0.78], [1.6, 0.12, 0.01]),
-        P('box', '#6b4a2b', [x - 0.85, y + 1.0, z + 0.85], [0.08, 2.0, 0.08]), P('box', '#6b4a2b', [x + 0.85, y + 1.0, z + 0.85], [0.08, 2.0, 0.08]));
-      for (const rk of st.racks) { const rx = U(rk.x), rz = U(rk.y), ry = gh(rk.x, rk.y); for (let i = 0; i < 4; i++) parts.push(P('box', ['#b58a5a', '#9a7048'][i % 2], [rx, ry + 0.2 + i * 0.28, rz], [1.6, 0.26, 0.42])); parts.push(P('box', '#6b4a2b', [rx - 0.85, ry + 0.6, rz], [0.08, 1.2, 0.08]), P('box', '#6b4a2b', [rx + 0.85, ry + 0.6, rz], [0.08, 1.2, 0.08])); }
+    if (world.fwStand) { // roadside firewood stand, to scale (metres): 2.6 m wide, 1.3 m deep, sloped green roof at 2.2 m, two shelves; 8 ft ricks in the yard
+      const st = world.fwStand, x = U(st.x), z = U(st.y), y = gh(st.x, st.y), m = MM;
+      for (const [dx, dz] of [[-1.25, -0.6], [1.25, -0.6], [-1.25, 0.6], [1.25, 0.6]]) parts.push(P('box', '#6b4a2b', [x + dx * m, y + 1.05 * m, z + dz * m], [0.1 * m, 2.1 * m, 0.1 * m]));
+      parts.push(P('box', '#3e6b3a', [x, y + 2.2 * m, z], [2.9 * m, 0.06 * m, 1.6 * m], [0.14, 0, 0]),
+        P('box', '#8a6440', [x, y + 0.5 * m, z], [2.5 * m, 0.05 * m, 1.2 * m]), P('box', '#8a6440', [x, y + 1.1 * m, z - 0.15 * m], [2.5 * m, 0.05 * m, 0.8 * m]),
+        P('box', '#f2ead8', [x, y + 2.55 * m, z + 0.7 * m], [1.9 * m, 0.42 * m, 0.04 * m]), P('box', '#c42a24', [x, y + 2.55 * m, z + 0.73 * m], [1.6 * m, 0.12 * m, 0.01 * m]),
+        P('box', '#6b4a2b', [x - 0.85 * m, y + 1.3 * m, z + 0.72 * m], [0.07 * m, 2.6 * m, 0.07 * m]), P('box', '#6b4a2b', [x + 0.85 * m, y + 1.3 * m, z + 0.72 * m], [0.07 * m, 2.6 * m, 0.07 * m]),
+        P('box', '#d9cfb8', [x + 1.05 * m, y + 0.95 * m, z + 0.63 * m], [0.32 * m, 0.42 * m, 0.25 * m])); // honor box
+      for (const rk of st.racks) { const rx = U(rk.x), rz = U(rk.y), ry = gh(rk.x, rk.y);
+        for (let i = 0; i < 5; i++) parts.push(P('box', ['#b58a5a', '#9a7048'][i % 2], [rx, ry + (0.15 + i * 0.24) * m, rz], [2.4 * m, 0.23 * m, 0.42 * m]));
+        parts.push(P('box', '#6b4a2b', [rx - 1.25 * m, ry + 0.65 * m, rz], [0.08 * m, 1.3 * m, 0.08 * m]), P('box', '#6b4a2b', [rx + 1.25 * m, ry + 0.65 * m, rz], [0.08 * m, 1.3 * m, 0.08 * m])); }
     }
     if (world.supply) { // landscape supply: concrete-block bins full of dyed mulch, a yard loader, a parked dump truck
       const sp = world.supply;
@@ -2269,7 +2377,7 @@
       let ud = null, arms = null;
       const uk = carried.has(it) ? Object.keys(S.units).find((q) => S.units[q].carrying.includes(it)) : null, u = uk && S.units[uk];
       ud = uk && unitObjs[uk] && unitObjs[uk].userData;
-      arms = ud && (ud.arms || ud.loaderArm || ud.exArm);
+      arms = ud && (ud.arms || ud.loaderArm || (ud.exArm && (ud.exArm.userData.stick || ud.exArm)));
       if (arms) { // held in the grapple's jaws or heaped in the bucket, wherever the arms are (and at the right size for the mini)
         const i = u.carrying.indexOf(it), g = arms.userData.grabAt;
         arms.updateWorldMatrix(true, false);
@@ -2321,9 +2429,36 @@
     return { along: dx * c + dy * s, side: Math.abs(-dx * s + dy * c) };
   }
   const rampRear = (t) => RAMP[t.kind].x * 32 / 3; // px from the axle to the ramp hinge
-  let sawObj = null;
   const attObjs = {};
   const attGeo = (kind) => cache('att_' + kind, () => kind === 'bushhog' ? BIG_MODELS.bushhog() : skidArms(kind));
+  const PAL_GEO = {
+    base: () => build([...[-0.5, 0, 0.5].map((z) => Pm('box', '#a37f4f', [0, 0.06, z], [1.2, 0.1, 0.1])), ...[-0.48, -0.24, 0, 0.24, 0.48].map((x) => Pm('box', '#c49a63', [x, 0.13, 0], [0.12, 0.03, 1.1]))]),
+    sod: () => build([...[0, 1, 2].flatMap((r) => [-0.38, -0.13, 0.13, 0.38].map((z) => Pm('cyl', r % 2 ? '#4f8f3a' : '#5a9a42', [0, 0.25 + r * 0.22, z], [0.22, 1.1, 0.22], [0, 0, Math.PI / 2])))]),
+    shrub: () => build([...[-0.35, 0.35].flatMap((x) => [-0.35, 0, 0.35].flatMap((z) => [Pm('cyl', '#1e1f20', [x, 0.3, z], [0.3, 0.28, 0.3]), Pm('sph', ['#3d7a33', '#4b8a3a', '#356b2c'][Math.abs(Math.round(x * 3 + z * 7)) % 3], [x, 0.6, z], [0.42, 0.4, 0.42])]))]),
+    paver: () => build([...[0, 1, 2, 3, 4].map((r) => Pm('box', r % 2 ? '#a39a8c' : '#b3a998', [0, 0.22 + r * 0.14, 0], [1.1, 0.13, 1.0])), Pm('box', '#1c1d1f', [0, 0.5, 0], [0.02, 0.72, 1.02]), Pm('box', '#1c1d1f', [0, 0.5, 0], [1.12, 0.72, 0.02])]),
+  };
+  const palObjs = {};
+  function syncPallets(S) {
+    const list = (HC.company && HC.company.pallets) || [];
+    for (const id in palObjs) if (!list.some((p) => p.id === +id || p.id === id)) { scene.remove(palObjs[id]); delete palObjs[id]; }
+    for (const p of list) {
+      let o = palObjs[p.id];
+      if (!o) {
+        o = new THREE.Group(); o.add(model(cache('palBase', PAL_GEO.base)));
+        const load = model(cache('pal_' + p.mat, PAL_GEO[p.mat] || PAL_GEO.paver)); o.add(load); o.userData.load = load;
+        palObjs[p.id] = o; scene.add(o);
+      }
+      const r = p.ride, P = HC.PALLETS[p.mat];
+      let lift = 0;
+      if (r && r.held) { const u = S.units[r.held]; lift = (0.08 + (u ? u.armT || 0 : 0) * (HC.baseOf(r.held) === 'tractor' ? 2.6 : 2.3)) * MM; }
+      else if (r && r.t) { const t = S.trailers.find((q) => q.id === r.t); lift = t ? (DECK_H[t.kind] || 0.6) * MM : 0; }
+      else if (r && r.u) lift = (HC.baseOf(r.u) === 'dually' ? 1.5 : 1.1) * MM;
+      o.position.set(U(p.x), gh(p.x, p.y) + lift, U(p.y));
+      o.rotation.y = -(p.a || 0);
+      o.userData.load.scale.y = Math.max(0.12, p.qty / ((P && P.per) || 10));
+      o.visible = inView(U(p.x), U(p.y));
+    }
+  }
   function syncAttachments(S) {
     for (const a of S.attachments || []) {
       let o = attObjs[a.id];
@@ -2332,7 +2467,13 @@
         if (a.kind === 'mulcher') { const d = model(cache('skidDrum', () => drumGeo(0.25, 1.98, '#e8a21a', '#2b2b2b', 6, 9))); d.position.set((2.8 - PLATE[0]) * MM, (-1.58 - PLATE[1]) * MM, 0); o.add(d); o.userData.drum = d; }
       }
       if (o.userData.drum) { const hu = a.on && S.units[a.on]; if (hu && hu.working) o.userData.drum.rotation.z -= 0.55; }
-      const host = a.on && !a.on.startsWith('trailer:') && unitObjs[a.on];
+      const host = a.on && !a.on.startsWith('trailer:') && !a.on.startsWith('truck:') && unitObjs[a.on];
+      if (host && a.kind === 'forks' && host.userData.loaderArm && !host.userData.arms) { // clamp-on forks on the tractor's bucket
+        if (o.parent !== host.userData.loaderArm) host.userData.loaderArm.add(o);
+        o.position.set((PLATE[0] + 0.62) * MM, (PLATE[1] - 0.05) * MM, 0); o.rotation.set(0, 0, 0);
+        o.visible = !S.units[a.on].hidden;
+        continue;
+      }
       if (host && host.userData.arms) {
         if (o.parent !== host.userData.arms) host.userData.arms.add(o);
         o.position.set(PLATE[0] * MM, PLATE[1] * MM, 0); o.rotation.set(0, 0, 0);
@@ -2341,7 +2482,9 @@
         if (o.parent !== scene) scene.add(o);
         const deck = a.on && a.on.startsWith('trailer:') ? S.trailers.find((t) => t.id === a.on.slice(8)) : null;
         const lift = a.kind === 'bushhog' ? (host ? (S.units[a.on].armT || 0) * 0.5 * MM : 0) : 0.3 * MM;
-        o.position.set(U(a.x), gh(a.x, a.y) + (deck ? (DECK_H[deck.kind] || 0.6) * MM : 0) + lift, U(a.y));
+        const hu = host && S.units[a.on], hostDeck = hu ? S.trailers.find((t) => (hu.on ? t.id === hu.on.id : HC.Units.onDeck(t, hu))) : null; // riding with its tractor
+        const dk = deck || (hostDeck && HC.RIDES(hu.kind) ? hostDeck : null), bed = a.on && a.on.startsWith('truck:') ? (HC.baseOf(a.on.slice(6)) === 'dually' ? 1.5 : 1.1) * MM : 0;
+        o.position.set(U(a.x), gh(a.x, a.y) + (dk ? (DECK_H[dk.kind] || 0.6) * MM : 0) + bed + lift, U(a.y));
         o.rotation.set(0, -a.a, a.kind === 'bushhog' && host ? (S.units[a.on].armT || 0) * 0.12 : 0);
         if (a.kind === 'bushhog' && host && S.units[a.on].working) o.position.y += HC.rand(-0.004, 0.004);
         o.visible = true;
@@ -2356,18 +2499,28 @@
     if (!standGrp) {
       standGrp = new THREE.Group(); scene.add(standGrp);
       const geo = cache('fwBundle', () => build([...[0, 1, 2].flatMap((r) => [-1, 0, 1].map((c) => Pm('box', ['#b58a5a', '#c9a26a', '#9a7048'][(r + c + 3) % 3], [0, 0.07 + r * 0.12, c * 0.12], [0.36, 0.11, 0.11]))), Pm('box', '#e8e4da', [0, 0.2, 0], [0.38, 0.03, 0.38])]));
-      for (let i = 0; i < 12; i++) { const m = model(geo); const row = i < 6 ? 0 : 1; m.position.set(U(st.x) + (-1.1 + (i % 6) * 0.44) * MM * 3 / 3, gh(st.x, st.y) + (row ? 0.98 : 0.48) * MM, U(st.y) + (row ? -0.2 : 0) * MM); standGrp.add(m); }
+      for (let i = 0; i < 12; i++) { const m = model(geo); const row = i < 6 ? 0 : 1; m.position.set(U(st.x) + (-1.0 + (i % 6) * 0.4) * MM, gh(st.x, st.y) + (row ? 1.13 : 0.53) * MM, U(st.y) + (row ? -0.15 : 0.1) * MM); standGrp.add(m); }
     }
     standGrp.children.forEach((m, i) => { m.visible = i < n; });
   }
+  // stump grinder cutter wheel: a disc with carbide teeth round the rim, centred on its axle (spins about z)
+  const cutterGeo = (R, w, n, disc = '#9aa0a6', tooth = '#e8c84a') => build([Pm('cyl', disc, [0, 0, 0], [R * 2, w, R * 2], [Math.PI / 2, 0, 0]), Pm('cyl', '#3a3b3d', [0, 0, 0], [R * 0.5, w + 0.04, R * 0.5], [Math.PI / 2, 0, 0]),
+    ...Array.from({ length: n }, (_, i) => { const a = (i / n) * Math.PI * 2; return Pm('box', tooth, [Math.cos(a) * (R + 0.02), Math.sin(a) * (R + 0.02), (i % 2 ? 1 : -1) * w * 0.35], [0.07, 0.06, w * 0.6], [0, 0, a]); })]);
+  const sawObjs = [];
   function syncSaw(S) {
-    if (!S.saw) { if (sawObj) sawObj.visible = false; return; }
-    const sk = (HC.company && HC.company.sawKind) || 's60';
-    if (sawObj && sawObj.userData.kind !== sk) { scene.remove(sawObj); sawObj = null; }
-    if (!sawObj) { sawObj = model(sawItemGeo(sk)); sawObj.userData.kind = sk; scene.add(sawObj); }
-    const h = S.saw.holder && S.units[S.saw.holder];
+    const L = S.saws || (S.saw ? [S.saw] : []), sk = (HC.company && HC.company.sawKind) || 's60';
+    while (sawObjs.length > L.length) scene.remove(sawObjs.pop());
+    L.forEach((sw, i) => {
+      let o = sawObjs[i];
+      if (o && o.userData.kind !== sk) { scene.remove(o); o = null; }
+      if (!o) { o = model(sawItemGeo(sk)); o.userData.kind = sk; scene.add(o); sawObjs[i] = o; }
+      placeSaw(S, sw, o);
+    });
+  }
+  function placeSaw(S, sw, sawObj) {
+    const h = sw.holder && S.units[sw.holder];
     sawObj.visible = !(h && h.hidden);
-    const ho = h && unitObjs[S.saw.holder], rig = ho && ho.userData.rig;
+    const ho = h && unitObjs[sw.holder], rig = ho && ho.userData.rig;
     if (h && rig) { // in the right hand: carried by the side walking, both hands and the bar out front cutting
       rig.handR.updateWorldMatrix(true, false);
       const p = new THREE.Vector3(); rig.handR.getWorldPosition(p);
@@ -2380,8 +2533,8 @@
       sawObj.position.set(U(hx), gh(hx, hy) + 1.2 * MM + (h.working ? HC.rand(-0.004, 0.004) : 0), U(hy));
       sawObj.rotation.set(0, -h.a, h.working ? -0.35 : -0.15);
     } else {
-      sawObj.position.set(U(S.saw.x), gh(S.saw.x, S.saw.y) + 0.12 * MM, U(S.saw.y));
-      sawObj.rotation.set(0, -(S.saw.a || 0), 0);
+      sawObj.position.set(U(sw.x), gh(sw.x, sw.y) + 0.12 * MM, U(sw.y));
+      sawObj.rotation.set(0, -(sw.a || 0), 0);
     }
   }
   const jackAt = (len) => { const j = model(cache('jack', TRAILER_GEO.jack), false); j.position.x = U(len) - 0.5 * MM; return j; };
@@ -2533,19 +2686,21 @@
     }
     if (e >= 2.9) { o.userData.tipStart = 0; o.userData.dumpBox.rotation.z = 0; }
   }
-  const ARTIC = { skidder: { pivot: 0.2, parts: 'skidderParts' }, harvester: { pivot: 0.05, parts: 'harvesterBase' }, forwarder: { pivot: 1.85, parts: 'forwarder' }, loader: { pivot: 0.05, parts: 'loaderParts' } };
+  const ARTIC = { grinderXL: { pivot: 0.0, parts: 'grinderXLParts' }, skidder: { pivot: 0.2, parts: 'skidderParts' }, harvester: { pivot: 0.05, parts: 'harvesterBase' }, forwarder: { pivot: 1.85, parts: 'forwarder' }, loader: { pivot: 0.05, parts: 'loaderParts' } };
   function makeUnitObj(kk) {
     const k = HC.baseOf(kk);
     const grp = new THREE.Group();
     const pv = (a) => a.map((v) => v * MM);
-    if (ARTIC[k]) { // centre-articulated: front and rear frames each swing half the bend about the hinge
-      const A = ARTIC[k], px = A.pivot * MM;
+    const AK = ARTIC[kk] ? kk : HC.EQUIP[kk] && ARTIC[HC.EQUIP[kk].base] ? HC.EQUIP[kk].base : k;
+    if (ARTIC[AK]) { // centre-articulated: front and rear frames each swing half the bend about the hinge
+      const A = ARTIC[AK], px = A.pivot * MM;
       const isRear = (q) => (q.wh ? q.wh.c[0] : q.pos[0]) < px;
       const parts = BIG_MODELS[A.parts]();
       const front = new THREE.Group(), rear = new THREE.Group(); front.position.x = rear.position.x = px;
-      const fm = model(cache(k + 'Front', () => build(parts.filter((q) => !isRear(q))))); fm.position.x = -px; front.add(fm);
-      const rm = model(cache(k + 'Rear', () => build(parts.filter(isRear)))); rm.position.x = -px; rear.add(rm);
+      const fm = model(cache(AK + 'Front', () => build(parts.filter((q) => !isRear(q))))); fm.position.x = -px; front.add(fm);
+      const rm = model(cache(AK + 'Rear', () => build(parts.filter(isRear)))); rm.position.x = -px; rear.add(rm);
       grp.add(front, rear); grp.userData.artic = { front, rear, px };
+      if (AK === 'grinderXL') { const c = model(cache('cutterXL', () => cutterGeo(0.43, 0.1, 12, '#5a5d61', '#c9cdd2'))); c.position.set(1.78 * MM - px, 0.55 * MM, -0.2 * MM); front.add(c); grp.userData.cutter = c; }
       if (k === 'loader') {
         const arms = new THREE.Group(); arms.position.set(1.0 * MM - px, 2.45 * MM, 0);
         arms.add(model(cache('loaderArms', BIG_MODELS.loaderArms))); front.add(arms); grp.userData.loaderArm = arms; arms.userData.grabAt = [2.85, -1.25, 0.85];
@@ -2558,14 +2713,14 @@
       const inner = new THREE.Group(); inner.scale.set(0.7, 0.86, 0.68); // a real 3.5 t mini: ~5 m long, 1.85 m wide, 2.5 m to the cab roof
       inner.add(model(cache('excLower', () => BIG_MODELS.excavatorBase('lower'))));
       const house = new THREE.Group(); house.add(model(cache('excUpper', () => BIG_MODELS.excavatorBase('upper')))); inner.add(house); // swings on the ring
-      const arm = new THREE.Group(); arm.position.set(...pv(PIV.exArm)); arm.add(model(cache('excArm', BIG_MODELS.excavatorArm))); house.add(arm); arm.userData.grabAt = [3.42, -1.35, 0.28, 0.9];
+      const arm = excRig(); arm.position.set(...pv(PIV.exArm)); house.add(arm);
       grp.add(inner); grp.userData.exArm = arm; grp.userData.house = house;
       grp.add(model(cache('miniBlade2', () => build([Pm('box', COL.cat, [1.45, 0.3, 0], [0.18, 0.45, 1.85]), Pm('box', COL.frame, [1.15, 0.3, 0], [0.55, 0.1, 0.55]), Pm('cyl', COL.chrome, [1.2, 0.48, 0], [0.08, 0.5, 0.08], [0, 0, 1.2])]))));
     } else if (k === 'excavator') {
       grp.add(model(cache('excLower', () => BIG_MODELS.excavatorBase('lower'))));
       const house = new THREE.Group(); house.add(model(cache('excUpper', () => BIG_MODELS.excavatorBase('upper')))); grp.add(house); // the upper works swing on the ring
-      const arm = new THREE.Group(); arm.position.set(...pv(PIV.exArm));
-      arm.add(model(cache('excArm', BIG_MODELS.excavatorArm))); house.add(arm); grp.userData.exArm = arm; grp.userData.house = house; arm.userData.grabAt = [3.42, -1.35, 0.28, 0.9]; // held between bucket and thumb
+      const arm = excRig(); arm.position.set(...pv(PIV.exArm));
+      house.add(arm); grp.userData.exArm = arm; grp.userData.house = house;
     } else if (k === 'bucket') {
       grp.add(model(cache('bucketBase', BIG_MODELS.bucketBase)));
       const boom = new THREE.Group(); boom.position.set(...pv(PIV.boom));
@@ -2579,6 +2734,12 @@
       grp.add(inner); grp.userData.arms = arms;
       const op = model(cache('standOp', () => build(personM('#d9f23a', '#ffffff', { arms: 'forward' })))); op.position.set(-1.05 * MM, 0.3 * MM, 0);
       grp.add(op); grp.userData.driver = op; grp.userData.noSeat = true;
+    } else if (kk === 'skidXL' || HC.EQUIP[kk].base === 'skidXL') { // the big track loader: the skid at ~1.14x with its own white-and-orange body
+      const inner = new THREE.Group(); inner.scale.setScalar(1.14); grp.add(inner);
+      inner.add(model(cache('skidXLBase', skidXLBase)));
+      const arms = new THREE.Group(); arms.position.set(...pv(PIV.skidArm));
+      arms.add(model(cache('armsXL2', skidXLArms))); inner.add(arms);
+      grp.userData.arms = arms;
     } else if (k === 'skid') {
       grp.add(model(cache('skidBase', skidBase)));
       const arms = new THREE.Group(); arms.position.set(...pv(PIV.skidArm));
@@ -2609,20 +2770,32 @@
     } else if (GLB_SPEC[k] && (window.HC_MODELS || {})[k] && THREE.GLTFLoader) {
       grp.add(glbObj(k, () => model(cache('unit_' + k, UNIT_MODELS[k]))));
     } else {
-      grp.add(model(BIG_MODELS[k] ? cache('big_' + k, BIG_MODELS[k]) : cache('unit_' + k, UNIT_MODELS[k])));
+      const mk = BIG_MODELS[kk] ? kk : HC.EQUIP[kk] && HC.EQUIP[kk].base && BIG_MODELS[HC.EQUIP[kk].base] ? HC.EQUIP[kk].base : k; // a shop variant can have its own model
+      grp.add(model(BIG_MODELS[mk] ? cache('big_' + mk, BIG_MODELS[mk]) : cache('unit_' + k, UNIT_MODELS[k])));
+      if (mk === 'grinder') { const c = model(cache('cutter', () => cutterGeo(0.28, 0.05, 12))); c.position.set(0.95 * MM, 0.38 * MM, 0); grp.add(c); grp.userData.cutter = c; }
     }
     if (HC.EQUIP[k] && HC.EQUIP[k].move === 'tow') { const j = jackAt(HC.TRAILERS[k].len); grp.add(j); grp.userData.jack = j; }
     if (kk !== k && HC.EQUIP[kk].color) grp.userData.tint = HC.EQUIP[kk].color;
     if (SEATS[k] && !grp.userData.noSeat) {
       const standing = k === 'grinder' || k === 'mowerSO';
       const d = model(standing ? cache('walkerOp', () => build(personM('#f07a22', '#f4c020', { arms: 'forward' }))) : cache('seatedOp', () => build(seatedM())));
-      d.position.set(...pv(SEATS[k]));
-      if (grp.userData.artic) { d.position.x -= grp.userData.artic.px; grp.userData.artic.front.add(d); } else if (grp.userData.house && k === 'excavator') grp.userData.house.add(d);
+      d.position.set(...pv(SEATS[kk] || SEATS[k]));
+      if (grp.userData.artic && kk === 'grinderXL') { d.position.x -= grp.userData.artic.px; grp.userData.artic.rear.add(d); } // walks behind the rear frame
+      else if (grp.userData.artic) { d.position.x -= grp.userData.artic.px; grp.userData.artic.front.add(d); } else if (grp.userData.house && k === 'excavator') grp.userData.house.add(d);
       else if (grp.userData.house && k === 'miniex') { d.position.set(d.position.x / 0.7, d.position.y / 0.86, d.position.z / 0.68); d.scale.set(1 / 0.7, 1 / 0.86, 1 / 0.68); grp.userData.house.add(d); } // inside the scaled mini
       else grp.add(d);
       grp.userData.driver = d;
     }
     return grp;
+  }
+  // the excavator arm as three jointed pieces: boom > stick > bucket. What the thumb holds rides on the stick.
+  function excRig() {
+    const boom = new THREE.Group(); boom.add(model(cache('excBoom', () => BIG_MODELS.excavatorArm('boom'))));
+    const stick = new THREE.Group(); stick.position.set(EX_PIV.stick[0] * MM, EX_PIV.stick[1] * MM, 0); stick.add(model(cache('excStick', () => BIG_MODELS.excavatorArm('stick')))); boom.add(stick);
+    const bucket = new THREE.Group(); bucket.position.set((EX_PIV.bucket[0] - EX_PIV.stick[0]) * MM, (EX_PIV.bucket[1] - EX_PIV.stick[1]) * MM, 0); bucket.add(model(cache('excBucket', () => BIG_MODELS.excavatorArm('bucket')))); stick.add(bucket);
+    boom.userData.stick = stick; boom.userData.bucket = bucket;
+    stick.userData.grabAt = [3.42 - EX_PIV.stick[0], -1.35 - EX_PIV.stick[1], 0.28, 0.9]; // held between bucket and thumb
+    return boom;
   }
   function makeTrailerObj(kind) {
     kind = HC.trailerKindOf(kind);
@@ -2735,6 +2908,7 @@
       else rollWheels(o, u.x, u.y, u.a, HC.EQUIP[k].move === 'car' ? (u.steer || 0) : null);
       if (o.userData.loaderArm) o.userData.loaderArm.rotation.z = (u.armT || 0) * 0.85;
       if (o.userData.drum && u.working) o.userData.drum.rotation.z -= 0.55; // the rotor spins while it's cutting
+      if (o.userData.cutter) { o.userData.spin = HC.lerp(o.userData.spin || 0, u.working ? 0.7 : 0, u.working ? 0.2 : 0.03); o.userData.cutter.rotation.z -= o.userData.spin; } // the cutter wheel spins up while grinding and coasts down
       if (o.userData.artic) { o.userData.artic.front.rotation.y = -(u.art || 0) / 2; o.userData.artic.rear.rotation.y = (u.art || 0) / 2; }
       if (o.userData.hBoom) {
         const want = u.headAt ? HC.clamp(-HC.angDiff(u.a, Math.atan2(u.headAt.y - u.y, u.headAt.x - u.x)), -1.2, 1.2) : 0;
@@ -2747,7 +2921,12 @@
         o.userData.deckLogs.forEach((m, i) => { m.visible = i < n; });
       }
       if (o.userData.house) o.userData.house.rotation.y = -(u.swing || 0); // the cab and boom slew independently of the tracks
-      if (o.userData.exArm) o.userData.exArm.rotation.z = (u.armT || 0) * 0.35 + (u.working ? Math.sin(performance.now() / 60) * 0.03 : 0);
+      if (o.userData.exArm) {
+        const ea = o.userData.exArm, t = u.armT || 0, jig = u.working ? Math.sin(performance.now() / 60) * 0.03 : 0;
+        ea.rotation.z = t * 0.5 + jig;                       // boom up
+        if (ea.userData.stick) ea.userData.stick.rotation.z = t * 0.42 - jig * 1.5; // stick swings out (and works back and forth when digging)
+        if (ea.userData.bucket) ea.userData.bucket.rotation.z = (u.carrying && u.carrying.length ? 0.5 : 0) + t * 0.35 + (u.working ? Math.sin(performance.now() / 90) * 0.15 : 0); // bucket curls
+      }
       if (o.userData.boom) {
         const up = Math.abs(u.v) < 5 && S.lot.trees.some((t) => t.state === 'standing' && Math.abs(t.x - u.x) < 130 && Math.abs(t.y - u.y) < 130 && HC.dist(t.x, t.y, u.x, u.y) < 130);
         o.userData.boomA += ((up ? 0.85 : 0) - o.userData.boomA) * 0.05;
@@ -2780,7 +2959,7 @@
       const rig = o.userData.rig;
       if (rig) {
         const spd = HC.EQUIP[k].speed || 50, f = HC.clamp((u.speed || 0) / spd, 0, 1.8), ph = (u.walkT || 0) * 11, sw = Math.sin(ph) * (0.15 + 0.4 * Math.min(1, f));
-        const holding = S.saw && S.saw.holder === k, cutting = holding && u.working;
+        const holding = (S.saws || (S.saw ? [S.saw] : [])).some((sw) => sw.holder === k), cutting = holding && u.working;
         const ease = (obj, v) => { obj.rotation.z += (v - obj.rotation.z) * 0.35; };
         ease(rig.legs[0], u.moving ? sw : 0); ease(rig.legs[1], u.moving ? -sw : 0);
         ease(rig.body, cutting ? -0.18 : u.moving ? -0.05 * f : 0); // lean into the work, or a little into a jog
@@ -3004,7 +3183,9 @@
     }
     octx.globalAlpha = 1;
     const labels = [];
-    for (const p of world.pads || [world.pad]) if (p) labels.push([p.x + p.w / 2, p.y + p.h / 2, 'Log & dump pad']);
+    for (const p of world.pads || []) labels.push([p.x + p.w / 2, p.y + p.h / 2, p.type === 'mill' ? `Sawmill log yard · logs ${Math.round((HC.MILL_PRICE - 1) * 100)}% over pad price` : `County dump · brush ${HC.money(HC.DUMP_FEES.brush)}, stumps ${HC.money(HC.DUMP_FEES.stump * 3)}, rock ${HC.money(HC.DUMP_FEES.rock * 3)}`]);
+    for (const p of world.storage || []) { const y = world.yards.find((q) => q.id === p.yard); if (y && y.owned) labels.push([p.x + p.w / 2, p.y + p.h / 2, 'Debris storage']); }
+    if (world.supply && world.supply.pickup) { const p = world.supply.pickup; labels.push([p.x + p.w / 2, p.y + p.h / 2, 'Pickup area']); }
     for (const pm of world.pumps) labels.push([pm.x, pm.y, 'Fuel']);
     if (world.fwStand) labels.push([world.fwStand.x, world.fwStand.y - 30, `Firewood stand · ${(HC.company.stand || {}).stock || 0}/${HC.STAND_CAP}`]);
     for (const c of (HC.company && HC.company.contracts) || []) if (c.status === 'bidding' || c.status === 'won') labels.push([c.x, c.y, c.status === 'won' ? `Your state contract · ${c.road}` : `Storm damage · ${c.road} (bids open)`]);
@@ -3081,7 +3262,7 @@
     updateCamera(S, dt);
     // co-op: the other companies' machines, trailers and attachments are drawn alongside yours
     const V = S.remote && (Object.keys(S.remote).length || (S.remoteTrailers || []).length) ? Object.assign(Object.create(S), { units: Object.assign({}, S.units, S.remote), trailers: S.trailers.concat(S.remoteTrailers || []), attachments: (S.attachments || []).concat(S.remoteAt || []) }) : S;
-    syncTrees(S); syncUnits(V); syncSmall(V); syncStand(); syncSaw(S); syncAttachments(V); syncJob(S); syncAim(S); syncParticles(S); syncGrass(S, dt);
+    syncTrees(S); syncUnits(V); syncSmall(V); syncStand(); syncSaw(S); syncAttachments(V); syncJob(S); syncAim(S); syncParticles(S); syncGrass(S, dt); syncMowMarks(S, dt); syncPallets(S);
     weather(S, dt);
     if (groundDirty && now - lastUpload > 120) { uploadGround(now); groundDirty = false; lastUpload = now; }
     if (mipDirty && now - lastMip > 500) refreshMips(now);
@@ -3124,6 +3305,32 @@
     scene.add(grassMesh);
   }
   const grassMat4 = new THREE.Matrix4(), grassQ = new THREE.Quaternion(), grassP = new THREE.Vector3(), grassS = new THREE.Vector3(), grassUp = new THREE.Vector3(0, 1, 0);
+  let mowMesh = null, mowT = 0;
+  function syncMowMarks(S, dt) {
+    mowT -= dt;
+    const job = S.job && !S.preview && S.stage === 'onsite' ? S.job : null;
+    const mows = job && ['sod_planting', 'bush_hog', 'mulching'].includes(job.type);
+    if (!mowMesh) {
+      const g = new THREE.PlaneGeometry(0.94, 0.94); g.rotateX(-Math.PI / 2);
+      mowMesh = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ color: '#ffd84a', transparent: true, opacity: 0.3, depthWrite: false }), 1600);
+      mowMesh.frustumCulled = false; mowMesh.renderOrder = 3; mowMesh.count = 0; scene.add(mowMesh);
+    }
+    mowMesh.material.opacity = 0.2 + Math.sin(performance.now() / 380) * 0.08;
+    if (!mows) { mowMesh.count = 0; return; }
+    if (mowT > 0) return;
+    mowT = 0.4;
+    const W = S.lot, p = world.parcels.find((q) => q.id === job.parcel), r = job.type === 'sod_planting' ? p : (W.zone || p);
+    if (!r) { mowMesh.count = 0; return; }
+    let n = 0;
+    const x0 = Math.floor(r.x / TS), x1 = Math.ceil((r.x + r.w) / TS), y0 = Math.floor(r.y / TS), y1 = Math.ceil((r.y + r.h) / TS);
+    for (let y = y0; y < y1 && n < 1600; y++) for (let x = x0; x < x1 && n < 1600; x++) {
+      if (W.tiles[y * W.w + x] !== T.TALL) continue;
+      const cx = x * TS + 16, cy = y * TS + 16;
+      _dummy.position.set(U(cx), gh(cx, cy) + 0.24, U(cy)); _dummy.rotation.set(0, 0, 0); _dummy.scale.set(1, 1, 1); _dummy.updateMatrix();
+      mowMesh.setMatrixAt(n++, _dummy.matrix);
+    }
+    mowMesh.count = n; mowMesh.instanceMatrix.needsUpdate = true;
+  }
   function syncGrass(S, dt) {
     if (curQ === 'low') { if (grassMesh) grassMesh.visible = false; return; }
     if (!grassMesh) makeGrass();

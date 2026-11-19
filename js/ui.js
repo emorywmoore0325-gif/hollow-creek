@@ -30,9 +30,10 @@
           <h1>Hollow Creek</h1>
           <p class="logo-sub">Land &amp; Timber</p>
         </div>
+        <p class="version-tag">Version ${esc(HC.VERSION)}</p>
         <p class="tagline">Run a tree and land outfit in a little 3D town. Customers call, you quote the job, drive out, drop the trees clean and haul it all home.</p>
         <div class="btn-row">
-          ${has ? `<button class="btn primary" id="b-continue">Continue slot ${HC.Save.slot}</button>` : ''}
+          ${has ? `<button class="btn primary" id="b-continue">Continue ${esc((HC.Save.info(HC.Save.slot) || {}).label || 'slot ' + HC.Save.slot)}</button>` : ''}
           <button class="btn ${has ? '' : 'primary'}" id="b-new">Start a new company${has ? '' : ` in slot ${HC.Save.slot}`}</button>
         </div>
         <div id="confirm-new" class="confirm" hidden>
@@ -50,7 +51,7 @@
             <input id="coop-name" type="text" maxlength="16" placeholder="Your name" autocomplete="off">
             <input id="coop-code" type="text" maxlength="8" placeholder="Room code" autocomplete="off">
             <label class="small coop-lbl" for="coop-slot">Bring</label>
-            <select id="coop-slot">${Array.from({ length: HC.Save.SLOTS }, (_, i) => { const n = i + 1, inf = HC.Save.info(n); return `<option value="${n}"${n === HC.Save.slot ? ' selected' : ''}>Slot ${n}: ${inf ? esc(inf.name) + ', day ' + inf.day : 'a new company'}</option>`; }).join('')}</select>
+            <select id="coop-slot">${Array.from({ length: HC.Save.SLOTS }, (_, i) => { const n = i + 1, inf = HC.Save.info(n); return `<option value="${n}"${n === HC.Save.slot ? ' selected' : ''}>${inf && inf.label ? esc(inf.label) : 'Slot ' + n}: ${inf ? esc(inf.name) + ', day ' + inf.day : 'a new company'}</option>`; }).join('')}</select>
             <button class="btn" id="b-join">Join</button>
           </div>
           <p class="small" id="coop-msg" role="status"></p>
@@ -114,13 +115,15 @@
     if (rj) { $('coop-code').value = rj.code || ''; $('coop-name').value = rj.name || ''; if (rj.slot) $('coop-slot').value = String(rj.slot); setTimeout(() => joinAs(rj.mode || 'own'), 300); }
     bind('.slot-play', (el) => { HC.Save.setSlot(+el.dataset.n); HC.Save.load(); go(); });
     bind('.slot-new', (el) => { const n = +el.dataset.n; if (HC.Save.has(n)) return ask(`Start a new company in slot ${n}? Its saved company will be erased.`, 'Erase and start over', () => fresh(n)); fresh(n); });
+    bind('.slot-ren', (el) => { const n = +el.dataset.n, cur = (HC.Save.info(n) || {}).label || ''; const v = window.prompt(`Name for slot ${n} (leave blank for "Slot ${n}")`, cur); if (v === null) return; HC.Save.rename(n, v); title(); });
     bind('.slot-del', (el) => { const n = +el.dataset.n; ask(`Delete the company in slot ${n}? This can't be undone.`, 'Delete it', () => { HC.Save.del(n); title(); }); });
   }
   function slotCard(n) {
     const i = HC.Save.info(n), cur = n === HC.Save.slot;
     if (!i) return `<article class="slot-card empty${cur ? ' cur' : ''}"><h4>Slot ${n}</h4><p class="small">Empty</p><button class="btn sm slot-new" data-n="${n}">New company</button></article>`;
     const when = i.savedAt ? new Date(i.savedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-    return `<article class="slot-card${cur ? ' cur' : ''}"><h4>Slot ${n}${cur ? ' <span class="chip ok">Last played</span>' : ''}</h4>
+    return `<article class="slot-card${cur ? ' cur' : ''}"><h4>${i.label ? esc(i.label) : `Slot ${n}`}${cur ? ' <span class="chip ok">Last played</span>' : ''}</h4>
+      <p class="small slot-sub">${i.label ? `Slot ${n} · ` : ''}${esc(i.name || '')} <button class="link slot-ren" data-n="${n}">Rename</button></p>
       <dl><dt>Bank</dt><dd class="num">${HC.money(i.money)}</dd><dt>Day</dt><dd>${i.day}</dd><dt>Jobs</dt><dd>${i.jobs}${i.rating ? ` · ${i.rating.toFixed(1)}★` : ''}</dd><dt>Fleet</dt><dd>${i.machines} machines</dd></dl>
       ${when ? `<p class="small">Saved ${esc(when)}</p>` : ''}
       <div class="slot-btns"><button class="btn sm primary slot-play" data-n="${n}">Play</button><button class="btn sm slot-new" data-n="${n}">New</button><button class="btn sm danger slot-del" data-n="${n}">Delete</button></div></article>`;
@@ -139,7 +142,7 @@
           <li>Buy a <b>chainsaw</b> in the shop (J). It rides with you; climb out on site (<b>F</b>) and press <b>G</b> to pick it up.</li>
           <li>Drive to the orange pin. Press <b>R</b> to drop the trailer (the ramps come down), then walk to the mini loader, <b>F</b> to climb in, and <b>E</b> to unstrap it.</li>
         </ol>
-        <p>Logs and brush go in the <b>dump trailer</b>; run it to your yard's log pad and press <b>E</b>. Bigger machines and trucks are in the shop.</p>
+        <p>Logs and brush go in the <b>dump trailer</b>; logs sell at the <b>sawmill</b>, brush and stumps go to the <b>county brush dump</b> (press <b>E</b> there). Your yard has a debris storage area if you just want it off the job. Bigger machines and trucks are in the shop.</p>
         <button class="btn primary" id="i-go">${ownsNothing() ? 'Go shopping' : 'Open the phone'}</button>
       </div>`, 'dim');
     bind('#i-go', () => { hide(); phone(ownsNothing() ? 'shop' : 'jobs'); });
@@ -201,6 +204,7 @@
           <dt>Par time</dt><dd class="num">${HC.dur(j.par)}</dd>
           <dt>Lot</dt><dd>${esc(tr.name)}</dd>
         </dl>
+        ${HC.jobMaterials && HC.jobMaterials(j).length ? `<p class="disposal"><b>Buy &amp; bring from the landscape supply:</b> ${HC.jobMaterials(j).map((m) => esc(m.text)).join(', ')} (about ${HC.money(HC.jobMaterials(j).reduce((a, m) => a + m.cost, 0))}, built into the price).</p>` : ''}
         ${jt.disposal ? `<p class="disposal"><b>Debris:</b> ${esc(HC.DISPOSAL[jt.disposal].text)}</p>` : ''}
         <p class="needs">Needs: ${j.needs.map((k) => `<span class="chip ${HC.ownsKind(k) ? 'ok' : 'no'}">${esc(HC.ownsKind(k) && !C.owned[k] && k === 'skid' ? 'Skid/Mini' : HC.EQUIP[k].short)}</span>`).join(' ')}</p>
         ${action}
@@ -233,16 +237,27 @@
   }
 
   let shopCat = 'machines';
+  // the landscape supply: sod, shrubs and pavers come on pallets (forks), mulch is bulk (grapple or loader); all picked up at the store
+  function supplySec() {
+    const C = HC.company, sp = HC.world.supply;
+    const pal = Object.entries(HC.PALLETS || {}).map(([m, P]) => `<article class="shop-item"><h4>${esc(P.name)} pallet</h4><p>${esc(P.blurb)}</p>
+      <div class="buy-row"><button class="btn buy-pal" data-m="${m}" ${C.money < P.price ? 'disabled' : ''}>Buy a pallet ${HC.money(P.price)}</button></div></article>`).join('');
+    const mul = `<article class="shop-item"><h4>Bulk mulch</h4><p>Dark hardwood mulch by the load unit (one unit mulches one bed tile). It's heaped in the pickup area: load it with a grapple or loader into a dump trailer or truck.</p>
+      <div class="buy-row">${[1, 5, 10].map((n) => `<button class="btn buy-mulch" data-n="${n}" ${C.money < n * HC.MULCH_BUY ? 'disabled' : ''}>${n} unit${n > 1 ? 's' : ''} ${HC.money(n * HC.MULCH_BUY)}</button>`).join('')}</div></article>`;
+    const waiting = (HC.Landscape ? HC.Landscape.list() : []).filter((p) => !p.ride && sp && HC.inRect(p.x, p.y, sp.pickup));
+    return `<p class="small cat-note">Everything you buy here waits in the pickup area at ${esc(sp ? sp.name : 'the landscape supply')}. Pallets need <b>pallet forks</b> (skid steer, mini skid or tractor) and ride on a <b>flat deck trailer</b> or a <b>flatbed pickup</b>. Bulk mulch loads with a <b>grapple</b> or loader into a dump trailer or truck. On the job, park it near the marked tiles, climb out and hold click on each tile.${waiting.length ? ` Waiting for pickup: ${waiting.map((p) => HC.PALLETS[p.mat].name.toLowerCase()).join(', ')}.` : ''}</p><div class="shop-grid">${pal}${mul}</div>`;
+  }
   function shopTab() {
     const C = HC.company, S = HC.session;
     const card = (k) => {
       const e = HC.EQUIP[k], own = C.owned[k];
       const count = Object.keys(HC.EQUIP).filter((q) => (q === k || HC.EQUIP[q].base === k) && C.owned[q]).length;
-      const again = own && !e.noUnit;
+      const again = own && (!e.noUnit || e.attachTo);
+      const attN = e.attachTo && own ? (HC.session.attachments || []).filter((a) => a.kind === k).length : 0;
       const img = e.noUnit && !e.attachTo ? '' : HC.Render.thumb(k, false);
       return `<article class="shop-item">${img ? `<img class="thumb" src="${img}" alt="${esc(e.name)}">` : ''}<h4>${esc(e.name)}${e.heavy ? ' <span class="role">Heavy</span>' : ''}</h4>
         <p>${esc(HC.BLURB[k] || e.help)}</p>${HC.BLURB[k] ? `<details class="how"><summary>How to use</summary>${esc(e.help)}</details>` : ''}
-        <div class="buy-row">${own ? `<span class="chip ok">Owned${count > 1 ? ' ×' + count : ''}</span>` : ''}${!own ? `<button class="btn buy-eq" data-k="${k}" ${C.money < e.price ? 'disabled' : ''}>Buy ${HC.money(e.price)}</button>` : again ? `<button class="btn buy-more" data-k="${k}" ${C.money < e.price ? 'disabled' : ''}>Buy another ${HC.money(e.price)}</button>` : ''}</div></article>`;
+        <div class="buy-row">${own ? `<span class="chip ok">Owned${count > 1 ? ' ×' + count : ''}</span>` : ''}${!own ? `<button class="btn buy-eq" data-k="${k}" ${C.money < e.price ? 'disabled' : ''}>Buy ${HC.money(e.price)}</button>` : again ? `<button class="btn ${e.attachTo ? 'buy-att' : 'buy-more'}" data-k="${k}" ${C.money < e.price ? 'disabled' : ''}>Buy another ${HC.money(e.price)}</button>${attN > 1 ? `<span class="small">You have ${attN}</span>` : ''}` : ''}</div></article>`;
     };
     const keys = Object.keys(HC.EQUIP).filter((k) => HC.EQUIP[k].price && (!HC.EQUIP[k].base || HC.EQUIP[k].shop));
     const eq = keys.filter((k) => HC.EQUIP[k].move !== 'car').map(card).join('');
@@ -251,7 +266,7 @@
     HC.TRAILERS.equip.price = HC.TRAILERS.equip.price || 4500; HC.TRAILERS.dump.price = HC.TRAILERS.dump.price || 2400;
     const trl = ['equip', 'dump', 'gndump', 'gnflat', 'deckover', 'lowboy', 'logtrailer'].filter((id) => HC.TRAILERS[id] && HC.TRAILERS[id].price).map((id) => {
       const t = HC.TRAILERS[id], own = C.trailers[id], tcount = Object.keys(C.trailers).filter((q) => C.trailers[q] && HC.trailerKindOf(q) === id).length;
-      const desc = id === 'equip' ? '20 ft tandem-axle trailer with ramps. Carries two small machines (mini loader, skid steer, grinder, mower, mini excavator, tractor).' : id === 'dump' ? '14 ft dump trailer for logs, brush, rock and stumps (12 units).' : id === 'logtrailer' ? 'A spread-axle log trailer with four bunks for the semi (40 units, logs only). Load it with the excavators, forwarder or grapple; unload it at the log pad.' : id === 'gndump' ? 'Gooseneck dump with 4 ft high sides on tandem duals (18 units). When it\'s empty, the ramps slide out from under the box and one small machine (skid steer, mini, mower, tractor) drives right in. Pulled by the flatbed pickups and the dually.' : id === 'gnflat' ? '32 ft gooseneck flat deck on three axles with a dovetail and slide-out ramps. Two small machines, or one up to 9 t. Pulled by the flatbed pickups and the dually.' : id === 'deckover' ? '25 ft heavy-duty deck-over on tandem dual axles with fold-up ramps. Two small machines, or one mid-size machine up to 9 t (the compact dozer). Any truck can tow it.' : id === 'lowboy' ? 'Low deck for heavy machines: the excavator, big dozer, harvester, forwarder, loader or tracked mulcher, plus a small machine if there\'s no heavy one. The semi or heavy-haul tractor pulls it.' : 'A second dump trailer, so one can be loading on site while the other runs to the pad.';
+      const desc = id === 'equip' ? '20 ft tandem-axle trailer with ramps. Carries two small machines (mini loader, skid steer, grinder, mower, mini excavator, tractor).' : id === 'dump' ? '14 ft dump trailer for logs, brush, rock and stumps (12 units).' : id === 'logtrailer' ? 'A spread-axle log trailer with four bunks for the semi (40 units, logs only). Load it with the excavators, forwarder or grapple; unload it at the log pad.' : id === 'gndump' ? 'Gooseneck dump with 4 ft high sides on tandem duals (18 units). When it\'s empty, the ramps slide out from under the box and one small machine (skid steer, mini, mower, tractor) drives right in. Pulled by the flatbed pickups and the dually.' : id === 'gnflat' ? '40 ft gooseneck flat deck on three axles with a dovetail and slide-out ramps. Three small machines (skid steers, minis, mowers), or one up to 9 t plus a small one. Pulled by the flatbed pickups and the dually.' : id === 'deckover' ? '25 ft heavy-duty deck-over on tandem dual axles with fold-up ramps. Two small machines, or one mid-size machine up to 9 t (the compact dozer). Any truck can tow it.' : id === 'lowboy' ? 'Low deck for heavy machines: the excavator, big dozer, harvester, forwarder, loader or tracked mulcher, plus a small machine if there\'s no heavy one. The semi or heavy-haul tractor pulls it.' : 'A second dump trailer, so one can be loading on site while the other runs to the pad.';
       const img = HC.Render.thumb(id, true);
       return `<article class="shop-item">${img ? `<img class="thumb" src="${img}" alt="${esc(t.name)}">` : ''}<h4>${esc(t.name)}</h4><p>${desc}</p>
         <div class="buy-row">${own ? `<span class="chip ok">Owned${tcount > 1 ? ' ×' + tcount : ''}</span>` : ''}<button class="btn buy-tr" data-id="${id}" ${C.money < t.price ? 'disabled' : ''}>${own ? 'Buy another' : 'Buy'} ${HC.money(t.price)}</button></div></article>`;
@@ -271,7 +286,7 @@
       const c = HC.CHAINSAWS[id], mine = C.owned.saw && C.sawKind === id, cost = c.price - trade;
       const img = HC.Render.thumb('saw:' + id, false);
       return `<article class="shop-item">${img ? `<img class="thumb" src="${img}" alt="${esc(c.name)}">` : ''}<h4>${esc(c.name)} <span class="role">${esc(c.spec)}</span></h4><p>${esc(c.desc)}</p>
-        <div class="buy-row">${mine ? '<span class="chip ok">Your saw</span>' : `<button class="btn buy-saw" data-id="${id}" ${C.money < cost ? 'disabled' : ''}>Buy ${HC.money(c.price)}${trade ? ` (${HC.money(cost)} with trade-in)` : ''}</button>`}</div></article>`;
+        <div class="buy-row">${mine ? `<span class="chip ok">Your saw${(C.sawCount || 1) > 1 ? ' ×' + C.sawCount : ''}</span><button class="btn buy-saw2" ${C.money < c.price ? 'disabled' : ''}>Buy another ${HC.money(c.price)}</button>` : `<button class="btn buy-saw" data-id="${id}" ${C.money < cost ? 'disabled' : ''}>Buy ${HC.money(c.price)}${trade ? ` (${HC.money(cost)} with trade-in)` : ''}</button>`}</div></article>`;
     }).join('');
     const up = Object.keys(HC.UPGRADES).map((id) => {
       const u = HC.UPGRADES[id], lv = HC.Co.level(id), max = u.prices.length, price = u.prices[lv];
@@ -319,7 +334,8 @@
       ['machines', 'Machines', `<div class="shop-grid">${keys.filter((k) => HC.EQUIP[k].move && HC.EQUIP[k].move !== 'car' && HC.EQUIP[k].move !== 'walk').map(card).join('')}</div>`],
       ['trucks', 'Trucks', `<div class="shop-grid">${trucks}</div>`],
       ['trailers', 'Trailers', `<div class="shop-grid">${trl}</div>`],
-      ['tools', 'Chainsaws & attachments', `<p class="small cat-note">${C.owned.saw ? 'You can own one saw at a time. A new one takes your old saw as a trade-in (40% of what it cost).' : 'You need a chainsaw to fell and buck trees. Climb out of the truck (F), then G picks it up.'}</p><div class="shop-grid">${saws}${tools.map(card).join('')}</div>`],
+      ['tools', 'Chainsaws & attachments', `<p class="small cat-note">${C.owned.saw ? 'Buy another of your saw so more than one of you can cut (co-op). Switching to a different model trades in your saws (40% of what one cost).' : 'You need a chainsaw to fell and buck trees. Climb out of the truck (F), then G picks it up.'}</p><div class="shop-grid">${saws}${tools.map(card).join('')}</div>`],
+      ['supply', 'Landscape supply', supplySec()],
       ['upgrades', 'Upgrades', `<div class="shop-grid">${up}</div>`],
       ['property', 'Yards', yards ? `<div class="shop-grid">${yards}</div>` : '<p class="empty">You own every yard.</p>'],
       ['crew', 'Hire help', `<div class="shop-grid">${keys.filter((k) => HC.EQUIP[k].move === 'walk').map(card).join('')}${crew}</div>`],
@@ -357,7 +373,7 @@
     }
     for (const a of S.attachments || []) {
       if (!HC.EQUIP[a.kind] || !HC.EQUIP[a.kind].attachTo || !C.owned[a.kind]) continue;
-      rows.push(`<tr><td>${esc(HC.EQUIP[a.kind].name)}</td><td><button class="btn sm ghost-dark sell-a" data-k="${a.kind}">Sell ${HC.money(HC.Game.resaleValue(a.kind))}</button></td></tr>`);
+      rows.push(`<tr><td>${esc(HC.EQUIP[a.kind].name)}${a.id.includes('_') ? ' #' + a.id.split('_').pop() : ''}</td><td><button class="btn sm ghost-dark sell-a" data-k="${a.id}">Sell ${HC.money(HC.Game.resaleValue(a.kind))}</button></td></tr>`);
     }
     return rows.length ? `<section class="panel services"><h3>Sell trailers &amp; attachments</h3><p class="small">Resale is about half the new price. Press Sell, then Confirm.</p><table class="eq">${rows.join('')}</table></section>` : '';
   }
@@ -426,7 +442,8 @@
           <button class="btn" id="b-cam">Camera: ${esc(HC.CAM_MODES[HC.camMode()].name)} (tap to change, or press C)</button>
           <p class="small">${esc(HC.CAM_MODES[HC.camMode()].text)}</p>
           <button class="btn" id="b-outline">${(C.prefs || {}).outlines ? 'Turn off cartoon outlines' : 'Turn on cartoon outlines'}</button>
-          <button class="btn" id="b-title">Save and quit to title</button></div></section>
+          <button class="btn" id="b-ren">Name this save${C.slotName ? `: ${esc(C.slotName)}` : ` (slot ${HC.Save.slot})`}</button>
+          <button class="btn" id="b-title">Save and quit to title</button></div><p class="small">Version ${esc(HC.VERSION)}</p></section>
       </div>`;
   }
 
@@ -466,6 +483,14 @@
       HC.Audio.cash(); HC.Save.save();
       return `${t.name}${id !== kind ? ' #' + id.split('_').pop() : ''} bought and parked at your home yard.`;
     },
+    '.buy-att'(d) {
+      const C = HC.company, e = HC.EQUIP[d.k];
+      if (!e || !e.attachTo || C.money < e.price) return null;
+      C.money -= e.price; HC.Game.buyAttachment(d.k); HC.Audio.cash(); HC.Save.save();
+      return `Another ${e.name.toLowerCase()} delivered to your yard.`;
+    },
+    '.buy-pal'(d) { return HC.Landscape.buy(d.m); },
+    '.buy-mulch'(d) { return HC.Landscape.buyMulch(+d.n); },
     '.buy-more'(d) {
       const C = HC.company, e = HC.EQUIP[d.k];
       if (!e || C.money < e.price) return null;
@@ -497,6 +522,7 @@
       return `${y.name} is yours. Park, fuel and repair equipment there.`;
     },
     '.buy-saw'(d) { HC.Game.buySaw(d.id); return null; },
+    '.buy-saw2'() { return HC.Game.buyExtraSaw(); },
     '.buy-used'(d) { return HC.Market.buy(d.id); },
     '.buy-up'(d) {
       const C = HC.company, u = HC.UPGRADES[d.id], lv = HC.Co.level(d.id), price = u && u.prices[lv];
@@ -547,6 +573,7 @@
     bind('#b-close', closePhone);
     bind('#b-mute', () => { HC.Audio.setMuted(!HC.Audio.isMuted()); phone(); });
     bind('#b-gfx', () => { C.prefs = C.prefs || {}; const order = ['low', 'high', 'ultra']; C.prefs.gfx = order[(order.indexOf(C.prefs.gfx || 'high') + 1) % 3]; HC.Render.setQuality(C.prefs.gfx); HC.Save.save(); phone(); });
+    bind('#b-ren', () => { const v = window.prompt(`Name for this save (slot ${HC.Save.slot})`, C.slotName || ''); if (v === null) return; HC.Save.rename(HC.Save.slot, v); phone(); });
     bind('#b-cam', () => { cycleCam(); phone(); });
     bind('#b-outline', () => { C.prefs = C.prefs || {}; C.prefs.outlines = !C.prefs.outlines; HC.Render.setOutlines(C.prefs.outlines); HC.Save.save(); phone(); });
     const form = screen.querySelector('#code-form');
@@ -561,7 +588,7 @@
     const act = (sel, close) => bind(sel, (el) => doAct(sel, { ...el.dataset }, close));
     act('.take', true); act('.counter'); act('#b-invoice', true);
     bind('.bid', (el) => { const inp = screen.querySelector(`.bid-in[data-id="${el.dataset.id}"]`); doAct('.bid', { id: el.dataset.id, amt: inp ? inp.value : 0 }); });
-    for (const sel of ['.buy-used', '.buy-eq', '.buy-tr', '.buy-more', '.buy-exp', '.buy-quarry', '.buy-yard', '.buy-saw', '.buy-up', '.hire', '.fire', '.repair', '#b-repair-all', '#b-fuel-all']) act(sel);
+    for (const sel of ['.buy-used', '.buy-eq', '.buy-tr', '.buy-more', '.buy-att', '.buy-pal', '.buy-mulch', '.buy-exp', '.buy-quarry', '.buy-yard', '.buy-saw', '.buy-saw2', '.buy-up', '.hire', '.fire', '.repair', '#b-repair-all', '#b-fuel-all']) act(sel);
     for (const sel of ['.sell-u', '.sell-t', '.sell-a']) bind(sel, (el) => armSell(el, () => { doAct(sel, { ...el.dataset }); return false; }));
   }
   function closePhone() { hide(); pauseWorld(false); }

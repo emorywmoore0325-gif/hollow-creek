@@ -33,7 +33,7 @@
   }
 
   // ---------- skid steer: mulcher head + chipper drop-off ----------
-  K.skid.modeName = (u) => (u.mode === 1 ? 'Mulcher head' : u.mode === 2 ? 'Brush cutter' : u.mode === 0 ? 'Grapple' : 'No attachment');
+  K.skid.modeName = (u) => (u.mode === 1 ? 'Mulcher head' : u.mode === 2 ? 'Brush cutter' : u.mode === 3 ? 'Pallet forks' : u.mode === 0 ? 'Grapple' : 'No attachment');
   K.skid.mode = (u, S) => HC.Game.attachToggle(u, S);
   K.skid.work = (u, dt, S) => {
     u.working = false;
@@ -43,7 +43,7 @@
     u.working = true;
     runWork(u, dt);
     U.burn(u, 0.4 * dt);
-    mulch(u, dt, S, 26, 22, 1);
+    mulch(u, dt, S, 26 * ((HC.EQUIP[u.kind].power || 1) > 1 ? 1.1 : 1), 22 * ((HC.EQUIP[u.kind].power || 1) > 1 ? 1.1 : 1), HC.EQUIP[u.kind].power || HC.EQUIP[HC.baseOf(u.kind)].power || 1);
   };
   // the skid's rotary brush cutter: like a bush hog out front, leaves mowed ground
   function brushCut(u, dt, S) {
@@ -51,7 +51,7 @@
     u.working = true;
     runWork(u, dt);
     U.burn(u, 0.3 * dt);
-    const p = U.frontPt(u, 30), R = 15, rate = U.condFactor(u.kind) * dt * 1.3;
+    const p = U.frontPt(u, 30), R = 15, rate = U.condFactor(u.kind) * dt * 1.3 * (HC.EQUIP[u.kind].power || 1);
     for (const b of S.lot.bushes.slice()) if (near(b, p, R + b.r)) { b.hp += rate / 1.6; if (b.hp >= 1) { S.lot.bushes.splice(S.lot.bushes.indexOf(b), 1); HC.Audio.chip(); } }
     for (const it of S.lot.items.slice()) if (it.kind === 'brush' && near(it, p, R + 6)) { it.hp = (it.hp || 0) + rate / 1.2; if (it.hp >= 1) { S.lot.items.splice(S.lot.items.indexOf(it), 1); HC.Audio.chip(); } }
     for (const t of S.lot.trees) {
@@ -204,16 +204,17 @@
   K.grinder = {
     update(u, dt, S, active) {
       if (!active) return idle(u);
-      U.tank(u, dt, HC.EQUIP.grinder);
+      const spec = HC.EQUIP[u.kind];
+      U.tank(u, dt, spec);
       u.working = false;
       if (!mouseDown()) return;
       if (!canRun(u)) return HC.Game.hintOnce('The grinder is out of fuel or worn out.');
-      const fp = U.frontPt(u, 16);
+      const fp = U.frontPt(u, spec.reachG || 16);
       const s = S.lot.stumps.find((st) => near(st, fp, st.r + 12));
       u.working = true;
       runWork(u, dt);
       if (!s) return HC.Game.dust(fp.x, fp.y, '#9a7550', 1, 30);
-      s.hp += (dt / s.grind) * HC.Co.mult('grind') * U.condFactor('grinder') * HC.Co.crew('operator', 1.15, 1);
+      s.hp += (dt / s.grind) * HC.Co.mult('grind') * U.condFactor(u.kind) * HC.Co.crew('operator', 1.15, 1) * (spec.power || 1);
       HC.Game.dust(fp.x, fp.y, HC.pick(['#d6b27c', '#8a5f39', '#9a7550']), 3, 80);
       const rock = S.lot.items.find((i) => i.kind === 'rock' && near(i, fp, 16));
       if (rock && performance.now() - lastBump > 1500) {
@@ -232,7 +233,7 @@
     },
     interact(u, S) { machineInteract(u, S, 'Hold left click with the wheel over a stump.'); },
     hint(u, S) {
-      const fp = U.frontPt(u, 16), s = S.lot.stumps.find((st) => near(st, fp, st.r + 12));
+      const fp = U.frontPt(u, HC.EQUIP[u.kind].reachG || 16), s = S.lot.stumps.find((st) => near(st, fp, st.r + 12));
       return s && !u.on ? `Hold click to grind. ${Math.min(100, Math.round(s.hp * 100))}%` : machineHint(u, S, 'Drive the cutting wheel over a stump.');
     },
   };
@@ -316,8 +317,8 @@
   K.chipper2 = chipperKind(2, true);
 
   // ---------- trucks ----------
-  // any log & dump pad at a yard you own
-  const atPad = (u, S) => (S.lot.pads || [S.lot.pad]).some((p) => p && HC.inRect(u.x, u.y, p) && (!p.yard || (S.lot.yards.find((y) => y.id === p.yard) || {}).owned));
+  // the sawmill log yard or the county dump
+  const atPad = (u, S) => !!HC.Game.padAt(u.x, u.y);
   const atQuarry = (u, S) => S.lot.quarry && HC.inRect(u.x, u.y, S.lot.quarry.pad);
   const atSupply = (u, S) => HC.world.supply && HC.inRect(u.x, u.y, HC.world.supply.pad);
   const atStand = (u, S) => HC.world.fwStand && HC.inRect(u.x, u.y, HC.world.fwStand.pad);
@@ -398,7 +399,7 @@
         if (loads.length && atQuarry(u, S)) return HC.Game.sellRocks(loads);
         if (loads.length && atStand(u, S) || (loads.length && loads.some((t) => atStand(t, S)))) { if (!standOwned()) return HC.Game.toast('This is the Firewood Yard. Buy it in the shop (Yards) to run the firewood stand.'); return HC.Game.stockStand(loads); }
         if (loads.length && atSupply(u, S)) return HC.Game.sellMulch(loads);
-        if (loads.length && (atPad(u, S) || loads.some((t) => atPad(t, S)))) return loads.forEach((t) => HC.Game.haul(t));
+        if (loads.length && (atPad(u, S) || loads.some((t) => atPad(t, S)))) { const pad = HC.Game.padAt(u.x, u.y) || loads.map((t) => HC.Game.padAt(t.x, t.y)).find(Boolean); return loads.forEach((t) => HC.Game.haul(t, pad)); }
         if (spec.logsOnly) { // knuckleboom crane swings a log aboard
           const bed = attached(S, kind).find((t) => t.kind === 'logbed');
           const log = S.lot.items.filter((i) => i.kind === 'log' && near(i, u, 110)).sort((a, b) => HC.dist(a.x, a.y, u.x, u.y) - HC.dist(b.x, b.y, u.x, u.y))[0];
@@ -420,7 +421,7 @@
         }
         const riders = Object.values(S.units).filter((o) => o.boarded === kind);
         if (riders.length) return HC.Game.toast(`Riding: ${riders.map((r) => HC.EQUIP[r.kind].name).join(', ')}. Press their number key to let them out.`);
-        HC.Game.toast(spec.logsOnly ? 'Park within reach of logs and press E to crane them aboard.' : spec.tows ? 'R hitches a trailer. E on the log pad unloads.' : spec.help);
+        HC.Game.toast(spec.logsOnly ? 'Park within reach of logs and press E to crane them aboard.' : spec.tows ? 'R hitches a trailer. E unloads at the sawmill (logs) or the county dump.' : spec.help);
       },
       mode(u, S) { if (HC.EQUIP[HC.baseOf(kind)].pto) HC.Game.attachToggle(u, S); },
       hint(u, S) {
@@ -456,7 +457,7 @@
           return m + ch + fw ? `E: sell ${[m ? m + ' mulch' : '', ch ? ch + ' wood chips' : '', fw ? fw + ' firewood' : ''].filter(Boolean).join(', ')} (${HC.money(m * HC.MULCH_PRICE + ch * HC.CHIP_PRICE + fw * HC.FIREWOOD_SUPPLY)})` : 'The landscape supply buys mulch, wood chips and firewood.';
         }
         if (loads.length && atQuarry(u, S)) return HC.world.quarry.owned ? 'E: sell the rocks at your quarry' : `This is ${HC.world.quarry.name}. Buy it in the shop to sell rocks here.`;
-        if (loads.length && (atPad(u, S) || loads.some((t) => atPad(t, S)))) return `E: unload ${loads.reduce((a, t) => a + t.load, 0)} units. Logs are sold, the rest is dumped.`;
+        if (loads.length && (atPad(u, S) || loads.some((t) => atPad(t, S)))) { const pad = HC.Game.padAt(u.x, u.y) || loads.map((t) => HC.Game.padAt(t.x, t.y)).find(Boolean); return pad.type === 'mill' ? 'E: sell the logs to the sawmill (anything else stays aboard)' : `E: unload ${loads.reduce((a, t) => a + t.load, 0)} units at the county dump (fees; logs pay only at the sawmill)`; }
         if (spec.logsOnly) {
           const bed = att.find((t) => t.kind === 'logbed');
           const n = S.lot.items.filter((i) => i.kind === 'log' && near(i, u, 110)).length;
@@ -471,7 +472,7 @@
         const t = att.find((tr) => !U.isBed(tr));
         if (!t && spec.tows) {
           const hp = U.hitchPt(u);
-          const c = S.trailers.filter((tr) => !tr.hitch && !U.isBed(tr)).map((tr) => { const h = U.hitchPt(u, tr); return { tr, d: HC.dist(U.coupler(tr).x, U.coupler(tr).y, h.x, h.y) }; }).sort((a, b) => a.d - b.d)[0];
+          const c = S.trailers.filter((tr) => !tr.hitch && !U.isBed(tr) && !(HC.EQUIP[tr.kind] && HC.EQUIP[HC.baseOf(tr.kind)].fixed)).map((tr) => { const h = U.hitchPt(u, tr); return { tr, d: HC.dist(U.coupler(tr).x, U.coupler(tr).y, h.x, h.y) }; }).sort((a, b) => a.d - b.d)[0];
           if (c && c.d < 34) return `R: hitch the ${HC.TRAILERS[c.tr.kind].name.toLowerCase()}`;
           if (c && c.d < 140) return `Back up to the ${HC.TRAILERS[c.tr.kind].name.toLowerCase()}: S reverses. R hitches when the ball is under the coupler.`;
         }
@@ -481,7 +482,7 @@
         if (att.some((tr) => ['dump', 'dump2', 'gndump', 'bed'].includes(tr.kind) && tr.cargo.length)) bits.push('X dumps the load here.');
         if (t) {
           const on = Object.values(S.units).filter((o) => o.on && o.on.id === t.id).map((o) => HC.EQUIP[o.kind].short).join(', ');
-          bits.push(`Towing the ${HC.TRAILERS[t.kind].name.toLowerCase()}${U.isDump(t) ? ` (${t.load}/${HC.Game.trailerCap(t)})` : HC.TRAILERS[t.kind].deck ? ` (${on || 'empty'})` : ''}. R drops it.`);
+          bits.push(`Towing the ${HC.TRAILERS[t.kind].name.toLowerCase()}${U.isDump(t) ? ` (${t.load}/${HC.Game.trailerCap(t)})` : HC.TRAILERS[t.kind].deck ? ` (${on || 'empty'}${HC.TRAILERS[t.kind].payload ? ` · ${HC.deckLoad(S, t)}/${HC.TRAILERS[t.kind].payload} t` : ''})` : ''}. R drops it.`);
         } else if (spec.tows) bits.push('No trailer.');
         const riders = Object.values(S.units).filter((o) => o.boarded === kind).map((o) => HC.EQUIP[o.kind].short);
         if (riders.length) bits.push(`Riding: ${riders.join(', ')}.`);
@@ -493,6 +494,9 @@
   for (const k in HC.EQUIP) if (HC.EQUIP[k].move === 'car') K[k] = truckKind(k);
   HC.Units.factories = { truck: truckKind };
   K.miniskid = K.skid; // the mini track loader runs the skid steer's grapple logic with its own size and capacity
+  K.skidXL = K.skid; // so does the big track loader
+  K.grinderXL = K.grinder;
+  for (const k in HC.EQUIP) if (!K[k] && HC.EQUIP[k].base && K[HC.EQUIP[k].base] && !HC.EQUIP[k].noUnit) K[k] = K[HC.EQUIP[k].base]; // any other shop variant runs its base machine's logic
 
   // ---------- wheel loader: big bucket, scoops many pieces of a pile at once ----------
   const loaderSpec = (u) => HC.EQUIP[HC.baseOf(u.kind)];
@@ -553,13 +557,13 @@
         // the upper works slew toward the mouse, independent of the tracks (the bucket works where it points)
         const m = HC.input.mouse;
         if (m && HC.dist(m.wx, m.wy, u.x, u.y) > u.r) {
-          const want = HC.angDiff(u.a, Math.atan2(m.wy - u.y, m.wx - u.x)), rate = (spec().mass < 6 ? 1.6 : 1.1) * dt;
+          const want = HC.angDiff(u.a, Math.atan2(m.wy - u.y, m.wx - u.x)), rate = (spec().mass < 6 ? 2.4 : 1.9) * dt;
           const d = HC.angDiff(u.swing || 0, want);
           u.swing = (u.swing || 0) + HC.clamp(d, -rate, rate);
           if (Math.abs(d) > 0.02) u.slewing = true; else u.slewing = false;
         }
-        U.boom(u, dt, true, 0.5);
-        U.tank(u, dt, spec(), u.armT > 0.7 ? 0.7 : 1);
+        U.boom(u, dt, true, 0.95);
+        U.tank(u, dt, spec(), u.armT > 0.7 ? 0.85 : 1);
         u.working = false;
         if (!mouseDown() || u.on) return;
         if (!canRun(u)) return HC.Game.hintOnce(`The ${spec().short.toLowerCase()} is out of fuel or worn out.`);
@@ -568,7 +572,7 @@
         if (!s) return HC.Game.hintOnce('Swing the bucket over a stump to rip it out. E picks up logs, brush and rocks.');
         if (u.armT > 0.35) return HC.Game.hintOnce('Lower the boom to dig in (hold G).');
         u.working = true; runWork(u, dt);
-        s.hp += (dt / ((1.2 + s.grind * 0.25) * (spec().mass < 6 ? 2.2 : 1))) * U.condFactor(kind);
+        s.hp += (dt / ((0.65 + s.grind * 0.14) * (spec().mass < 6 ? 1.7 : 1))) * U.condFactor(kind);
         HC.Game.dust(s.x, s.y, HC.pick(['#8a6a48', '#6b4b30', '#9a7550']), 2, 60);
         if (s.hp >= 1) {
           S.lot.stumps.splice(S.lot.stumps.indexOf(s), 1);
@@ -840,7 +844,7 @@
       if (Math.abs(u.v) > 5) return HC.Game.toast('Stop before swinging the crane.');
       // unload into a log truck, log trailer or onto the pad
       if (bed.load) {
-        if (atPad(u, S)) return HC.Game.haul(bed);
+        if (atPad(u, S)) return HC.Game.haul(bed, HC.Game.padAt(u.x, u.y));
         const pref = (t) => (t.kind === 'logbed' || t.kind === 'logtrailer' ? 0 : 1);
         const into = S.trailers.filter((t) => ['logbed', 'logtrailer', 'dump', 'dump2', 'gndump', 'bed'].includes(t.kind) && !HC.Units.machineIn(t, S) && HC.dist(t.x, t.y, u.x, u.y) < R + 30 && t.load < HC.Game.trailerCap(t))
           .sort((a2, b2) => pref(a2) - pref(b2) || HC.dist(a2.x, a2.y, u.x, u.y) - HC.dist(b2.x, b2.y, u.x, u.y))[0];
@@ -854,13 +858,13 @@
       }
       const log = S.lot.items.filter((i) => i.kind === 'log' && near(i, u, R)).sort((a2, b2) => HC.dist(a2.x, a2.y, u.x, u.y) - HC.dist(b2.x, b2.y, u.x, u.y))[0];
       if (log) {
-        if (bed.load + 2 > HC.EQUIP.forwarder.bed) return HC.Game.toast('Bunks are full. Unload at a log truck, the log trailer or the log pad.', 'warn');
+        if (bed.load + 2 > HC.EQUIP.forwarder.bed) return HC.Game.toast('Bunks are full. Unload at a log truck, the log trailer or the sawmill.', 'warn');
         S.lot.items.splice(S.lot.items.indexOf(log), 1); bed.cargo.push(log); bed.load += 2; u.craneT = 0.8;
         S.time += 1; if (S.stage === 'onsite') S.workMins += 1;
         HC.Audio.pick(); return;
       }
       if (U.nearFuel(u, S)) { if (!U.refuel(u)) HC.Game.toast('Tank is full.'); return; }
-      HC.Game.toast(bed.load ? 'Drive to a log truck, the log trailer or the log pad and press E to unload.' : 'No logs within crane reach.');
+      HC.Game.toast(bed.load ? 'Drive to a log truck, the log trailer or the sawmill and press E to unload.' : 'No logs within crane reach.');
     },
     hint(u, S) {
       if (u.on || S.trailers.some((t) => U.onDeck(t, u)) || U.behindRamps(u, S)) return machineHint(u, S, '');

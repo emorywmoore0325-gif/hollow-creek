@@ -66,7 +66,7 @@
 
   function emptyWorld() {
     const w = { w: W, h: H, pw: W * TS, ph: H * TS, tiles: new Uint8Array(W * H), parcels: [], targets: [], zone: null,
-      yards: [], pumps: [], pads: [], sheds: [], boulders: [], bays: [], rails: [], roads: [], creek: null, pond: POND, ponds: PONDS };
+      yards: [], pumps: [], pads: [], storage: [], sheds: [], boulders: [], bays: [], rails: [], roads: [], creek: null, pond: POND, ponds: PONDS };
     for (const k of LISTS) w[k] = [];
     w.set = (x, y, t) => { if (x >= 0 && y >= 0 && x < W && y < H) w.tiles[y * W + x] = t; };
     w.tile = (x, y) => (x >= 0 && y >= 0 && x < W && y < H ? w.tiles[y * W + x] : -1);
@@ -205,10 +205,9 @@
     world.hqR = r; world.yard = yard;
     world.houses.push({ ...P(2, 3), w: 7 * TS, h: 5 * TS, wall: '#c9532c', roof: '#33404d', damaged: [], label: 'Office', yard: true, facing: 1, parcel: 'hq' });
     world.houses.push({ ...P(11, 2), w: 8 * TS, h: 6 * TS, wall: '#8a9a6a', roof: '#5a5f66', damaged: [], label: 'Repair shop', yard: true, shed: true, facing: 1, parcel: 'hq' });
-    // log & dump pad, pump
+    // debris storage, pump
     for (let y = 11; y < 17; y++) for (let x = 2; x < 10; x++) world.set(gx + x, gy + y, T.DIRT);
-    world.pad = { ...P(2, 11), w: 8 * TS, h: 6 * TS, yard: 'hq' };
-    world.pads.push(world.pad);
+    world.storage.push({ ...P(2, 11), w: 8 * TS, h: 6 * TS, yard: 'hq' });
     world.pumps.push({ ...P(13.5, 12.5), yard: 'hq' });
     yard.spawn = P(15, 15.5);
     yard.office = P(5.5, 9.3);
@@ -227,7 +226,7 @@
     for (let i = 0; i < 2; i++) world.bays.push({ ...P(17 + i * 3.2, 7), a: Math.PI / 2, yard: 'ridge', kind: 'trailer' });
     world.pumps.push({ ...P(18, 3), yard: 'ridge' });
     for (let y = 9; y < 14; y++) for (let x = 2; x < 9; x++) world.set(gx + x, gy + y, T.DIRT);
-    world.pads.push({ ...P(2, 9), w: 7 * TS, h: 5 * TS, yard: 'ridge' });
+    world.storage.push({ ...P(2, 9), w: 7 * TS, h: 5 * TS, yard: 'ridge' });
     yard.spawn = P(12, ph - 2);
     return yard;
   }
@@ -245,7 +244,7 @@
     for (let k = 0; k < 3; k++) world.bays.push({ ...P(4 + k * 3.2, 10.5), a: Math.PI / 2, yard: id, kind: 'trailer' });
     world.pumps.push({ ...P(13, 9), yard: id });
     for (let y = 8; y < 12; y++) for (let x = 17; x < 23; x++) world.set(gx + x, gy + y, T.DIRT);
-    world.pads.push({ ...P(17, 8), w: 6 * TS, h: 4 * TS, yard: id });
+    world.storage.push({ ...P(17, 8), w: 6 * TS, h: 4 * TS, yard: id });
     yard.spawn = P(14, ph - 3);
     yard.office = P(4.5, 7.6);
     yard.carSpots = [[17, 13.2], [20, 13.2], [23, 13.2], [24.3, 6.5], [10.5, 13.2], [5, 13.2]];
@@ -261,11 +260,12 @@
     fenceRect(world, gx + 1, gy + 1, gx + pw - 2, gy + ph - 2, [gx + 8, gx + 16], 'firewood');
     world.houses.push({ ...P(2, 2.5), w: 5 * TS, h: 4 * TS, wall: '#7a4e2e', roof: '#3e5a3a', damaged: [], label: 'Firewood Yard office', yard: true, facing: 1, parcel: 'firewood' });
     for (let y = 8; y < 12; y++) for (let x = 2; x < 8; x++) world.set(gx + x, gy + y, T.DIRT);
-    world.pads.push({ ...P(2, 8), w: 6 * TS, h: 4 * TS, yard: 'firewood' });
+    world.storage.push({ ...P(2, 8), w: 6 * TS, h: 4 * TS, yard: 'firewood' });
     for (let k = 0; k < 3; k++) world.bays.push({ ...P(10.5 + k * 3.2, 6), a: Math.PI / 2, yard: 'firewood', kind: 'trailer' });
     for (let k = 0; k < 2; k++) world.bays.push({ ...P(10.5 + k * 2.6, 3), a: -Math.PI / 2, yard: 'firewood', kind: 'machine' });
     world.pumps.push({ ...P(20.5, 3), yard: 'firewood' });
     // the stand sits by the gate, facing the road: trucks back up to its pad to stock it
+    world.fwProcSpot = { ...P(12.5, 10.4), a: 0 }; // the processor's permanent station: conveyor out the west end, log deck on the south side
     world.fwStand = { x: (gx + 18) * TS, y: (gy + 11.2) * TS, pad: { ...P(17, 8.5), w: 7 * TS, h: 5 * TS }, racks: [P(21.5, 6.5), P(23, 6.5), P(21.5, 9), P(23, 9)] };
     yard.spawn = P(14, ph - 3);
     yard.carSpots = [[10.5, 13.2], [13.5, 13.2], [6, 13.2]];
@@ -344,6 +344,12 @@
       let fwR = null;
       for (const x of [40, 110, 180, 250]) { fwR = placeLots(world, ROADS[11], roadSamples[11], rd, taken, 26, 16, x); if (fwR) break; }
       if (fwR) taken.push(fwR);
+      // the sawmill, out in timber country on Hemlock Hollow Rd, and the county brush & stump dump on Bottom Rd
+      let millR = null, dumpR = null;
+      for (const x of [150, 200, 100, 250]) { millR = placeLots(world, ROADS[11], roadSamples[11], rd, taken, 34, 18, x); if (millR) break; }
+      if (millR) taken.push(millR);
+      for (const [ri, x] of [[7, 120], [7, 170], [7, 60], [5, 200]]) { dumpR = placeLots(world, ROADS[ri], roadSamples[ri], rd, taken, 26, 16, x); if (dumpR) break; }
+      if (dumpR) taken.push(dumpR);
       // yards for co-op friends who bring their own company (B, C, D)
       const coopR = [];
       for (const cands of [[[5, 60], [5, 90], [5, 30]], [[7, 60], [7, 30], [7, 120]], [[2, 100], [2, 60], [2, 130]]]) {
@@ -374,13 +380,17 @@
       if (supR) buildSupply(world, supR);
       coopR.forEach((r, i) => buildCoopYard(world, r, i));
       if (fwR) buildFirewoodYard(world, fwR);
-      const driveOut = (r, cols) => { for (const c of cols) for (let y = r.gy + r.ph, n = 0; n < 9 && world.tile(r.gx + c, y) !== T.ROAD; y++, n++) world.set(r.gx + c, y, T.GRAVEL); };
+      if (millR) buildSawmill(world, millR);
+      if (dumpR) buildBrushDump(world, dumpR);
+      const driveOut = (r, cols, max = 9) => { for (const c of cols) for (let y = r.gy + r.ph, n = 0; n < max && world.tile(r.gx + c, y) !== T.ROAD; y++, n++) world.set(r.gx + c, y, T.GRAVEL); };
       driveOut(hqR, [13, 14, 15, 16, 17, 18]);
       driveOut(hqR, [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]); // a broad apron straight from the road to the equipment gate
       if (ridgeR) driveOut(ridgeR, [8, 9, 10, 11, 12, 13, 14, 15]);
       if (supR) driveOut(supR, [12, 13, 14, 15]);
       for (const r of coopR) driveOut(r, [8, 9, 10, 11, 12, 13, 14, 15]);
       if (fwR) driveOut(fwR, [8, 9, 10, 11, 12, 13, 14, 15]);
+      if (millR) driveOut(millR, [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], 16);
+      if (dumpR) driveOut(dumpR, [6, 7, 8, 9, 10, 11, 12, 13, 14, 15], 16);
       // level, open ground from the home yard's equipment gate straight down to the road (no pavement: the gravel apron leads in)
       {
         const gxm = hqR.gx + 28, y0 = hqR.gy + hqR.ph - 1;
@@ -538,6 +548,29 @@
     }
   }
 
+  // Hemlock Hollow Sawmill: the mill shed, a scale house, lumber stacks, and a big log yard by the road where trucks unload
+  function buildSawmill(world, r) {
+    const { gx, gy, pw, ph } = r, P = (x, y) => ({ x: (gx + x) * TS, y: (gy + y) * TS });
+    for (let y = 1; y < ph; y++) for (let x = 1; x < pw - 1; x++) world.set(gx + x, gy + y, T.GRAVEL);
+    for (let y = 10; y < 17; y++) for (let x = 3; x < 20; x++) world.set(gx + x, gy + y, T.DIRT);
+    const pad = { ...P(3, 10), w: 17 * TS, h: 7 * TS, type: 'mill', name: 'Sawmill log yard' };
+    world.pads.push(pad); world.pad = pad; // the log decks render at the back of it
+    world.houses.push({ ...P(3, 2), w: 15 * TS, h: 6 * TS, wall: '#8b5a3c', roof: '#6b6f75', damaged: [], label: 'Hemlock Hollow Sawmill', yard: true, shed: true, facing: 1, parcel: 'sawmill' });
+    world.houses.push({ ...P(26, 12), w: 4 * TS, h: 3 * TS, wall: '#d9d2c3', roof: '#4b5560', damaged: [], label: 'Scale house', yard: true, facing: 1, parcel: 'sawmill' });
+    world.sawmill = { id: 'sawmill', name: 'Hemlock Hollow Sawmill', x: gx * TS, y: gy * TS, w: pw * TS, h: ph * TS, pad, lumber: [P(22, 3.5), P(26, 3.5), P(30, 3.5), P(22, 7.5), P(26, 7.5)],
+      sawdust: P(19.2, 2.6), deck: P(5, 9), loader: P(15.5, 9.3), kiln: P(29.5, 8) };
+  }
+  // County Brush & Stump Dump: a scale house, a tipping area, and the mounds they push it all into
+  function buildBrushDump(world, r) {
+    const { gx, gy, pw, ph } = r, P = (x, y) => ({ x: (gx + x) * TS, y: (gy + y) * TS });
+    for (let y = 1; y < ph; y++) for (let x = 1; x < pw - 1; x++) world.set(gx + x, gy + y, T.DIRT);
+    const pad = { ...P(3, 8), w: 15 * TS, h: 6 * TS, type: 'dump', name: 'County brush & stump dump' };
+    world.pads.push(pad);
+    world.houses.push({ ...P(20, 9), w: 4 * TS, h: 3 * TS, wall: '#c9c2a8', roof: '#4b5560', damaged: [], label: 'County dump scale', yard: true, facing: 1, parcel: 'dump' });
+    world.dumpSite = { id: 'dump', name: 'County Brush & Stump Dump', x: gx * TS, y: gy * TS, w: pw * TS, h: ph * TS, pad,
+      mounds: [{ ...P(5, 3.5), r: 2.6, c: '#56622f' }, { ...P(10.5, 3.2), r: 3.0, c: '#4d5a2b' }, { ...P(16, 3.6), r: 2.4, c: '#6b4b30' }, { ...P(21, 3.4), r: 2.2, c: '#5f6a36' }] };
+  }
+
   // Hollow Creek Landscape Supply: concrete-block bins of dyed mulch, a red barn, a sales pad
   function buildSupply(world, r) {
     const { gx, gy, pw, ph } = r, P = (x, y) => ({ x: (gx + x) * TS, y: (gy + y) * TS });
@@ -545,7 +578,7 @@
     world.supply = { id: 'supply', name: 'Hollow Creek Landscape Supply', x: gx * TS, y: gy * TS, w: pw * TS, h: ph * TS,
       pad: { ...P(9, 9), w: 9 * TS, h: 5 * TS },
       bins: [P(4, 3.2), P(9, 3.2), P(14, 3.2)], piles: [{ ...P(4, 4), c: '#2e2119' }, { ...P(9, 4), c: '#3d2a1c' }, { ...P(14, 4), c: '#1f1a17' }, { ...P(3.5, 10), c: '#3a2a1f' }],
-      loader: P(19, 10), dumpTruck: P(21.5, 5) };
+      loader: P(19, 10), dumpTruck: P(21.5, 5), pickup: { ...P(19.8, 11.6), w: 4.6 * TS, h: 3.2 * TS } };
     world.houses.push({ ...P(19.5, 2.5), w: 6 * TS, h: 4 * TS, wall: '#a8321f', roof: '#5a5f66', trim: '#f4f1e8', damaged: [], label: 'Landscape Supply', yard: true, facing: 1, parcel: 'supply' });
   }
   function parcelAt(world, x, y) { return world.parcels.find((p) => x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h); }

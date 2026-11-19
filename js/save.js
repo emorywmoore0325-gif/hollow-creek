@@ -69,14 +69,27 @@
         const raw = localStorage.getItem(keyOf(n));
         if (!raw) return null;
         const d = JSON.parse(raw), r = (d.ratings || []).slice(-10);
-        return { name: d.name, money: d.money, day: d.day || 1, jobs: d.jobsDone || 0, rating: r.length ? r.reduce((a, b) => a + b, 0) / r.length : null,
+        return { name: d.name, label: d.slotName || '', money: d.money, day: d.day || 1, jobs: d.jobsDone || 0, rating: r.length ? r.reduce((a, b) => a + b, 0) / r.length : null,
           machines: Object.keys(d.owned || {}).filter((k) => d.owned[k] && HC.EQUIP[k] && !HC.EQUIP[k].hidden && !HC.EQUIP[k].noUnit).length, savedAt: d.savedAt || null };
       } catch (e) { return null; }
+    },
+    // give a slot its own name (shown on the title screen); works on the slot in play too
+    rename(n, name) {
+      name = String(name || '').trim().slice(0, 40);
+      if (n === slot && HC.company && HC.session && !HC.session.preview) { HC.company.slotName = name; HC.Save.save(); return true; }
+      try { const raw = localStorage.getItem(keyOf(n)); if (!raw) return false; const d = JSON.parse(raw); d.slotName = name; localStorage.setItem(keyOf(n), JSON.stringify(d)); return true; } catch (e) { return false; }
     },
     del(n) { try { localStorage.removeItem(keyOf(n)); } catch (e) { /* ignore */ } },
     save() {
       if (HC.Net && HC.Net.role === 'guest') return false; // a co-op guest is playing the host's company: never overwrite their own save
-      if (HC.session && !HC.session.preview && HC.Game.snapshot) HC.company.pos = HC.Net && HC.Net.role === 'peer' ? null : HC.Game.snapshot(); // a co-op yard isn't yours at home: everything parks back at your own yard
+      if (HC.session && !HC.session.preview && HC.Game.snapshot) {
+        const C = HC.company;
+        if (HC.Net && HC.Net.role === 'peer') { // a co-op yard isn't yours at home: machines park back at your own yard, but stored debris is kept on both sides
+          const snap = HC.Game.snapshot(), y = HC.Net.homeYard;
+          C.coopItems = { yard: y, items: snap ? snap.items.filter((i) => { const yd = HC.World.yardAt(i.x, i.y, false); return yd && yd.id === y; }) : [] };
+          C.pos = { items: C.homeItems || [] };
+        } else { C.pos = HC.Game.snapshot(); delete C.homeItems; }
+      }
       HC.company.savedAt = Date.now();
       try { localStorage.setItem(keyOf(slot), JSON.stringify(HC.company)); return true; }
       catch (e) { return false; }
@@ -95,6 +108,7 @@
           if (HC.company.cond[k] === undefined) HC.company.cond[k] = 100;
         }
         const Cm = HC.company, up = Cm.upgrades || {};
+        if (Cm.owned.land) { Cm.owned.land = false; Cm.money += 1500; Cm.landRefund = true; } // the landscaping crew retired: you lay the materials yourself now
         if (Cm.owned.saw && !Cm.sawKind) Cm.sawKind = (up.chain || 0) >= 2 ? 's90' : up.chain === 1 ? 's70' : 's60'; // the old chain upgrade became a better saw
         delete up.chain;
         // the county map changed since this save: keep the company, park everything back at the yard

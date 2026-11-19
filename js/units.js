@@ -20,7 +20,7 @@
   const condFactor = (kind) => (cond(kind) < 25 ? 0.6 : cond(kind) < 50 ? 0.85 : 1);
   const wetFactor = () => (HC.session.weather.wet ? 0.82 : 1);
   function wear(u, amt) { HC.company.cond[u.kind] = Math.max(0, cond(u.kind) - amt); }
-  function burn(u, amt) { u.fuel = Math.max(0, u.fuel - amt * HC.Co.mult('fuelUse')); }
+  function burn(u, amt) { u.fuel = Math.max(0, u.fuel - amt * HC.Co.mult('fuelUse') * (HC.FUEL_BURN || 1)); }
   const dirv = (a) => ({ x: Math.cos(a), y: Math.sin(a) });
 
   // ---------- movement physics ----------
@@ -215,14 +215,15 @@
     const hp = hitchPt(u);
     let best = null, bd = 34;
     for (const t of S.trailers) {
-      if (t.hitch || isBed(t)) continue;
+      if (t.hitch || isBed(t) || (HC.EQUIP[t.kind] && HC.EQUIP[HC.baseOf(t.kind)].fixed)) continue;
       const h = hitchPt(u, t), c = coupler(t), d = HC.dist(c.x, c.y, h.x, h.y);
       if (d < bd) { bd = d; best = t; }
     }
     if (!best) {
-      const near = S.trailers.filter((t) => !t.hitch && !isBed(t)).map((t) => { const h = hitchPt(u, t); return { t, d: HC.dist(coupler(t).x, coupler(t).y, h.x, h.y) }; }).sort((a, b) => a.d - b.d)[0];
+      const near = S.trailers.filter((t) => !t.hitch && !isBed(t) && !(HC.EQUIP[t.kind] && HC.EQUIP[HC.baseOf(t.kind)].fixed)).map((t) => { const h = hitchPt(u, t); return { t, d: HC.dist(coupler(t).x, coupler(t).y, h.x, h.y) }; }).sort((a, b) => a.d - b.d)[0];
       return HC.Game.toast(near && near.d < 160 ? `Back the hitch up to the ${HC.TRAILERS[near.t.kind].name.toLowerCase()}'s coupler (${Math.round(near.d / TS * 3)} m off).` : 'No trailer behind you. Back up to a trailer coupler and press R.');
     }
+    if (HC.TRAILERS[best.kind].gooseneck && HC.deckLoad(S, u, true) > 0) return HC.Game.toast('Clear the truck bed first: the gooseneck ball is in there.', 'warn');
     if (HC.TRAILERS[best.kind].gooseneck && !HC.EQUIP[HC.baseOf(u.kind)].gooseneck) return HC.Game.toast(`The ${HC.TRAILERS[best.kind].name.toLowerCase()} needs a gooseneck ball in the bed: the flatbed pickups and the dually pull it.`, 'warn');
     if (HC.TRAILERS[best.kind].heavy && !HC.EQUIP[HC.baseOf(u.kind)].heavyHaul) return HC.Game.toast('The lowboy is too heavy for this truck. The semi or the heavy-haul tractor pulls it.', 'warn');
     best.hitch = u.kind;
@@ -252,15 +253,15 @@
     if (HC.EQUIP[u.kind].heavy && !HC.TRAILERS[t.kind].heavy && !(hd && mass <= 9)) { HC.Game.toast(hd ? 'Too heavy for the deck-over (9 t max). Big machines ride the lowboy.' : 'Too heavy for the equipment trailer. Big machines ride the lowboy or the deck-over.', 'warn'); return true; }
     if (u.carrying && u.carrying.length) { HC.Game.toast('Drop what the grapple is holding first.'); return true; }
     if (t.cargo && t.cargo.length) { HC.Game.toast(`Empty the ${HC.TRAILERS[t.kind].name.toLowerCase()} first: machines only ride in an empty box.`, 'warn'); return true; }
+    { const have = HC.deckLoad(S, t), add = HC.massOf(u.kind), cap = HC.payloadOf(t);
+      if (have + add > cap + 0.05) { HC.Game.toast(`Over the ${HC.TRAILERS[t.kind].name.toLowerCase()}'s rated load: ${have} t aboard + ${add} t would be ${Math.round((have + add) * 10) / 10} t (rated ${cap} t).`, 'warn'); return true; } }
     if (Math.abs(u.v) > 12) { HC.Game.toast('Stop on the deck first.'); return true; }
     const used = new Set(Object.values(S.units).filter((o) => o.on && o.on.id === t.id).map((o) => o.on.slot));
     const free = HC.TRAILERS[t.kind].slots.map((_, i) => i).filter((i) => !used.has(i)).sort((a, b) => {
       const pa = slotPos(t, a), pb = slotPos(t, b);
       return HC.dist(pa.x, pa.y, u.x, u.y) - HC.dist(pb.x, pb.y, u.x, u.y);
     });
-    if (!free.length) { HC.Game.toast(`The trailer is full: ${HC.TRAILERS[t.kind].slots.length > 1 ? 'two machines' : 'one machine'} max.`); return true; }
-    if (HC.EQUIP[u.kind].heavy && used.size) { HC.Game.toast(`A heavy machine takes the whole ${HC.TRAILERS[t.kind].name.toLowerCase()}.`); return true; }
-    if (Object.values(S.units).some((o) => o.on && o.on.id === t.id && HC.EQUIP[o.kind].heavy)) { HC.Game.toast(`The ${HC.TRAILERS[t.kind].name.toLowerCase()} already has a heavy machine on it.`); return true; }
+    if (!free.length) { HC.Game.toast(`The trailer is full: ${['one machine', 'two machines', 'three machines'][HC.TRAILERS[t.kind].slots.length - 1] || 'no room'} max.`); return true; }
     // sit it where nothing pokes past the front of the deck into the truck (buckets, blades, grapples), as far forward as it fits
     const [rear, front] = HC.TRAILERS[t.kind].deck, ex = extentOf(u, S);
     let off = Math.min(HC.TRAILERS[t.kind].slots[free[0]], front - ex.front);
@@ -448,7 +449,7 @@
     if (cond('saw') <= 0) { HC.Game.hintOnce('The chainsaw is worn out. Repair it at a yard.'); return; }
     u.working = true;
     const rate = HC.sawSpec().cut * condFactor('saw') * HC.Co.crew('climber', 1.15, 1);
-    S.saw.fuel = Math.max(0, S.saw.fuel - HC.EQUIP.saw.fuelUse * dt * HC.Co.mult('fuelUse'));
+    S.saw.fuel = Math.max(0, S.saw.fuel - HC.EQUIP.saw.fuelUse * dt * HC.Co.mult('fuelUse') * (HC.FUEL_BURN || 1));
     if (S.saw.fuel < SAW_CAP * 0.15 && S.saw.fuel > 0) HC.Game.hintOnce('Chainsaw is low on fuel. Walk it to a truck or a yard pump and press E.');
     HC.company.cond.saw = Math.max(0, cond('saw') - HC.EQUIP.saw.wear * dt);
     {
@@ -528,7 +529,7 @@
     skid: {
       update(u, dt, S, active) {
         const att = attachedTo(S, u.kind);
-        u.mode = att ? (att.kind === 'mulcher' ? 1 : att.kind === 'brushcut' ? 2 : 0) : -1;
+        u.mode = att ? (att.kind === 'mulcher' ? 1 : att.kind === 'brushcut' ? 2 : att.kind === 'forks' ? 3 : 0) : -1;
         boom(u, dt, active);
         // arms up = less stable: crawl
         if (active) tank(u, dt, HC.EQUIP[u.kind], (1 - u.carrying.length * 0.06) * (u.armT > 0.6 ? 0.55 : 1));
@@ -602,6 +603,17 @@
 
   HC.Units = {
     KINDS, create, collide, groundFactor, slopeAlong, refuel, fuelCap, cond, frontPt, nearDump, nearFuel, nearTruck, walk, tank, car, burn, wear, condFactor,
+    // after everything has moved this frame: machines strapped to a trailer sit exactly where their trailer ended up
+    snapRiders(S) {
+      for (const k in S.units) {
+        const u = S.units[k];
+        if (!u.on) continue;
+        const t = S.trailers.find((tr) => tr.id === u.on.id);
+        if (!t) { u.on = null; continue; }
+        const p = slotPos(t, u.on.slot, u.on.off);
+        u.x = p.x; u.y = p.y; u.a = t.a;
+      }
+    },
     tow, hitchToggle, machineIn, strapToggle, behindRamps, boom, attachedTo, sawGrab, sawPos, refuelSaw, SAW_CAP, onDeck, slotPos, coupler, hitchPt, board, exitTruck, blockedAt, isTruck, isBed, isDump, shedPosts,
     update(u, dt, S, active) {
       if (u.boarded) { const t = S.units[u.boarded]; u.x = t.x; u.y = t.y; u.a = t.a; return; }
@@ -625,7 +637,7 @@
         // a trailer that would run into a tree, house or the creek stops the rig
         for (const o of towed) {
           if (blockedAt(S, o.t.x, o.t.y, HC.TRAILERS[o.t.kind].r) && !blockedAt(S, o.x, o.y, HC.TRAILERS[o.t.kind].r)) {
-            u.x = px; u.y = py; u.v *= -0.15;
+            u.x = px; u.y = py; u.v = 0; // stop dead (no bounce: bouncing re-snags every frame)
             Object.assign(o.t, { x: o.x, y: o.y, a: o.a });
             HC.Game.hintOnce('The trailer is snagged. Back up and take a wider line.');
           }
