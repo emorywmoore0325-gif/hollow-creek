@@ -1076,7 +1076,7 @@
       if (t.landT !== undefined && t.landT < 1) t.landT += dt;
       if (t.autoBuck !== undefined) { t.autoBuck -= dt; if (t.autoBuck <= 0) { t.autoBuck = undefined; buck(t); } }
     }
-    for (const it of S.lot.items) if (it.z > 0) { it.vz = (it.vz || 0) - 9.8 * dt; it.z = Math.max(0, it.z + it.vz * dt * 0.33); if (it.z === 0) it.vz = 0; }
+    for (const it of S.lot.items) if (it.z > 0 || it.vz) { if (HC.Physics) HC.Physics.fall(it, dt); else { it.vz = (it.vz || 0) - 9.8 * dt; it.z = Math.max(0, it.z + it.vz * dt * 0.33); if (it.z === 0) it.vz = 0; } } // landing (bounces in physics.js)
     for (const p of S.particles) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z = Math.max(0, p.z + p.vz * dt); p.vz -= 220 * dt; if (!p.ballistic) { p.vx *= 0.94; p.vy *= 0.94; } }
     S.particles = S.particles.filter((p) => p.t < p.life);
     for (const f of S.floats) f.t += dt;

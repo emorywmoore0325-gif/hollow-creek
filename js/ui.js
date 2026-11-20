@@ -740,6 +740,19 @@
       g.strokeStyle = c.status === 'won' ? '#ffd23a' : '#ff5a4a'; g.lineWidth = 2; const x = c.x * sx, y = c.y * sy;
       g.beginPath(); g.moveTo(x - 4, y - 4); g.lineTo(x + 4, y + 4); g.moveTo(x + 4, y - 4); g.lineTo(x - 4, y + 4); g.stroke();
     }
+    if (C0.queued) { const p = W.parcels.find((q) => q.id === C0.queued.parcel); if (p) { g.setLineDash([4, 3]); g.strokeStyle = '#ffd23a'; g.lineWidth = 2; g.strokeRect(p.x * sx, p.y * sy, p.w * sx, p.h * sy); g.setLineDash([]); } } // the job on hold
+    // the places you drive to: a coloured badge with a letter on both maps
+    const PLACES = [];
+    if (W.sawmill) PLACES.push([W.sawmill, 'S', '#8b5a3c', 'Sawmill · buys logs']);
+    if (W.dumpSite) PLACES.push([W.dumpSite, 'D', '#56622f', 'County brush & stump dump']);
+    if (W.supply) PLACES.push([W.supply, 'L', '#4f9a3c', 'Landscape supply · mulch, chips, firewood, pallets']);
+    if (W.quarry) PLACES.push([W.quarry, 'Q', '#7d8085', W.quarry.owned ? 'Your quarry · sells rock' : 'Quarry (for sale)']);
+    for (const y of W.yards) if (y.owned || !y.coop) PLACES.push([y, y.id === 'firewood' ? 'F' : y.id === (HC.Net && HC.Net.homeYard) || y.id === 'hq' ? 'H' : 'Y', y.owned ? '#f07a22' : '#9a8f78', y.owned ? y.name + ' (yours)' : y.name + ' (for sale)']);
+    const badge = (o, ch, col) => { const x = (o.x + o.w / 2) * sx, y = (o.y + o.h / 2) * sy, r = (big ? 9 : 5.5) * (big ? dpr : 1);
+      g.fillStyle = col; g.strokeStyle = '#fff'; g.lineWidth = big ? 2 * dpr : 1.2; g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill(); g.stroke();
+      g.fillStyle = '#fff'; g.font = `800 ${Math.round(r * 1.25)}px "Work Sans", system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, x, y + 0.5); };
+    for (const [o, ch, col] of PLACES) badge(o, ch, col);
+    for (const pm of W.pumps || []) { const yd = HC.World.yardAt(pm.x, pm.y); if (!yd) continue; g.fillStyle = '#d9483b'; g.beginPath(); g.arc(pm.x * sx, pm.y * sy, (big ? 3.2 * dpr : 1.8), 0, 6.283); g.fill(); } // fuel at your yards
     const dot = (u, col, r) => { g.fillStyle = col; g.beginPath(); g.arc(u.x * sx, u.y * sy, r * k, 0, 6.283); g.fill(); };
     for (const q in S.units) if (!S.units[q].hidden && q !== S.active) dot(S.units[q], '#ffd36b', 2);
     for (const q in S.remote || {}) if (!S.remote[q].hidden) dot(S.remote[q], '#7fc8ff', 2); // co-op friends' machines
@@ -747,9 +760,15 @@
       g.font = `600 ${Math.round(11 * dpr)}px "Work Sans", system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
       const label = (x, y, t, col = '#fff') => { g.lineWidth = 3 * dpr; g.strokeStyle = 'rgba(0,0,0,0.65)'; g.strokeText(t, x * sx, y * sy); g.fillStyle = col; g.fillText(t, x * sx, y * sy); };
       for (const r of W.roads) { const pt = r.pts[Math.floor(r.pts.length * 0.42)]; if (pt) label(pt[0] * HC.TILE, pt[1] * HC.TILE - 12, r.name, '#f2eedf'); }
-      for (const y of W.yards) if (y.owned || !y.coop) label(y.x + y.w / 2, y.y + y.h / 2, y.owned ? y.name + ' (yours)' : y.name, y.owned ? '#ffb46b' : '#d8d2bf');
-      if (W.supply) label(W.supply.x + W.supply.w / 2, W.supply.y + W.supply.h / 2, W.supply.name, '#c8e6a0');
-      if (W.quarry) label(W.quarry.x + W.quarry.w / 2, W.quarry.y + W.quarry.h / 2, W.quarry.name, '#e0d4bb');
+      for (const [o, , col, name] of PLACES) label(o.x + o.w / 2, o.y + o.h / 2 + 26 / sy * dpr, name, '#fff');
+      if (C0.queued) { const p = W.parcels.find((q) => q.id === C0.queued.parcel); if (p) label(p.x + p.w / 2, p.y - 14, 'On hold: ' + C0.queued.client, '#ffd23a'); }
+      // legend
+      const lg = [['H', '#f07a22', 'Your yard'], ['S', '#8b5a3c', 'Sawmill'], ['D', '#56622f', 'County dump'], ['L', '#4f9a3c', 'Landscape supply'], ['Q', '#7d8085', 'Quarry'], ['F', '#f07a22', 'Firewood Yard']];
+      g.textAlign = 'left'; const lx = c.width - 150 * dpr; let ly = c.height - (lg.length * 18 + 10) * dpr;
+      g.fillStyle = 'rgba(20,28,18,0.72)'; g.fillRect(lx - 6 * dpr, ly - 12 * dpr, 150 * dpr, (lg.length * 18 + 6) * dpr);
+      for (const [ch, col, t] of lg) { g.fillStyle = col; g.beginPath(); g.arc(lx + 6 * dpr, ly, 6 * dpr, 0, 6.283); g.fill(); g.fillStyle = '#fff'; g.font = `800 ${Math.round(8 * dpr)}px "Work Sans", system-ui, sans-serif`; g.textAlign = 'center'; g.fillText(ch, lx + 6 * dpr, ly + 0.5);
+        g.textAlign = 'left'; g.font = `600 ${Math.round(11 * dpr)}px "Work Sans", system-ui, sans-serif`; g.fillText(t, lx + 18 * dpr, ly); ly += 18 * dpr; }
+      g.textAlign = 'center';
       if (S.job) { const p = W.parcels.find((q) => q.id === S.job.parcel); if (p) label(p.x + p.w / 2, p.y - 14, 'Job: ' + S.job.client, '#ffb46b'); }
       for (const tag in (HC.Net && HC.Net.remote) || {}) { const R = HC.Net.remote[tag], u = S.remote && S.remote[R.me]; if (u) label(u.x, u.y - 14, R.name, '#9fd6ff'); }
     }

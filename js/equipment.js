@@ -147,6 +147,8 @@
       u.cutT = 0;
       const log = u.deck.shift(), units = Math.max(2, Math.round((log.size || 1) * 3));
       const dump = U.nearDump(op, S, 30);
+      // the splits tumble off the top of the conveyor into the box, or onto the heap below it
+      HC.Game.spray(op.x, op.y, 30, dump ? dump.x : op.x, dump ? dump.y : op.y, dump ? 13 : 3, ['#b58a5a', '#c9a26a', '#9a7048', '#d4b07a'], units + 2, 0.5);
       for (let i = 0; i < units; i++) {
         const f = { id: HC.uid(), kind: 'firewood', x: op.x, y: op.y, a: 0, size: 1, value: 0 };
         if (dump && dump.load + 1 <= HC.Game.trailerCap(dump)) { dump.cargo.push(f); dump.load += 1; continue; }

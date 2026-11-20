@@ -584,6 +584,30 @@
       ...[-0.25, 0.25].map((z) => Pm('box', trimC, [front + 0.06, cy + ch * 0.43, z], [0.02, 0.02, w * 0.3], [0, 0, 0.14])), // wipers
       Pm('box', COL.amber, [cx + cabL * 0.25, roofY + 0.07, 0], [0.16, 0.07, w * 0.5]), // light bar
     ];
+    if (o.semiHood) { // a clean long-nose semi: one smooth full-width hood, arch lips over the steer tyres, a flush grille, slim corner lamps
+      for (let k = p.length - 1; k >= 0; k--) if (p[k].pos[0] / MM > front + 0.1) p.splice(k, 1);
+      const L = hood, fx = o.frontAxle ?? (x0 - 0.9), wr = o.wheelR || 0.52, bot = wr * 2 + 0.06, hf = hy + 0.6, hb = hy + 0.76, hwd = w * 0.94, dark = '#1c1d1f';
+      const sl = Math.atan2(hb - hf, L), mid = x0 - L / 2;
+      p.push(Pm('box', color, [mid, (bot + hf) / 2, 0], [L - 0.2, hf - bot, hwd]), // body
+        Pm('box', color, [x0 - 0.1, (bot + hf) / 2, 0], [0.2, hf - bot, hwd - 0.36]), // nose
+        ...[1, -1].map((s2) => Pm('cyl', color, [x0 - 0.2, (bot + hf) / 2, s2 * (hwd / 2 - 0.18)], [0.36, hf - bot, 0.36])), // rounded nose corners
+        Pm('box', color, [mid, (hf + hb) / 2, 0], [L / Math.cos(sl), hb - hf + 0.02, hwd - 0.3], [0, 0, -sl]), // top, sloping up to the cowl
+        ...[1, -1].map((s2) => Pm('cyl', color, [mid, (hf + hb) / 2, s2 * (hwd / 2 - 0.15)], [0.3, L / Math.cos(sl), 0.3], [0, 0, X - sl])), // rounded shoulders
+        Pm('box', HC.shade(color, -0.2), [front + 0.04, hb + 0.01, 0], [0.06, 0.04, hwd - 0.1])); // cowl seam
+      for (const s2 of [1, -1]) {
+        p.push(Pm('arch', dark, [fx, wr + 0.02, s2 * (hwd / 2 - 0.04)], [wr * 2.35, wr * 2.35, 0.1]), // wheel-arch lip
+          Pm('box', COL.chrome, [mid + 0.1, bot + 0.1, s2 * (hwd / 2 + 0.005)], [L * 0.55, 0.04, 0.01]), // side trim line
+          Pm('box', COL.chrome, [x0 - 0.06, hf - 0.18, s2 * (hwd / 2 - 0.2)], [0.08, 0.2, 0.42], [0, s2 * 0.35, 0]), Pm('box', '#e6eef3', [x0 - 0.02, hf - 0.18, s2 * (hwd / 2 - 0.2)], [0.02, 0.14, 0.36], [0, s2 * 0.35, 0]), // slim headlights
+          Pm('box', COL.amber, [x0 - 0.3, hf - 0.18, s2 * (hwd / 2 + 0.005)], [0.16, 0.08, 0.01]),
+          Pm('box', dark, [front + 0.25, bot - 0.32, s2 * (w / 2 - 0.05)], [0.45, 0.06, 0.38])); // step
+      }
+      // flush grille: chrome frame, dark mesh, fine bars
+      p.push(Pm('box', COL.chrome, [x0 + 0.005, (bot + hf) / 2 + 0.02, 0], [0.04, hf - bot - 0.12, 1.0]), Pm('box', '#151719', [x0 + 0.03, (bot + hf) / 2 + 0.02, 0], [0.01, hf - bot - 0.24, 0.88]),
+        ...[0.12, 0.24, 0.36, 0.48].map((y) => Pm('box', '#b9bdc2', [x0 + 0.036, bot + y, 0], [0.01, 0.025, 0.86])));
+      // body-coloured bumper with a chrome strip and tow hooks
+      p.push(Pm('box', color, [x0 + 0.06, bot - 0.14, 0], [0.3, 0.3, w * 1.0]), Pm('box', COL.chrome, [x0 + 0.215, bot - 0.1, 0], [0.01, 0.06, w * 0.96]), Pm('box', dark, [x0, bot - 0.33, 0], [0.24, 0.1, w * 0.9]),
+        ...[1, -1].map((s2) => Pm('box', '#c22', [x0 + 0.22, bot - 0.22, s2 * w * 0.3], [0.04, 0.05, 0.05])));
+    }
     // doors: tinted windows in black frames, panel seams, handles, steps underneath
     const doors = Math.max(1, Math.round(cabL / 1.2));
     for (let i = 0; i < doors; i++) {
@@ -1283,8 +1307,7 @@
       Pm('box', '#f2c94c', [6.15, 0.25, 0], [0.75, 1.05, 0.75]), Pm('box', '#d9a92c', [6.15, 0.79, 0], [0.78, 0.04, 0.78]),
       ...seatedM('#f07a22', '#f4c020').map((q) => ({ ...q, pos: [q.pos[0] + 6.15 * MM, q.pos[1] + 0.3 * MM, q.pos[2]] }))]),
     semi: () => build([ // long-hood tractor with sleeper
-      Pm('box', COL.black, [-0.3, 0.9, 0], [7.6, 0.3, 0.95]), ...truckCabM(3.9, '#1d3557', { hood: 2.0, cabL: 1.4, w: 2.4, hy: 1.35, cy: 1.45, ch: 1.6, sleeper: 1.8, stacks: true }),
-      Pm('box', COL.chrome, [3.93, 1.65, 0], [0.06, 1.0, 1.15]),
+      Pm('box', COL.black, [-0.3, 0.9, 0], [7.6, 0.3, 0.95]), ...truckCabM(3.9, '#1d3557', { hood: 2.0, cabL: 1.4, w: 2.4, hy: 1.35, cy: 1.45, ch: 1.6, sleeper: 1.8, stacks: true, semiHood: true, frontAxle: 3.0, wheelR: 0.52 }),
       Pm('cyl', COL.chrome, [0.6, 0.95, 1.1], [0.6, 1.2, 0.6], [0, 0, Math.PI / 2]), Pm('cyl', COL.chrome, [0.6, 0.95, -1.1], [0.6, 1.2, 0.6], [0, 0, Math.PI / 2]),
       Pm('box', '#2a2b2d', [-3.05, 1.2, 0], [1.2, 0.15, 1.5]), Pm('box', COL.black, [3.1, 1.15, 1.2], [1.3, 0.12, 0.3]), Pm('box', COL.black, [3.1, 1.15, -1.2], [1.3, 0.12, 0.3]),
       ...wheelM(3.0, 0.52, 1.0, 0.52, 0.32), ...wheelM(3.0, 0.52, -1.0, 0.52, 0.32),
