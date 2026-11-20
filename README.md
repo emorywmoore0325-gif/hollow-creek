@@ -122,7 +122,7 @@ Trailers: equipment trailer (2 small machines), dump trailer, **25 ft deck-over*
 
 Yards: Home Yard (office, repair shop, equipment compound with pole shed and bays, log & dump pad,
 pump) and **Ridge Yard** for sale across town. The Home Yard can be **expanded twice** (more trailer bays, then a second pole barn).
-**Hollow Creek Landscape Supply** (east end of Hollow Creek Rd) buys mulch ($34/unit) and wood chips ($20/unit) on its sales pad.
+**Hollow Creek Landscape Supply** (east end of Hollow Creek Rd) buys mulch ($48/unit) and wood chips ($20/unit) on its sales pad.
 **Stone Creek Quarry**, a terraced open pit with a crusher, screener, conveyor and stockpiles, is for
 sale too: own it and rocks unloaded on its sales pad earn $45 each instead of costing a dump fee.
 
@@ -143,8 +143,8 @@ logs, brush, stumps or rocks out anywhere other than the job, your own yard or a
 Products (firewood, mulch, chips) can go anywhere.
 
 **Where debris goes.** Logs sell at **Hemlock Hollow Sawmill** (timber country, 30% over the old pad price).
-Brush, stumps and rock go to the **County Brush & Stump Dump** on Bottom Rd: brush $30 a unit, stumps and
-rock $12 a unit; logs are taken free there. Press E on either pad, or tip the load out (X) on it: same
+Brush, stumps and rock go to the **County Brush & Stump Dump** on Bottom Rd: brush $30 a unit, stumps $12 a unit and
+rock $22 a unit ($66 a rock); quarry owners get $75 a rock; logs are taken free there. Press E on either pad, or tip the load out (X) on it: same
 thing. Anything left lying on a pad is taken in. Your yards no longer buy debris: each has a **debris
 storage** area where you can tip loads for free and come back for them later. Dumped loads land as
 separate pieces, spread out behind the box.
@@ -162,8 +162,8 @@ grass that still needs cutting on the job glows yellow.
 **Firewood.** Buy the Firewood Yard on Hemlock Hollow Rd and the firewood processor, which is installed there for good. Load logs on its
 side deck with a grapple, loader or excavator; it saws and splits them and the conveyor drops firewood into a
 dump trailer or truck parked under it (or a pile). Back the load up to the roadside stand to stock it (60
-max): drive-by customers buy a bundle or three now and then for $50–70, busiest around lunch and late
-afternoon. Leftovers sell at the landscape supply for $28.
+max): drive-by customers buy a bundle or three now and then for $70–95, busiest around lunch and late
+afternoon. Leftovers sell at the landscape supply for $45.
 
 **Gooseneck trailers.** The flatbed pickups and the dually have a ball in the bed. The 16 ft gooseneck dump
 (high sides, 18 units) slides its ramps out from under the box when it's empty, so one small machine can

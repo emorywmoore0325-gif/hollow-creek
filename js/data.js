@@ -13,7 +13,7 @@ HC.TREES = {
 };
 
 // Game version: co-op players must match (bump whenever the game changes)
-HC.VERSION = '2026.11.19-6';
+HC.VERSION = '2026.11.20-1';
 HC.MAP_VER = 4; // bump whenever the world layout changes (saves then park everything back at the yard)
 
 // Equipment. key = number key. fuel in units, use per second.
@@ -686,3 +686,15 @@ HC.TRAILERS.dump18 = { name: 'Tandem Dump Trailer (16 ft)', len: 48, r: 20, soli
 // logs ride log trucks, the log trailer and the forwarder one spot apiece (bunks are built for them)
 HC.LOG_CARRIERS = ['logbed', 'logtrailer', 'fwdbed'];
 HC.loadOf = (c, t) => (c.kind === 'log' && t && HC.LOG_CARRIERS.includes(t.kind) ? 1 : HC.LOAD[c.kind] || 1);
+
+// ================= Firewood and mulch pay better =================
+HC.MULCH_PRICE = 48;            // the supply buys your mulch (was $34)
+HC.FIREWOOD_SUPPLY = 45;        // the supply buys leftover firewood (was $28)
+HC.FIREWOOD_STAND = [70, 95];   // drive-by customers at your stand (was $50-70)
+// the tractor a bit cheaper, the skid steers dearer
+Object.assign(HC.EQUIP.tractor, { price: 23500 });
+Object.assign(HC.EQUIP.skid, { price: 13500 });
+Object.assign(HC.EQUIP.skidXL, { price: 22500 });
+// stone is worth more, and costs more to get rid of
+HC.ROCK_PRICE = 75;           // per rock at your quarry (was $45)
+HC.DUMP_FEES.rock = 22;       // per load unit at the county dump: $66 a rock (was $36)

@@ -11,7 +11,7 @@
   };
   const MAT_OF = { sod: 'sod', bed: 'mulch', shrub: 'shrub', paver: 'paver' };
   // mulch is bulk: bought by the load unit, it waits in a heap at the supply; load it with a grapple or loader like any mulch
-  HC.MULCH_BUY = 48; // per load unit (the supply buys yours back at HC.MULCH_PRICE)
+  HC.MULCH_BUY = 62; // per load unit (more than the supply pays for yours at HC.MULCH_PRICE, so buying and selling back never profits)
   const MAT_NAME = (m) => (m === 'mulch' ? 'Mulch' : HC.PALLETS[m].name);
   HC.matForTarget = (kind) => MAT_OF[kind];
   // where pallets can ride: flat decks (not the dump trailers) and the flatbed pickups

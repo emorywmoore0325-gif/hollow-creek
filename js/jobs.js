@@ -36,7 +36,7 @@
     },
     sod_planting(tier) {
       const sodW = HC.randi(4, 6) + tier * 2, sodH = HC.randi(3, 4) + tier, beds = HC.randi(5, 8) + tier * 2, shrubs = HC.randi(3, 5) + tier;
-      const mat = Math.ceil(sodW * sodH / 12) * 140 + beds * 48 + Math.ceil(shrubs / 6) * 160;
+      const mat = Math.ceil(sodW * sodH / 12) * 140 + beds * (HC.MULCH_BUY || 62) + Math.ceil(shrubs / 6) * 160;
       return { sodW, sodH, beds, shrubs, pay: Math.round(sodW * sodH * 14 + beds * 10 + shrubs * 40 + 220 + mat * 1.2), par: sodW * sodH * 1.5 + beds + shrubs * 3 + 70,
         summary: `${sodW * sodH} sq of sod, ${shrubs} shrubs, ${beds} bed tiles and a mow` };
     },
@@ -411,8 +411,8 @@
       const count = 1 + (tier > 1 ? 1 : 0) + (HC.chance(0.35) ? 1 : 0);
       return { count, pay: 520 * count + 180 + tier * 120, par: 40 * count + 40, summary: `${count} dead hazard tree${count > 1 ? 's' : ''} leaning toward the house` };
     },
-    firewood_delivery(tier) { const count = HC.randi(8, 14) + tier * 4; return { count, pay: count * 50 + 60, par: 45 + count * 2, summary: `${count} units of split firewood, dropped beside the drive` }; },
-    mulch_delivery(tier) { const count = HC.randi(6, 12) + tier * 4; return { count, pay: count * 50 + 80, par: 40 + count * 2, summary: `${count} units of mulch, dumped beside the drive` }; },
+    firewood_delivery(tier) { const count = HC.randi(8, 14) + tier * 4; return { count, pay: count * 85 + 80, par: 45 + count * 2, summary: `${count} units of split firewood, dropped beside the drive` }; },
+    mulch_delivery(tier) { const count = HC.randi(6, 12) + tier * 4; return { count, pay: count * 82 + 100, par: 40 + count * 2, summary: `${count} units of mulch, dumped beside the drive` }; },
     rock_picking(tier) { const count = HC.randi(10, 16) + tier * 5; return { count, pay: count * 26 + 140, par: 30 + count * 4, summary: `${count} rocks to pick off a field and haul away` }; },
     fence_line(tier) {
       const bushes = HC.randi(10, 16) + tier * 5, saplings = HC.randi(6, 10) + tier * 3;
