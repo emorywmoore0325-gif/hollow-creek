@@ -826,6 +826,7 @@
         haul(t, pad); n += before - t.cargo.length; t.tipT = 1; t.tipN = (t.tipN || 0) + 1;
         for (let i = 0; i < 6; i++) dust(p.x + HC.rand(-14, 14), p.y + HC.rand(-14, 14), '#8a6a44', 3, 80);
         if (!t.cargo.length) continue;
+        if (pad.type === 'mill' && t.cargo.some((c) => DEBRIS.includes(c.kind) || c.kind === 'rock')) { toast('The sawmill only takes logs: the brush, stumps and rock stay in the box. Take them to the county dump.', 'warn'); continue; }
       }
       if (junk && storageAt(p.x, p.y)) toast('Dumped in your debris storage. It stays here until you haul it to the sawmill or the county dump.');
       else if (junk && !HC.World.yardAt(p.x, p.y, true) && !padAt(p.x, p.y)) { // not at your own yard
