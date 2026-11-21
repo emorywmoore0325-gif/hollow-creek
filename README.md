@@ -78,6 +78,21 @@ pick up the saw. Buying a new saw trades in the old one for 40% of its price.
 deck cuts the patches it passes over, so a 48" deck takes about three passes down a strip and the 96" wide-area
 mower one. Thick grass slows the mower; clippings blow out the side chute.
 
+## Seasons, night and the long haul
+
+- **Seasons**: seven days each. Spring brings mowing and sod and planting, summer brings storms, fall brings leaf cleanup and firewood demand (firewood pays 35-50% more in fall and winter), and winter brings snow.
+- **Snow plowing**: fit a truck V-plow (pickups, dump trucks, service truck; never the semis) or a snow pusher (skid steers, tractor, loaders), plus a tailgate salt spreader. Plowed snow piles up beside your pass or in front of the pusher, so push the piles to the edges. Buy rock salt at the landscape supply pickup area (park there and press E).
+- **Night**: streetlights, yard floods, porch and window lights come on at dusk. Press **L** to switch a vehicle's lights on or off.
+- **Wear**: every engine has an hour meter. Past its working life a machine fails for good. Then overhaul it, have a rollback haul it home, or scrap it at Hollow Creek Salvage.
+- **Mud, breakdowns, service**: heavy machines bog down in wet ground (pull them out with R or the service truck). Oil and grease every few days.
+- **Homes**: buy a starter house, a farmhouse (two-bay garage) or a country home (equipment shop). Walk to the door, press E, and sleep until morning: you're up earlier and rested.
+
+## Big jobs
+
+- **Land development** (multi-day): clear the trees, pull the stumps, grade the staked house pad with the dozer, then haul gravel from the quarry (E at the quarry pad) for the driveway.
+- **Logging contracts**: bid on a timber sale (low, fair or strong bid), then fell, skid, load and truck every log to the sawmill. Mechanized sales need a harvester and forwarder; harvester logs fetch 30% more. Whole-tree skidding contracts need a grapple skidder.
+- **Junk removal**: couches, mattresses, appliances, tires, scrap, TVs, a dead hot tub. Toss light pieces into a dump box by hand (E on foot), grapple the heavy ones, sell the metal at the salvage yard and dump the rest.
+
 ## The fleet
 
 Number keys follow your owned fleet in order (shown on the HUD bar); **[ ]** cycle through it.
@@ -245,6 +260,8 @@ The title screen has three save slots. Each card shows the bank, day, jobs, rati
 * Company tab: turn cartoon outlines on or off (off by default for the realistic look).
 
 ## Controls
+
+- **L**: vehicle lights on/off
 
 | Input | Action |
 | --- | --- |

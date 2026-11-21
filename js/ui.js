@@ -583,6 +583,12 @@
   // a brand-new company: nothing bought yet
   const ownsNothing = () => !Object.keys(HC.company.owned).some((k) => HC.company.owned[k] && k !== 'op' && !HC.EQUIP[k].hidden);
   // redraw the open phone (co-op: the shared board or someone's booking changed)
+  // hint text with the keys drawn as little keycaps: "E: grab", "press R", "(F)", "hold T"
+  let hintTxt = null;
+  function keycaps(t) {
+    return esc(t).replace(/(^|[\s(·])([A-Z]|Esc|Space|Tab|[0-9])(?=[:)]|\s+(?:to|then|in|on|again|for)\b)/g, '$1<kbd>$2</kbd>')
+      .replace(/\b(press|hold|Press|Hold|key)\s+([A-Z]|Esc|Space)\b/g, '$1 <kbd>$2</kbd>');
+  }
   function refreshPhone(onlyTab) {
     if (!phoneOpen || (onlyTab && tab !== onlyTab)) return;
     if (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return; // don't wipe a bid you're typing
@@ -602,7 +608,7 @@
     bind('#b-save', () => toastHub(HC.Save.save() ? 'Saved.' : 'Could not save: browser storage is blocked.'));
     bind('#b-close', closePhone);
     bind('#b-mute', () => { HC.Audio.setMuted(!HC.Audio.isMuted()); phone(); });
-    bind('#b-gfx', () => { C.prefs = C.prefs || {}; const order = ['low', 'high', 'ultra']; C.prefs.gfx = order[(order.indexOf(C.prefs.gfx || 'high') + 1) % 3]; HC.Render.setQuality(C.prefs.gfx); HC.Save.save(); phone(); });
+    bind('#b-gfx', () => { C.prefs = C.prefs || {}; const order = ['low', 'high', 'ultra']; C.prefs.gfx = order[(order.indexOf(C.prefs.gfx || 'high') + 1) % 3]; HC.Render.setQuality(C.prefs.gfx); C.prefs.gfxLocked = true; HC.Save.save(); phone(); });
     bind('#b-ren', () => { const v = window.prompt(`Name for this save (slot ${HC.Save.slot})`, C.slotName || ''); if (v === null) return; HC.Save.rename(HC.Save.slot, v); phone(); });
     bind('#b-cam', () => { cycleCam(); phone(); });
     bind('#b-outline', () => { C.prefs = C.prefs || {}; C.prefs.outlines = !C.prefs.outlines; HC.Render.setOutlines(C.prefs.outlines); HC.Save.save(); phone(); });
@@ -729,7 +735,8 @@
       { const hh = $('h-hours'); if (hh) { const show = HC.hours && spec.fuelCap && spec.move !== 'walk'; hh.hidden = !show; if (show) hh.innerHTML = `<span class="hrm">${String(Math.floor(HC.hours(u.kind))).padStart(5, '0')}</span> hrs${HC.isDead(u.kind) ? ' · <b class="warn-t">worn out</b>' : HC.wornOut(u.kind) ? ' · <b class="warn-t">past its life</b>' : ''}`; } }
       const capOf = HC.Units.KINDS[u.kind] && HC.Units.KINDS[u.kind].cap ? HC.Units.KINDS[u.kind].cap(u) : HC.EQUIP[HC.baseOf(u.kind)].cap || 1;
       $('h-extra').textContent = u.carrying.length ? `Holding ${u.carrying.length}/${capOf}` : HC.EQUIP[u.kind].move === 'car' ? `${Math.round(Math.abs(u.v) / 4)} mph` : u.on ? 'Strapped down' : '';
-      $('h-hint').textContent = (guest ? HC.Net.hint : HC.Units.hint(u, S)) + (ob.complete && S.stage === 'onsite' ? '   ·   All work done: click Finish job' : '');
+      { const txt = (guest ? HC.Net.hint : HC.Units.hint(u, S)) + (ob.complete && S.stage === 'onsite' ? '   ·   All work done: click Finish job' : '');
+        if (txt !== hintTxt) { hintTxt = txt; $('h-hint').innerHTML = keycaps(txt); } }
     }
     hud.querySelectorAll('.slot').forEach((b) => {
       const un = S.units[b.dataset.k];

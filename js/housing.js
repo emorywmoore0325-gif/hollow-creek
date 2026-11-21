@@ -2,11 +2,11 @@
 // Walk up to the front door and press E to go inside: sleep until morning (a better home gets you up earlier and rested), save, or check the phone.
 'use strict';
 (() => {
-  const TS = HC.TILE, C = () => HC.company;
+  const TS = HC.TILE, T = HC.T, C = () => HC.company;
   const TIERS = [
     { id: 'small', name: 'Starter house', price: 24000, early: 30, rested: 0.05, blurb: 'A two-bedroom ranch with a gravel drive. Up 30 minutes earlier.' },
-    { id: 'mid', name: 'Farmhouse', price: 52000, early: 60, rested: 0.08, blurb: 'A roomy old farmhouse with a porch. Up an hour earlier and well rested.' },
-    { id: 'big', name: 'Country home', price: 98000, early: 90, rested: 0.12, blurb: 'A big place on its own acreage. Up 90 minutes earlier, fully rested.' },
+    { id: 'mid', name: 'Farmhouse', price: 58000, early: 60, rested: 0.08, bays: 2, shop: 'Two-bay garage', blurb: 'A roomy old farmhouse with a porch and a two-bay garage to park in. Up an hour earlier and well rested.' },
+    { id: 'big', name: 'Country home', price: 110000, early: 90, rested: 0.12, bays: 4, shop: 'Four-bay equipment shop', blurb: 'A big place on its own acreage with a four-bay equipment shop: park, fuel-free storage out of the weather, and repairs. Up 90 minutes earlier, fully rested.' },
   ];
   const COT = { id: 'cot', name: 'Cot in the yard office', price: 0, early: 0, rested: 0, blurb: 'A folding cot behind the desk.' };
 
@@ -29,8 +29,29 @@
   const door = (h) => ({ x: h.x + h.w / 2, y: h.facing === -1 ? h.y - 10 : h.y + h.h + 10 });
   function officeDoor() { const o = HC.world.houses.find((h) => h.label === 'Office' && h.parcel === 'hq'); return o ? door(o) : null; }
 
-  // your home's lot is off the job board
-  function markHome() { for (const p of HC.world.parcels) if (p.id === C().home) p.isYard = true; }
+  // your home's lot is off the job board; the bigger homes come with a garage or shop that counts as one of your yards
+  function markHome() { for (const p of HC.world.parcels) if (p.id === C().home) p.isYard = true; homeShop(); }
+  function homeShop() {
+    const W = HC.world; if (!W) return;
+    W.sheds = W.sheds.filter((s) => s.yard !== 'home'); W.bays = W.bays.filter((b) => b.yard !== 'home'); W.yards = W.yards.filter((y) => y.id !== 'home');
+    const m = mine(); if (!m || !m.bays) { HC.Render.yardChanged && HC.Render.yardChanged(); return; }
+    const p = W.parcels.find((q) => q.id === m.parcel), h = m.house, bh = 4 * TS;
+    // beside the house on whichever side has more room; a narrow lot gets as many bays as fit (at least two)
+    const right = p.x + p.w - TS * 0.5 - (h.x + h.w + TS * 1.2), left = h.x - TS * 1.2 - (p.x + TS * 0.5), room = Math.max(right, left);
+    const nb = Math.max(2, Math.min(m.bays, Math.floor((room - TS) / (2.4 * TS)))), bw = nb * 2.4 * TS + TS;
+    const x = right >= left ? h.x + h.w + TS * 1.2 : h.x - TS * 1.2 - bw;
+    const y = h.facing === -1 ? h.y + h.h - bh : h.y, yard = { id: 'home', name: m.shop, x: x - TS * 0.5, y: y - TS * 0.5, w: bw + TS, h: bh + TS * 4, owned: true, home: true };
+    W.trees = W.trees.filter((t) => !(t.parcel === p.id && HC.circleRectHit(t.x, t.y, t.trunkR + 10, yard)));
+    W.bushes = W.bushes.filter((b) => !HC.circleRectHit(b.x, b.y, (b.r || 10) + 4, yard)); yard.name = `${['', '', 'Two', 'Three', 'Four'][nb]}-bay ${m.id === 'big' ? 'equipment shop' : 'garage'}`;
+    for (let ty = Math.floor(yard.y / TS); ty < Math.ceil((yard.y + yard.h) / TS); ty++) for (let tx = Math.floor(yard.x / TS); tx < Math.ceil((yard.x + yard.w) / TS); tx++) {
+      const t = W.tile(tx, ty); if (t === T.ROAD || t === T.WATER) continue; if (t !== T.GRAVEL) { W.set(tx, ty, T.GRAVEL); HC.Render.setTile && HC.Render.setTile(tx, ty); }
+    }
+    W.sheds.push({ x, y, w: bw, h: bh, yard: 'home' });
+    W.fences = W.fences.filter((f) => !(f.parcel === p.id && HC.segRectHit(f.x, f.y, f.x + (f.w || 0), f.y + (f.h || 0), 2, yard))); HC.Render.fencesChanged && HC.Render.fencesChanged();
+    for (let i = 0; i < nb; i++) W.bays.push({ x: x + TS * (1.7 + i * 2.4), y: y + bh * 0.55, a: h.facing === -1 ? Math.PI / 2 : -Math.PI / 2, yard: 'home', kind: 'machine' });
+    W.yards.push(yard);
+    HC.Render.yardChanged && HC.Render.yardChanged();
+  }
 
   function buy(parcel) {
     const L = listed().find((l) => l.parcel === +parcel); if (!L) return 'That house is gone.';
@@ -134,4 +155,14 @@
   HC.Homes = { listed, mine, tier, buy, door, TIERS, markHome, isInside: () => !!inside };
   const baseBoot = HC.Game.boot;
   if (baseBoot) HC.Game.boot = function () { const r = baseBoot.apply(this, arguments); try { cacheW = null; if (C() && C().home) markHome(); } catch (e) { /* no world yet */ } return r; };
+})();
+// a loaded game: put the home's garage or shop back once the world is up and drawn
+(() => {
+  let doneFor = null;
+  const base = HC.Game.update;
+  HC.Game.update = function () {
+    const r = base.apply(this, arguments);
+    if (HC.world && HC.session && !HC.session.preview && doneFor !== HC.world) { doneFor = HC.world; try { if (HC.company.home) HC.Homes.markHome(); } catch (e) { console.warn(e); } }
+    return r;
+  };
 })();

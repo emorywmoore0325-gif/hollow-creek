@@ -576,6 +576,22 @@
         Pm('box', '#f4f2ec', [gx, 1.35, D * 0.45 + 0.03], [4.8, 2.3, 0.06]));
       for (let y = 0.5; y < 2.5; y += 0.5) p.push(Pm('box', '#d6d4ce', [gx, y, D * 0.45 + 0.07], [4.8, 0.03, 0.02]));
     }
+    // the lived-in bits: a mulched bed of shrubs and flowers along the front, downspouts, an AC unit, a porch light, a house number and a mailbox
+    const rr = rnd(Math.floor(h.x + h.y) % 997), bedW = W - 1.2, bx0 = cx - bedW / 2, fz = front + (st === 'farmhouse' ? 3.0 : st === 'cabin' ? 2.6 : 0.75);
+    if (st !== 'modern') {
+      p.push(Pm('box', '#4a3020', [cx, 0.06, fz], [bedW, 0.12, 1.0]));
+      for (let x = bx0 + 0.6; x < bx0 + bedW - 0.4; x += 1.3 + rr() * 0.6) {
+        if (Math.abs(x - cx) < 1.1) continue; // keep the walk to the door clear
+        const sz = 0.7 + rr() * 0.5; p.push(Pm('ico0', ['#3e6e32', '#4c7d38', '#356a3a'][Math.floor(rr() * 3)], [x, sz * 0.45, fz], [sz, sz * 0.85, sz * 0.9]));
+        if (rr() < 0.55) p.push(Pm('ico0', ['#e86a8a', '#f2d14e', '#ffffff', '#b58cff', '#ff8a4a'][Math.floor(rr() * 5)], [x + 0.5, 0.22, fz + 0.25], [0.35, 0.22, 0.35]));
+      }
+    }
+    for (const sx of [-1, 1]) p.push(Pm('box', '#e8e6e0', [sx * (Wt / 2 + 0.05), 1.5, front - 0.1], [0.12, 2.8, 0.12])); // downspouts at the front corners
+    p.push(Pm('box', '#b9bcbf', [Wt / 2 + 0.55, 0.45, -D * 0.2], [0.8, 0.8, 0.8]), Pm('cyl', '#5a5d60', [Wt / 2 + 0.55, 0.87, -D * 0.2], [0.6, 0.04, 0.6])); // AC condenser
+    p.push(Pm('box', '#2a2b2d', [cx + 0.95, 2.35, front + 0.08], [0.16, 0.26, 0.12]), Pm('box', '#ffe9b0', [cx + 0.95, 2.32, front + 0.15], [0.1, 0.14, 0.02])); // porch light
+    p.push(Pm('box', '#2a2b2d', [cx - 0.95, 2.0, front + 0.06], [0.5, 0.18, 0.03]), Pm('box', '#d6b25a', [cx - 0.95, 2.0, front + 0.08], [0.4, 0.08, 0.01])); // house number plaque
+    const mx = Wt / 2 - 1.2, mz = front + 7.5; // mailbox out by the road
+    p.push(Pm('box', '#6a4a30', [mx, 0.55, mz], [0.12, 1.1, 0.12]), Pm('box', ['#2a2b2d', '#2f5a8a', '#8a2a2a', '#d8d4c8'][Math.floor(rr() * 4)], [mx, 1.15, mz], [0.5, 0.26, 0.24]), Pm('box', '#d23a2a', [mx + 0.22, 1.25, mz + 0.12], [0.03, 0.2, 0.05]));
     return build(p);
   }
   function houseGeo(h) {
@@ -2016,6 +2032,11 @@
         g.strokeStyle = 'rgba(70,120,40,0.45)'; g.lineWidth = 1;
         for (let k = 0; k < 3; k++) { const bx = px + 1 + hash(x, y, k + 20) * (G - 2), by = py + 3 + hash(y, x, k + 21) * (G - 3); g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + (hash(x, k) - 0.5) * 2, by - 3); g.stroke(); }
         if (hash(x, y, 77) < 0.05) dots(HC.pick(['#ffffff', '#f2d14e']), 1);
+        { const hv = hash(x, y, 91); // a little variety: clover, a few pebbles, dandelions, a bare patch
+          if (hv < 0.05) { g.fillStyle = 'rgba(60,110,40,0.45)'; for (let k = 0; k < 5; k++) { g.beginPath(); g.arc(px + 4 + hash(x, y, k + 200) * (G - 8), py + 4 + hash(y, x, k + 201) * (G - 8), 1.6 + hash(x, k, 3) * 1.4, 0, 6.28); g.fill(); } }
+          else if (hv < 0.09) { for (let k = 0; k < 3; k++) { const sx = px + 2 + hash(x, y, k + 210) * (G - 5), sy = py + 2 + hash(y, x, k + 211) * (G - 5); g.fillStyle = '#9a968c'; g.fillRect(sx, sy, 3, 2); g.fillStyle = '#c8c4b8'; g.fillRect(sx, sy, 2, 1); } }
+          else if (hv < 0.12) dots('#f2d14e', 3, 2);
+          else if (hv < 0.135) { g.fillStyle = 'rgba(140,110,70,0.35)'; g.beginPath(); g.ellipse(px + G / 2, py + G / 2, G * 0.35, G * 0.22, hash(x, y, 5) * 3, 0, 6.28); g.fill(); } }
         break;
       }
       case T.MOWED: g.fillStyle = x % 2 ? 'rgba(144,211,98,0.85)' : 'rgba(124,191,80,0.85)'; g.fillRect(px, py, G, G); dots('rgba(90,150,60,0.5)', 4, 2); break;
@@ -2026,7 +2047,7 @@
         { const m = W.cut && W.cut.get(i); // patches the deck has already been over: fresh-cut stubble
           if (m) for (let s2 = 0; s2 < 9; s2++) if (m & (1 << s2)) { const q = G / 3; g.fillStyle = (x + Math.floor(s2 / 3)) % 2 ? 'rgba(150,214,100,0.95)' : 'rgba(128,196,82,0.95)'; g.fillRect(px + (s2 % 3) * q, py + Math.floor(s2 / 3) * q, Math.ceil(q), Math.ceil(q)); } }
         break;
-      case T.DIRT: dots('rgba(110,82,52,0.6)', 6, 3); dots('#8d6c48', 4); dots('#b08e66', 3, 1); break;
+      case T.DIRT: dots('rgba(110,82,52,0.6)', 6, 3); dots('#8d6c48', 4); dots('#b08e66', 3, 1); dots('#9a948a', 2, 2); if (hash(x, y, 33) < 0.12) { g.strokeStyle = 'rgba(80,58,36,0.6)'; g.lineWidth = 1; g.beginPath(); const a3 = hash(x, y, 34) * 3; g.moveTo(px + G / 2 - Math.cos(a3) * 5, py + G / 2 - Math.sin(a3) * 5); g.lineTo(px + G / 2 + Math.cos(a3) * 5, py + G / 2 + Math.sin(a3) * 5); g.stroke(); } break; // pebbles and the odd twig
       case T.GRAVEL: dots('#8f887a', 6); dots('#a49d8e', 6); dots('#ddd7ca', 5, 1); dots('#6f6a60', 3, 1); break;
       case T.ROAD: dots('#8a877a', 4); break;
       case T.MULCH: dots('#a96d40', 6); break;
@@ -2493,6 +2514,19 @@
       const x = U(yd.x) + 1.7, z = U(yd.y + yd.h) - 0.5, y = gh(yd.x + 54, yd.y + yd.h); // out at the front corner, clear of the drive
       parts.push(P('box', '#5a3a26', [x - 0.9, y + 0.6, z], [0.12, 1.2, 0.12]), P('box', '#5a3a26', [x + 0.9, y + 0.6, z], [0.12, 1.2, 0.12]),
         P('box', yd.id === 'hq' ? '#f07a22' : '#3e7a4a', [x, y + 1.1, z], [2.2, 0.6, 0.08]));
+    }
+    // yard clutter that makes a yard look worked in: drums, tires, a dumpster, parts racks, a picnic table, a flag
+    const drums = (x, z) => { const y = gh(x * TS, z * TS); for (const [dx, dz, c] of [[0, 0, '#2f5a8a'], [0.32, 0.05, '#b8321f'], [0.15, 0.3, '#2f5a8a'], [0.48, 0.34, '#3a3b3d']]) parts.push(P('cyl', c, [x + dx, y + 0.3, z + dz], [0.28, 0.6, 0.28]), P('cyl', HC.shade(c, 0.15), [x + dx, y + 0.61, z + dz], [0.26, 0.02, 0.26])); };
+    const tires = (x, z, n) => { const y = gh(x * TS, z * TS); for (let i = 0; i < n; i++) parts.push(P('cyl', '#1e1f21', [x + (i % 2) * 0.05, y + 0.1 + i * 0.19, z], [0.62, 0.18, 0.62]), P('cyl', '#4a4c4f', [x + (i % 2) * 0.05, y + 0.1 + i * 0.19 + 0.092, z], [0.3, 0.01, 0.3])); };
+    const dumpster = (x, z, a2) => { const y = gh(x * TS, z * TS); parts.push(P('box', '#2f6a3a', [x, y + 0.4, z], [1.9, 0.8, 1.0], [0, a2, 0]), P('box', '#244f2c', [x, y + 0.84, z], [2.0, 0.08, 1.05], [0.1, a2, 0]), P('box', '#1e1f21', [x, y + 0.05, z], [1.7, 0.1, 0.9], [0, a2, 0])); };
+    const rack = (x, z) => { const y = gh(x * TS, z * TS); for (const dx of [-0.8, 0.8]) parts.push(P('box', '#d06a1a', [x + dx, y + 0.9, z], [0.08, 1.8, 0.08])); for (const hy of [0.5, 1.1, 1.7]) parts.push(P('box', '#2d5a9a', [x, y + hy, z], [1.7, 0.06, 0.5]), P('box', HC.pick(['#8a6a4a', '#5a5d60', '#c9b896']), [x - 0.3 + Math.random() * 0.6, y + hy + 0.15, z], [0.5, 0.24, 0.4])); };
+    const table = (x, z) => { const y = gh(x * TS, z * TS); parts.push(P('box', '#9a7048', [x, y + 0.38, z], [1.1, 0.06, 0.5])); for (const dz of [-0.4, 0.4]) parts.push(P('box', '#8a6040', [x, y + 0.22, z + dz], [1.1, 0.05, 0.18])); for (const dx of [-0.45, 0.45]) parts.push(P('box', '#7a5030', [x + dx, y + 0.2, z], [0.06, 0.4, 0.9])); };
+    const flag = (x, z) => { const y = gh(x * TS, z * TS); parts.push(P('cyl', '#d8d8d4', [x, y + 1.8, z], [0.05, 3.6, 0.05]), P('box', '#b22234', [x + 0.38, y + 3.35, z], [0.7, 0.4, 0.02]), P('box', '#ffffff', [x + 0.38, y + 3.3, z + 0.012], [0.7, 0.08, 0.01]), P('box', '#3c3b6e', [x + 0.18, y + 3.43, z + 0.013], [0.3, 0.22, 0.01])); };
+    const john = (x, z) => { const y = gh(x * TS, z * TS); parts.push(P('box', '#2f6ab0', [x, y + 0.75, z], [0.4, 1.5, 0.4]), P('box', '#f2f2ee', [x, y + 1.52, z], [0.44, 0.06, 0.44])); };
+    for (const yd of world.yards) {
+      const X = yd.x / TS, Z = yd.y / TS, Wd = yd.w / TS;
+      if (yd.id === 'hq') { dumpster(X + 10, Z + 4.2, Math.PI / 2); drums(X + 19.6, Z + 3); tires(X + 20.2, Z + 6, 4); tires(X + 19.7, Z + 6.6, 3); rack(X + 15, Z + 1.1); table(X + 1.4, Z + 10); flag(X + 8.6, Z + 8.9); john(X + 1.1, Z + 18.6); }
+      else if (!yd.home) { drums(X + Wd - 2.2, Z + 1.6); tires(X + Wd - 1.3, Z + 3.2, 4); john(X + 1.2, Z + 1.4); }
     }
     for (const b of world.boulders) {
       const m = model(boulderGeo(b.seed));
@@ -3660,10 +3694,26 @@
   }
 
   let lastT = performance.now();
+  // smoothness: if frames stay slow for a few seconds, step down to a lighter graphics setting (and say so once)
+  let aqAcc = 0, aqN = 0, aqT = 0, aqPrev = 0, aqDone = false;
+  function autoQuality(now) {
+    if (aqDone || document.hidden || (HC.company && HC.company.prefs && HC.company.prefs.gfxLocked)) return;
+    const d = now - (aqPrev || now); aqPrev = now; if (d <= 0 || d > 250) return; // skip pauses and tab switches
+    aqAcc += d; aqN++;
+    if (now - aqT < 4000) return;
+    const avg = aqAcc / aqN; aqAcc = 0; aqN = 0; aqT = now;
+    if (avg > 34 && curQ !== 'low') {
+      const next = curQ === 'ultra' ? 'high' : 'low'; setQuality(next);
+      if (HC.company) { HC.company.prefs = HC.company.prefs || {}; HC.company.prefs.gfx = next; }
+      HC.Game && HC.Game.toast && HC.Game.toast(`Graphics set to ${next} to keep it smooth (change it on the phone).`);
+      if (next === 'low') aqDone = true;
+    }
+  }
   function frame(S) {
     const now = performance.now(), dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
     frameNo++;
+    autoQuality(now);
     if (!S || !world) { renderer.render(scene, camera); drawOverlay(null); return; }
     updateCamera(S, dt);
     // co-op: the other companies' machines, trailers and attachments are drawn alongside yours
