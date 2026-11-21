@@ -73,9 +73,15 @@
   };
 
   // ---------- plows and spreaders ----------
-  const PLOW_TRUCK = (k) => U.isTruck(k) && !['semi', 'logtruck'].includes(HC.baseOf(k));
-  const PLOW_MACH = (k) => ['skid', 'loader', 'tractor', 'trackloader'].includes(HC.baseOf(k)) || /^skid/.test(HC.baseOf(k));
-  const SPREAD = (k) => U.isTruck(k) && !['semi', 'logtruck'].includes(HC.baseOf(k));
+  // what each one fits: pickups and dump trucks take a plow and a spreader (never the semis); machines take a pusher box
+  const FIT = {
+    truckplow: ['truck', 'truck2', 'dually', 'dumptruck', 'dumptruck2', 'dumptruck3', 'servicetruck'],
+    pusher: ['skid', 'skidXL', 'skidT', 'mini', 'loader', 'tractor', 'trackloader'],
+    spreader: ['truck', 'truck2', 'dually', 'dumptruck', 'dumptruck2', 'dumptruck3', 'servicetruck'],
+  };
+  const fitsOf = (id) => (k) => FIT[id].includes(HC.baseOf(k)) && !!HC.EQUIP[k];
+  const PLOW_TRUCK = fitsOf('truckplow'), PLOW_MACH = fitsOf('pusher'), SPREAD = fitsOf('spreader');
+  HC.winterFits = (id) => Object.keys(HC.EQUIP).filter((k) => !k.includes('_') && fitsOf(id)(k) && HC.EQUIP[k].move).map((k) => HC.EQUIP[k].short);
   HC.WINTER = {
     truckplow: { name: 'Truck V-plow (8.5 ft)', price: 5200, fits: PLOW_TRUCK, w: 2.7, blurb: 'A hydraulic V-plow on the front of a truck. Drive forward over snow to clear it.' },
     pusher: { name: 'Snow pusher box (machine)', price: 3400, fits: PLOW_MACH, w: 2.6, blurb: 'A rubber-edge snow pusher on a skid steer, tractor or loader. Fast in parking lots.' },

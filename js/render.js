@@ -58,15 +58,24 @@
     nightPools.count = pools.length; nightPools.frustumCulled = false; nightPools.renderOrder = 4; scene.add(nightPools);
     nightWorld = world;
   }
-  function repaintAll() {
-    const w = world;
-    for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) paintTile(x, y, true, 'base');
-    try { gctx.filter = `blur(${Math.round(G * 0.22)}px)`; gctx.drawImage(groundCanvas, 0, 0); gctx.filter = 'none'; } catch (e) { /* keep crisp */ }
-    for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) paintTile(x, y, true, 'detail');
+  // a new season repaints the ground a few rows a frame (no long stall), then uploads the texture once
+  let repaint = null;
+  function repaintAll() { repaint = { phase: 'base', y: 0 }; }
+  function stepRepaint() {
+    if (!repaint || !world) return;
+    const w = world, R2 = repaint, rows = 14;
+    if (R2.phase === 'base' || R2.phase === 'detail') {
+      const y1 = Math.min(w.h, R2.y + rows);
+      for (let y = R2.y; y < y1; y++) for (let x = 0; x < w.w; x++) paintTile(x, y, true, R2.phase);
+      R2.y = y1;
+      if (y1 >= w.h) { if (R2.phase === 'base') { try { gctx.filter = `blur(${Math.round(G * 0.22)}px)`; gctx.drawImage(groundCanvas, 0, 0); gctx.filter = 'none'; } catch (e) { /* keep crisp */ } R2.phase = 'detail'; R2.y = 0; } else R2.phase = 'done'; }
+      return;
+    }
     drawRoads(-99, -99, groundCanvas.width + 99, groundCanvas.height + 99); paintDecals();
     groundDirty = true; dirtyR = null; groundTex.needsUpdate = true; grassVer++;
+    repaint = null;
   }
-  function watchSeason() { const s2 = HC.season ? HC.season() : 'summer'; if (s2 !== seaNow) { const first = seaNow === null; seaNow = s2; if (!first || s2 !== 'summer') repaintAll(); } }
+  function watchSeason() { const s2 = HC.season ? HC.season() : 'summer'; if (s2 !== seaNow) { seaNow = s2; if (world) repaintAll(); } stepRepaint(); }
   // homes: a For Sale sign in front of each listed house, a mailbox with a flag at yours
   let homeGrp = null, homeSig = '';
   function syncHomes() {
@@ -92,8 +101,20 @@
     for (const u of carried) { const d = (u.r || 14) * 1.05 + 6; put(u.x + Math.cos(u.a) * d, u.y + Math.sin(u.a) * d, u.blade, -u.a); }
     snowMesh.count = i; snowMesh.instanceMatrix.needsUpdate = true;
   }
+  // land development: survey stakes with orange flagging at the corners of the house pad, and along the driveway
+  let devGrp = null, devSig = '';
+  function syncDev(S) {
+    const sig = S.job && S.job.type === 'land_dev' ? S.job.id : '';
+    if (sig === devSig) return; devSig = sig;
+    if (devGrp) { scene.remove(devGrp); devGrp = null; }
+    const R2 = sig && HC.devRects ? HC.devRects(S) : null; if (!R2) return;
+    const parts = [], stake = (x, y, col) => { const h = gh(x, y); parts.push(P('box', '#c9a26a', [U(x), h + 0.35, U(y)], [0.05, 0.7, 0.05]), P('box', col, [U(x), h + 0.66, U(y)], [0.07, 0.1, 0.07])); };
+    const r = R2.pad; for (const [x, y] of [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]]) stake(x, y, '#ff6a1a');
+    const d = R2.drive; for (let y = d.y; y <= d.y + d.h; y += TS * 2) { stake(d.x, y, '#2a8ad8'); stake(d.x + d.w, y, '#2a8ad8'); }
+    devGrp = model(build(parts), false, true); scene.add(devGrp);
+  }
   function syncNight(S) {
-    syncHomes(); watchSeason(); syncSnow(S);
+    syncHomes(); watchSeason(); syncSnow(S); syncDev(S);
     if (nightWorld !== world || !nightStatic) buildNightStatics();
     const n = nightLevel;
     nightStatic.material.opacity = n; nightPools.material.opacity = n * 0.7;
@@ -2236,6 +2257,7 @@
     groundCanvas = document.createElement('canvas');
     groundCanvas.width = w.w * G; groundCanvas.height = w.h * G;
     gctx = groundCanvas.getContext('2d');
+    seaNow = HC.season ? HC.season() : 'summer'; repaint = null; // paint the ground for the season it is
     for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) paintTile(x, y, true, 'base');
     // soften the hard square edges between grass, dirt, gravel and fields before the detail goes on
     try { gctx.filter = `blur(${Math.round(G * 0.22)}px)`; gctx.drawImage(groundCanvas, 0, 0); gctx.filter = 'none'; } catch (e) { /* no canvas filters: keep crisp tiles */ }
@@ -2577,7 +2599,7 @@
       g.add(rb); g.userData.ribbon = rb;
       m.rotation.y = t.seed;
       g.scale.setScalar(t.s);
-      g.userData.base = gh(t.x, t.y);
+      g.userData.base = gh(t.x, t.y); g.userData.sea = seaNow;
       return g;
     }, (t, g) => {
       g.visible = t.state !== 'gone' && inView(U(t.x), U(t.y), 8);
@@ -2897,9 +2919,9 @@
   // a load as it really sits in a dump box: a heap, high in the middle, of the actual pieces (logs lengthwise, brush tangled, root balls, rocks)
   function loadHeap(cargo, box, cap) {
     const [x0, x1, fy, hw] = box, L = x1 - x0, mid = (x0 + x1) / 2, p = [], f = Math.min(1, cargo.length / Math.max(1, cap));
-    const bulk = cargo.filter((c) => c.kind === 'mulch' || c.kind === 'chips');
+    const bulk = cargo.filter((c) => c.kind === 'mulch' || c.kind === 'chips' || c.kind === 'gravel');
     if (bulk.length) { // a mound of mulch or chips
-      const col = bulk.every((c) => c.kind === 'chips') ? '#c9a26a' : '#3a2618', g = bulk.length / Math.max(1, cap), h = 0.12 + g * 1.1;
+      const col = bulk.every((c) => c.kind === 'chips') ? '#c9a26a' : bulk.every((c) => c.kind === 'gravel') ? '#a39c8e' : '#3a2618', g = bulk.length / Math.max(1, cap), h = 0.12 + g * 1.1;
       p.push(Pm('box', col, [mid, fy + h / 2, 0], [L * 0.98, h, hw * 1.96]));
       // a lumpy heaped top: overlapping low mounds, then loose clumps scattered over them (no smooth dome)
       const rr = rnd(bulk.length * 31 + 5), mh = 0.12 + g * 0.45;
@@ -2908,7 +2930,7 @@
       for (let m = 0; m < 22; m++) { const mx = x0 + 0.25 + rr() * (L - 0.5), mz = (rr() * 2 - 1) * (hw - 0.2), up = mh * (1 - Math.abs(mx - mid) / (L * 0.6)) * (1 - Math.abs(mz) / (hw * 1.4));
         p.push(Pm('ico0', HC.shade(col, (rr() - 0.5) * 0.16), [mx, fy + h + up * 0.9, mz], [0.16 + rr() * 0.14, 0.1 + rr() * 0.08, 0.16 + rr() * 0.14], [rr() * 3, rr() * 3, 0])); }
     }
-    const pieces = cargo.filter((c) => c.kind !== 'mulch' && c.kind !== 'chips');
+    const pieces = cargo.filter((c) => c.kind !== 'mulch' && c.kind !== 'chips' && c.kind !== 'gravel');
     const perLayer = Math.max(4, Math.round(L * hw * 1.4));
     pieces.forEach((c, i) => {
       const r = rnd(i * 97 + c.kind.charCodeAt(0) * 13 + 7);

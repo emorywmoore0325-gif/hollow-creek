@@ -190,6 +190,7 @@
     else if (locked) action = `<p class="lock">Needs a ${tr.minRating.toFixed(1)}★ rating and ${tr.minJobs} jobs done</p>`;
     else if (missing.length) action = `<p class="lock">You need: ${missing.map((k) => esc(HC.needLabel(k))).join(' and ')}</p>`;
     else if (busy) action = `<p class="lock">${C.active && C.queued ? 'You have two jobs going. Finish one first.' : 'Finish your current job first (hired help lets you take a second).'}</p>`;
+    else if (j.type === 'timber_sale' && HC.TIMBER_BIDS) action = `<p class="small">Cruise value about <b>${HC.money(j.cruise)}</b> at the mill, plus ${HC.money(j.pay)} on completion. Highest bid wins the cutting rights; you pay it up front.</p><div class="job-actions">${HC.TIMBER_BIDS.map((b, i) => `<button class="btn ${i === 1 ? 'primary' : ''} bid-timber" data-job="${j.id}" data-i="${i}" ${C.money < Math.round(j.cruise * b.f / 50) * 50 ? 'disabled' : ''} title="About ${Math.round(b.odds * 100)}% chance to win">${b.label} bid ${HC.money(Math.round(j.cruise * b.f / 50) * 50)} (${Math.round(b.odds * 100)}%)</button>`).join('')}</div>`;
     else action = `<div class="job-actions"><button class="btn primary take" data-job="${j.id}">Accept ${HC.money(j.pay)}</button>
       ${j.countered ? '' : `<button class="btn counter" data-job="${j.id}" title="${HC.Game.counterOdds()}% chance they agree at your rating">Counter at ${HC.money(Math.round(j.pay * 1.2 / 10) * 10)}</button>`}</div>`;
     return `
@@ -340,15 +341,15 @@
         <div class="buy-row">${L.sold ? '<span class="chip ok">Sold</span>' : `<button class="btn buy-used" data-id="${L.id}" ${C.money < L.price ? 'disabled' : ''}>Buy ${HC.money(L.price)}</button><span class="small was">new ${HC.money(L.list)}</span>`}</div></article>`;
     };
     const usedSec = `<p class="small cat-note">Second-hand machines, trucks and trailers. They're cheaper, but come worn: the shop can repair them. New listings in ${Math.floor(left / 60)}h ${Math.round(left % 60)}m.</p><div class="shop-grid">${ml.map(usedCard).join('') || '<p class="empty">Nothing listed right now.</p>'}</div>`;
+    const snowCards = HC.WINTER ? Object.keys(HC.WINTER).map((id) => { const it = HC.WINTER[id], fits = Object.keys(C.owned).filter((k) => C.owned[k] && HC.EQUIP[k] && it.fits(k)), map = id === 'spreader' ? (C.spreader || {}) : (C.plow || {});
+        return `<article class="shop-item"><h4>${esc(it.name)} <span class="role">${HC.money(it.price)}</span></h4><p>${esc(it.blurb)}</p><p class="small"><b>Works on:</b> ${esc(HC.winterFits(id).join(', '))}.</p>${fits.length ? fits.map((k) => map[k] ? `<span class="chip ok">${esc(HC.EQUIP[k].short)}: ${id === 'spreader' || map[k] === id ? 'fitted' : 'has a ' + (map[k] === 'pusher' ? 'pusher' : 'plow')}</span>` : `<button class="btn sm buy-winter" data-id="${id}" data-k="${k}" ${C.money < it.price ? 'disabled' : ''}>Fit to ${esc(HC.EQUIP[k].short)}</button>`).join(' ') : '<span class="chip no">You don\'t own anything it fits yet</span>'}</article>`; }).join('') : '';
     const CATS = [
       ['used', `Used (${ml.filter((l) => !l.sold).length})`, usedSec],
       ['machines', 'Machines', `<div class="shop-grid">${keys.filter((k) => HC.EQUIP[k].move && HC.EQUIP[k].move !== 'car' && HC.EQUIP[k].move !== 'walk').map(card).join('')}</div>`],
       ['trucks', 'Trucks', `<div class="shop-grid">${trucks}</div>`],
       ['trailers', 'Trailers', `<div class="shop-grid">${trl}</div>`],
-      ['tools', 'Chainsaws & attachments', `<p class="small cat-note">${C.owned.saw ? 'Buy another of your saw so more than one of you can cut (co-op). Switching to a different model trades in your saws (40% of what one cost).' : 'You need a chainsaw to fell and buck trees. Climb out of the truck (F), then G picks it up.'}</p><div class="shop-grid">${saws}${tools.map(card).join('')}</div>`],
+      ['tools', 'Saws, attachments & snow gear', `<p class="small cat-note">${C.owned.saw ? 'Buy another of your saw so more than one of you can cut (co-op). Switching to a different model trades in your saws (40% of what one cost).' : 'You need a chainsaw to fell and buck trees. Climb out of the truck (F), then G picks it up.'}</p><div class="shop-grid">${saws}${tools.map(card).join('')}${snowCards}</div><p class="small cat-note">Snow gear: ${HC.seasonName ? esc(HC.seasonName()) + ', day ' + HC.seasonDay() + ' of ' + HC.SEASON_DAYS + '. ' : ''}Winter brings snow plowing and salting jobs. Rock salt is at the landscape supply pickup area (${HC.money(HC.SALT_PRICE || 16)} a unit): drive the spreader truck there and press E.</p>`],
       ['supply', 'Landscape supply', supplySec()],
-      ['winter', 'Snow gear', HC.WINTER ? `<p class="small cat-note">${esc(HC.seasonName())}, day ${HC.seasonDay()} of ${HC.SEASON_DAYS}. ${HC.season() === 'winter' ? 'Snow season: plowing and salting jobs are on the board.' : 'Winter brings snow plowing and salting jobs. Get set up before it comes.'} Rock salt is sold at the landscape supply pickup area (${HC.money(HC.SALT_PRICE)} a unit; drive the spreader truck there and press E).</p><div class="shop-grid">${Object.keys(HC.WINTER).map((id) => { const it = HC.WINTER[id], fits = Object.keys(C.owned).filter((k) => C.owned[k] && HC.EQUIP[k] && it.fits(k)), map = id === 'spreader' ? (C.spreader || {}) : (C.plow || {});
-        return `<article class="shop-item"><h4>${esc(it.name)}</h4><p>${esc(it.blurb)} ${HC.money(it.price)}.</p>${fits.length ? fits.map((k) => map[k] ? `<span class="chip ok">${esc(HC.EQUIP[k].short)}: ${map[k] === id || id === 'spreader' ? 'fitted' : 'has a ' + (map[k] === 'pusher' ? 'pusher' : 'plow')}</span>` : `<button class="btn sm buy-winter" data-id="${id}" data-k="${k}" ${C.money < it.price ? 'disabled' : ''}>Fit to ${esc(HC.EQUIP[k].short)}</button>`).join(' ') : '<span class="chip no">You don\'t own anything it fits</span>'}</article>`; }).join('')}</div>` : ''],
       ['upgrades', 'Upgrades', `<div class="shop-grid">${up}</div>`],
       ['property', 'Homes & yards', yards ? `<div class="shop-grid">${yards}</div>` : '<p class="empty">You own every yard.</p>'],
       ['crew', 'Hire help', `<div class="shop-grid">${keys.filter((k) => HC.EQUIP[k].move === 'walk').map(card).join('')}${crew}</div>`],
@@ -470,6 +471,7 @@
     return true;
   }
   const ACT = {
+    '.bid-timber'(d) { return HC.bidTimber(d.job, d.i); },
     '.take'(d) { const C = HC.company, j = (C.board || []).find((x) => x.id === +d.job); if (!j) return null; HC.Game.accept(j); return null; },
     '.counter'(d) {
       const C = HC.company, j = (C.board || []).find((x) => x.id === +d.job);
@@ -614,7 +616,7 @@
     bind('#b-title', () => { HC.Save.save(); hide(); HC.session = null; title(); });
     // shop and job buttons are named actions, so a co-op friend working for this company sends them to the host to run
     const act = (sel, close) => bind(sel, (el) => doAct(sel, { ...el.dataset }, close));
-    act('.take', true); act('.counter'); act('#b-invoice', true); act('#b-switch', true);
+    act('.take', true); act('.bid-timber', true); act('.counter'); act('#b-invoice', true); act('#b-switch', true);
     bind('.bid', (el) => { const inp = screen.querySelector(`.bid-in[data-id="${el.dataset.id}"]`); doAct('.bid', { id: el.dataset.id, amt: inp ? inp.value : 0 }); });
     for (const sel of ['.buy-used', '.buy-eq', '.buy-tr', '.buy-more', '.buy-att', '.buy-pal', '.buy-mulch', '.buy-exp', '.buy-home', '.buy-winter', '.buy-quarry', '.buy-yard', '.buy-saw', '.buy-saw2', '.svc', '.wear-oh', '.wear-haul', '.wear-scrap', '.buy-up', '.hire', '.fire', '.repair', '#b-repair-all', '#b-fuel-all']) act(sel);
     for (const sel of ['.sell-u', '.sell-t', '.sell-a']) bind(sel, (el) => armSell(el, () => { doAct(sel, { ...el.dataset }); return false; }));
