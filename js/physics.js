@@ -78,19 +78,42 @@
         }
       }
     }
-    // 3) shoved: trucks, trailers and machine bodies push loose debris out of their way (not the business end of a grapple, bucket or blade)
-    const bodies = [];
-    for (const k in S.units) { const u = S.units[k]; if (!u.hidden && !u.on && HC.EQUIP[k] && HC.EQUIP[k].move !== 'walk' && (Math.abs(u.v || 0) > 3 || u.moving)) bodies.push({ x: u.x, y: u.y, r: u.r, a: u.a, v: u.v || 0, front: FRONT_WORK.has(HC.baseOf(k)) }); }
-    for (const t of S.trailers) { const rig = t.hitch && S.units[t.hitch]; if (rig && !HC.Units.isBed(t) && HC.TRAILERS[t.kind] && Math.abs(rig.v || 0) > 3) bodies.push({ x: t.x, y: t.y, r: HC.TRAILERS[t.kind].r || 18, a: t.a, v: rig.v, front: false }); }
-    for (const u of bodies) for (const it of near) {
-      if (it.z > 0.4) continue;
-      const dx = it.x - u.x, dy = it.y - u.y, d = Math.hypot(dx, dy), min = u.r + rOf(it) * 0.7;
-      if (d >= min || d < 0.01) continue;
-      if (u.front && Math.abs(HC.angDiff(u.a + (u.v < 0 ? Math.PI : 0), Math.atan2(dy, dx))) < 0.9) continue;
-      const k = 1 / Math.sqrt(mOf(it)), out = (min - d) * Math.min(1, 0.6 * k + 0.2);
-      it.x += dx / d * out; it.y += dy / d * out;
-      it.vx = (it.vx || 0) + Math.cos(u.a) * u.v * 0.25 * k; it.vy = (it.vy || 0) + Math.sin(u.a) * u.v * 0.25 * k;
-      if (it.kind === 'log' || it.kind === 'brush') it.spin = (it.spin || 0) + HC.rand(-1.2, 1.2) * k;
+    // 3) shoved: trucks, trailers and machine bodies push loose debris out from under them, moving or parked
+    //    (not the business end of a grapple, bucket or blade). Long bodies are a chain of circles so nothing hides under the ends.
+    const bodies = [], add = (x, y, r, a, v, front, rig) => bodies.push({ x, y, r, a, v, front, rig });
+    for (const k in S.units) {
+      const u = S.units[k], sp = HC.EQUIP[k];
+      if (u.hidden || u.on || u.boarded || !sp || sp.move === 'walk' || sp.move === 'tow' || Math.abs(u.x - me.x) > 760 || Math.abs(u.y - me.y) > 760) continue;
+      const v = u.v || 0, front = FRONT_WORK.has(HC.baseOf(k));
+      if (HC.Units.isTruck(k)) { const c = Math.cos(u.a), s2 = Math.sin(u.a); for (const o of [-0.9, 0, 0.9]) add(u.x + c * u.r * o, u.y + s2 * u.r * o, u.r * 0.72, u.a, v, false, true); }
+      else add(u.x, u.y, u.r, u.a, v, front);
+    }
+    for (const t of S.trailers) {
+      const T2 = HC.TRAILERS[t.kind]; if (!T2 || HC.Units.isBed(t) || Math.abs(t.x - me.x) > 760 || Math.abs(t.y - me.y) > 760) continue;
+      const rig = t.hitch && S.units[t.hitch], v = rig ? rig.v || 0 : 0, c = Math.cos(t.a), s2 = Math.sin(t.a), half = (T2.len || 40) * 0.42, r = Math.min(T2.r || 18, 16);
+      for (const o of [-1, 0, 1]) add(t.x + c * half * o, t.y + s2 * half * o, r, t.a, v, false, t.kind !== 'splitter');
+    }
+    const piles = items.filter((it) => it.kind === 'pile' && Math.abs(it.x - me.x) < 700 && Math.abs(it.y - me.y) < 700);
+    for (const u of bodies) {
+      const moving = Math.abs(u.v) > 3, c = Math.cos(u.a), s2 = Math.sin(u.a);
+      for (const it of near) {
+        if (it.z > 0.4) continue;
+        const dx = it.x - u.x, dy = it.y - u.y, d = Math.hypot(dx, dy), min = u.r + rOf(it) * 0.7;
+        if (d >= min) continue;
+        if (u.front && (dx * c + dy * s2) * (u.v < 0 ? -1 : 1) > u.r * 0.5) continue; // in the bucket's or grapple's reach, not under the machine
+        const nx = d > 0.01 ? dx / d : -s2, ny = d > 0.01 ? dy / d : c; // dead centre: out to the side
+        if (moving) {
+          const k = 1 / Math.sqrt(mOf(it)), out = (min - d) * Math.min(1, 0.6 * k + 0.2);
+          it.x += nx * out; it.y += ny * out;
+          it.vx = (it.vx || 0) + c * u.v * 0.25 * k; it.vy = (it.vy || 0) + s2 * u.v * 0.25 * k;
+          if (it.kind === 'log' || it.kind === 'brush') it.spin = (it.spin || 0) + HC.rand(-1.2, 1.2) * k;
+        } else { const out = Math.min(min - d, 40 * dt); it.x += nx * out; it.y += ny * out; } // parked on top of it: ease it out
+      }
+      if (u.rig) for (const pl of piles) { // heaps of mulch, chips or firewood slide out from under a truck or trailer too
+        const dx = pl.x - u.x, dy = pl.y - u.y, d = Math.hypot(dx, dy) || 0.01, min = u.r + 6 + 6 * (pl.size || 1);
+        if (d >= min || (u.front && dx * c + dy * s2 > u.r * 0.5)) continue;
+        const out = Math.min(min - d, (moving ? 60 : 30) * dt); pl.x += dx / d * out; pl.y += dy / d * out;
+      }
     }
   }
 

@@ -262,6 +262,7 @@
         else if (k === 'q') HC.Units.mode(u, s);
         else if (k === 'r') { if (HC.Units.isTruck(u.kind) || (HC.EQUIP[u.kind] && HC.EQUIP[u.kind].move !== 'walk')) HC.Units.hitchToggle(u, s); else HC.Game.toast('Get in a truck to hitch or drop a trailer.'); }
         else if (k === 'x') HC.Game.dumpLoad(u);
+        else if (k === 'l' && HC.EQUIP[u.kind] && HC.EQUIP[u.kind].move !== 'walk') u.lights = !HC.lightsOn(u, s);
         else if (k === 'g' && HC.EQUIP[u.kind].move === 'walk') HC.Units.sawGrab(u, s);
         else if (k === 'f') guestClimb(p);
         else if (k === 'enter' && s.stage === 'onsite' && HC.Game.objectives(s).complete) HC.Game.finish();
@@ -505,7 +506,7 @@
       const fl = HC.UI.fleet(), i = fl.indexOf(Net.unit);
       conn.send({ type: 'sel', kind: fl[(i + (k === ']' ? 1 : fl.length - 1)) % fl.length] }); return true;
     }
-    if (['e', 'q', 'r', 'x', 'g', 'f', 'enter'].includes(k)) { conn.send({ type: 'key', k }); return true; }
+    if (['e', 'q', 'r', 'x', 'g', 'f', 'l', 'enter'].includes(k)) { conn.send({ type: 'key', k }); return true; }
     return false;
   }
 

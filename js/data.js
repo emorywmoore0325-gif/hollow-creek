@@ -689,6 +689,9 @@ HC.loadOf = (c, t) => (c.kind === 'log' && t && HC.LOG_CARRIERS.includes(t.kind)
 
 // ================= Firewood and mulch pay better =================
 HC.MULCH_PRICE = 48;            // the supply buys your mulch (was $34)
+HC.MULCH_PRICE = 62;            // grinding pays: a log ground into 2 mulch ($124) beats the sawmill (~$45-85 a log)
+HC.MILL_PRICE = 1.15;           // the sawmill pays a bit less for logs
+HC.EQUIP.grinderHG.price = 64000; // and the grinder costs less
 HC.FIREWOOD_SUPPLY = 45;        // the supply buys leftover firewood (was $28)
 HC.FIREWOOD_STAND = [70, 95];   // drive-by customers at your stand (was $50-70)
 // the tractor a bit cheaper, the skid steers dearer

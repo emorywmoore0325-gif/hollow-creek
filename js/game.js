@@ -835,8 +835,8 @@
     if (Math.abs(u.v) > 4) return toast('Stop before you raise the box.');
     let n = 0, piled = false;
     for (const t of loads) {
-      const back = { dumptruck2: 58, dumptruck3: 72, dumptruck: 48, chiptruck: 50, chiptruck2: 62 }[HC.baseOf(u.kind)] || 48;
-      const p = t.kind === 'bed' ? { x: u.x - Math.cos(u.a) * back, y: u.y - Math.sin(u.a) * back } : { x: t.x - Math.cos(t.a) * 32, y: t.y - Math.sin(t.a) * 32 };
+      const back = { dumptruck2: 66, dumptruck3: 80, dumptruck: 56, chiptruck: 58, chiptruck2: 70 }[HC.baseOf(u.kind)] || 48;
+      const p = t.kind === 'bed' ? { x: u.x - Math.cos(u.a) * back, y: u.y - Math.sin(u.a) * back } : { x: t.x - Math.cos(t.a) * ((HC.TRAILERS[t.kind].len || 40) * 0.5 + 18), y: t.y - Math.sin(t.a) * ((HC.TRAILERS[t.kind].len || 40) * 0.5 + 18) };
       const junk = t.cargo.filter((c) => DEBRIS.includes(c.kind) || c.kind === 'rock').length;
       const pad = padAt(p.x, p.y) || padAt(u.x, u.y) || padAt(t.x, t.y);
       if (junk && pad) {

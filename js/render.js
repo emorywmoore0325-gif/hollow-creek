@@ -12,8 +12,11 @@
   const meshes = { trees: new Map(), items: new Map(), stumps: new Map(), bushes: new Map(), plants: new Map(), houses: new Map() };
   let fenceMesh = null, poleMesh = null, wireLines = null, unitObjs = {}, trailerObjs = {};
   let workLight = null, nightLevel = 0;
+  // a vehicle's lights: L switches them on or off; left alone they come on by themselves at dusk when it's driven or working
+  HC.lightsOn = (u, S) => u && !u.hidden && (u.lights ?? (nightLevel > 0.3 && (u === S.units[S.active] || u.moving || u.working || u.occupied)));
+  HC.nightLevel = () => nightLevel;
   // ---------- night: glowing lamps everywhere (streetlights, yard floods, house windows, every machine's head and tail lights) ----------
-  let nightStatic = null, nightPools = null, nightUnits = null, glowTex = null, nightWorld = null;
+  let nightStatic = null, nightPools = null, nightUnits = null, nightBeams = null, glowTex = null, nightWorld = null;
   function makeGlowTex() {
     const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
     const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,0.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
@@ -31,7 +34,7 @@
     world.poles.forEach((p, i) => { if (i % 2) return; const y = gh(p.x, p.y); lamps.push([U(p.x), y + 3.05, U(p.y) + 0.45, warm, 1.6]); pools.push([U(p.x), y + 0.04, U(p.y) + 0.45, 2.6]); }); // streetlights on every other pole
     for (const yd of world.yards || []) for (const [fx, fy] of [[0.12, 0.15], [0.88, 0.15], [0.12, 0.85], [0.88, 0.85]]) { const x = yd.x + yd.w * fx, z = yd.y + yd.h * fy, y = gh(x, z); lamps.push([U(x), y + 2.4, U(z), cool, 2.0]); pools.push([U(x), y + 0.04, U(z), 3.4]); } // yard floods
     for (const s2 of [world.sawmill, world.dumpSite, world.supply, world.quarry]) if (s2) { const x = s2.x + s2.w / 2, z = s2.y + s2.h * 0.6, y = gh(x, z); lamps.push([U(x), y + 2.6, U(z), cool, 2.2]); pools.push([U(x), y + 0.04, U(z), 4]); }
-    for (const h of world.houses) { if (h.yard) continue; const fz = h.y + h.h + 1, y = gh(h.x + h.w / 2, fz); for (const fx of [0.28, 0.72]) lamps.push([U(h.x + h.w * fx), y + 0.42, U(fz), win, 0.7]); lamps.push([U(h.x + h.w * 0.5), y + 0.62, U(fz) + 0.05, warm, 0.5]); } // windows and a porch light
+    for (const h of world.houses) { const fz = h.y + h.h + 1, y = gh(h.x + h.w / 2, fz); for (const fx of [0.28, 0.72]) lamps.push([U(h.x + h.w * fx), y + 0.42, U(fz), win, 0.7]); lamps.push([U(h.x + h.w * 0.5), y + 0.62, U(fz) + 0.05, warm, 0.5]); } // windows and a porch light
     const n = lamps.length;
     nightStatic = glowPoints(n, 1.4);
     const pa = nightStatic.geometry.attributes.position.array, ca = nightStatic.geometry.attributes.color.array;
@@ -49,21 +52,30 @@
     const n = nightLevel;
     nightStatic.material.opacity = n; nightPools.material.opacity = n * 0.55;
     nightStatic.visible = nightPools.visible = n > 0.02;
-    if (!nightUnits) nightUnits = glowPoints(400, 0.9);
-    nightUnits.visible = n > 0.02; nightUnits.material.opacity = Math.min(1, n * 1.2);
+    if (!nightUnits) nightUnits = glowPoints(400, 1.15);
+    if (!nightBeams) { // headlight beams: a soft pool of light thrown on the ground ahead of every lit vehicle
+      const bg = new THREE.PlaneGeometry(1, 1); bg.rotateX(-Math.PI / 2);
+      nightBeams = new THREE.InstancedMesh(bg, new THREE.MeshBasicMaterial({ map: glowTex, color: '#fff2d0', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }), 40);
+      nightBeams.frustumCulled = false; nightBeams.renderOrder = 4; scene.add(nightBeams);
+    }
+    const anyLit = Object.values(S.units).some((u) => u.lights === true);
+    nightUnits.visible = nightBeams.visible = n > 0.02 || anyLit; nightUnits.material.opacity = Math.max(anyLit ? 0.85 : 0, Math.min(1, n * 1.2)); nightBeams.material.opacity = Math.max(anyLit ? 0.35 : 0, n * 0.6);
     if (!nightUnits.visible) return;
+    let nb = 0;
     const pa = nightUnits.geometry.attributes.position.array, ca = nightUnits.geometry.attributes.color.array; let i = 0;
     const put = (x, y, z, c) => { if (i >= 400) return; pa[i * 3] = x; pa[i * 3 + 1] = y; pa[i * 3 + 2] = z; ca[i * 3] = c[0]; ca[i * 3 + 1] = c[1]; ca[i * 3 + 2] = c[2]; i++; };
     const all = Object.values(S.units).concat(Object.values(S.remote || {}));
     for (const u of all) {
       if (!u || u.hidden || !HC.EQUIP[u.kind] || HC.EQUIP[u.kind].move === 'walk' || HC.EQUIP[u.kind].move === 'tow') continue;
-      if (!inView(U(u.x), U(u.y), 6)) continue;
+      if (!inView(U(u.x), U(u.y), 6) || !HC.lightsOn(u, S)) continue;
       const c = Math.cos(u.a), s = Math.sin(u.a), f = (u.r || 14) * 1.05, w = (u.r || 14) * 0.5, y = gh(u.x, u.y) + 0.32;
+      if (nb < 40) { const bx = u.x + c * (f + 46), by = u.y + s * (f + 46); _dummy.position.set(U(bx), gh(bx, by) + 0.05, U(by)); _dummy.rotation.set(0, -u.a, 0); _dummy.scale.set(4.2, 1, 2.6); _dummy.updateMatrix(); nightBeams.setMatrixAt(nb++, _dummy.matrix); }
       for (const sd of [-1, 1]) { const hx = u.x + c * f - s * w * sd, hy = u.y + s * f + c * w * sd; put(U(hx), y, U(hy), [1, 0.95, 0.8]); }
-      for (const sd of [-1, 1]) { const tx = u.x - c * f * 0.95 - s * w * sd, ty = u.y - s * f * 0.95 + c * w * sd; put(U(tx), y - 0.04, U(ty), [1, 0.12, 0.08]); }
+      for (const sd of [-1, 1]) { const tx = u.x - c * f * 0.95 - s * w * sd, ty = u.y - s * f * 0.95 + c * w * sd; put(U(tx), y - 0.04, U(ty), [1, 0.05, 0.02]); put(U(tx), y - 0.04, U(ty), [0.8, 0.02, 0.0]); }
       const roof = HC.Units.isTruck(u.kind) || HC.EQUIP[HC.baseOf(u.kind)].heavy; if (roof) put(U(u.x), y + 0.55, U(u.y), [1, 0.62, 0.12]); // amber beacon / cab light
     }
-    for (const t of S.trailers) { if (!t.hitch || HC.Units.isBed(t) || !inView(U(t.x), U(t.y), 6)) continue; const c = Math.cos(t.a), s = Math.sin(t.a), b = U((HC.TRAILERS[t.kind] || {}).len || 36) * TS * 0.5 + 4, y = gh(t.x, t.y) + 0.25; for (const sd of [-1, 1]) put(U(t.x - c * b - s * 10 * sd), y, U(t.y - s * b + c * 10 * sd), [1, 0.12, 0.08]); }
+    for (const t of S.trailers) { if (!t.hitch || HC.Units.isBed(t) || !S.units[t.hitch] || !HC.lightsOn(S.units[t.hitch], S) || !inView(U(t.x), U(t.y), 6)) continue; const c = Math.cos(t.a), s = Math.sin(t.a), b = U((HC.TRAILERS[t.kind] || {}).len || 36) * TS * 0.5 + 4, y = gh(t.x, t.y) + 0.25; for (const sd of [-1, 1]) put(U(t.x - c * b - s * 10 * sd), y, U(t.y - s * b + c * 10 * sd), [1, 0.12, 0.08]); }
+    nightBeams.count = nb; nightBeams.instanceMatrix.needsUpdate = true;
     for (let j = i; j < 400; j++) pa[j * 3 + 1] = -50;
     nightUnits.geometry.attributes.position.needsUpdate = true; nightUnits.geometry.attributes.color.needsUpdate = true;
   }
@@ -3327,7 +3339,7 @@
     const horizon = new THREE.Color('#cfe2ee').lerp(new THREE.Color('#8e9aa6'), HC.clamp((w.dark || 0) * 2.5, 0, 1)).lerp(new THREE.Color('#e8a77a'), eve * 0.55 * (1 - night)).lerp(new THREE.Color('#1b2436'), night * 0.92);
     // work lights: as it gets dark, the machine (or truck) you're in lights up the ground ahead
     if (!workLight) { workLight = new THREE.SpotLight('#fff1d6', 0, 30, 0.75, 0.5, 1.2); workLight.castShadow = false; scene.add(workLight); scene.add(workLight.target); }
-    const au = S.units[S.active], lit = au && !au.hidden && HC.EQUIP[au.kind] && HC.EQUIP[au.kind].move !== 'walk' ? night * 1.6 + eve * 0.3 : 0;
+    const au = S.units[S.active], lit = au && !au.hidden && HC.EQUIP[au.kind] && HC.EQUIP[au.kind].move !== 'walk' && HC.lightsOn(au, S) ? Math.max(0.5, night * 1.6 + eve * 0.3) : 0;
     workLight.intensity = lit * (LIGHT.sun || 1) * 1.8;
     if (au && lit > 0) { const hx = au.x + Math.cos(au.a) * 6, hy = au.y + Math.sin(au.a) * 6, tx = au.x + Math.cos(au.a) * 120, ty = au.y + Math.sin(au.a) * 120;
       workLight.position.set(U(hx), gh(hx, hy) + 1.0, U(hy)); workLight.target.position.set(U(tx), gh(tx, ty), U(ty)); workLight.target.updateMatrixWorld(); }
@@ -3336,10 +3348,10 @@
     sky.material.color.set('#ffffff').lerp(new THREE.Color('#9aa3ad'), HC.clamp((w.dark || 0) * 2.5, 0, 1)).lerp(new THREE.Color('#ffb08a'), eve * 0.6 * (1 - night)).lerp(new THREE.Color('#2a3550'), night * 0.9);
     sky.position.copy(camera.position);
     scene.fog.near = w.wet ? 25 : 42; scene.fog.far = w.wet ? 70 : 100;
-    sun.intensity = LIGHT.sun * (1 - dark * 0.9);
-    hemi.intensity = LIGHT.hemi * (1 - dark * 0.5);
+    sun.intensity = LIGHT.sun * (1 - dark * 0.9) * (1 - night * 0.5);
+    hemi.intensity = LIGHT.hemi * (1 - dark * 0.8); hemi.color.set('#cfe4ff').lerp(new THREE.Color('#5a6c9a'), night); hemi.groundColor.set('#4a5a32').lerp(new THREE.Color('#1c2230'), night);
     bodyMat.envMapIntensity = fadeMat.envMapIntensity = 0.75 * (1 - dark * 0.7);
-    sun.color.set('#fff3d6').lerp(new THREE.Color('#ff9a55'), eve);
+    sun.color.set('#fff3d6').lerp(new THREE.Color('#ff9a55'), eve * (1 - night)).lerp(new THREE.Color('#8fa6e0'), night); // sunset, then cold moonlight
     rain.visible = !!w.wet;
     if (w.wet) {
       const arr = rain.geometry.attributes.position.array;

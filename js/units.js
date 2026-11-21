@@ -179,11 +179,11 @@
   }
 
   // Does a body at (x,y,r) hit something solid? Used for trailer snags.
-  function blockedAt(S, x, y, r) {
+  function blockedAt(S, x, y, r, treeK = 0.7) {
     const lot = S.lot;
     const tt = HC.Lot.tile(lot, x, y);
     if (tt === T.WATER || tt === T.ROCKFACE || tt === -1) return true;
-    for (const t of lot.trees) if ((t.state === 'standing') && Math.abs(t.x - x) < 40 && Math.abs(t.y - y) < 40 && HC.dist(t.x, t.y, x, y) < t.trunkR + r * 0.7) return true;
+    for (const t of lot.trees) if ((t.state === 'standing') && Math.abs(t.x - x) < 40 && Math.abs(t.y - y) < 40 && HC.dist(t.x, t.y, x, y) < t.trunkR + r * treeK) return true;
     for (const h of lot.houses) if (HC.circleRectHit(x, y, r * 0.8, h)) return true;
     for (const b of lot.boulders) if (HC.dist(b.x, b.y, x, y) < b.r + r * 0.7) return true;
     return false;
@@ -313,7 +313,7 @@
     u.y = HC.clamp(u.y, u.r, lot.ph - u.r);
     const near = (o, d = 60) => Math.abs(o.x - u.x) < d && Math.abs(o.y - u.y) < d;
     for (const t of lot.trees) if ((t.state === 'standing' || t.state === 'falling') && near(t)) HC.pushOutCircle(u, t.x, t.y, t.trunkR);
-    if (!HC.EQUIP[u.kind].blade) for (const it of lot.items) if (it.kind === 'rock' && near(it)) HC.pushOutCircle(u, it.x, it.y, 10 * it.size); // dozers shove rocks instead
+    if (!HC.EQUIP[u.kind].blade) for (const it of lot.items) if (it.kind === 'rock' && near(it)) HC.pushOutCircle(u, it.x, it.y, (HC.EQUIP[u.kind].deck ? 5 : 10) * it.size); // mowers can trim in close // dozers shove rocks instead
     for (const b of lot.boulders) if (near(b, 80)) HC.pushOutCircle(u, b.x, b.y, b.r);
     for (const hs of lot.houses) HC.pushOutRect(u, hs);
     for (const f of lot.fences) if (!f.broken && near(f, 70)) HC.pushOutRect(u, f);
@@ -636,11 +636,16 @@
         tow(u, S);
         // a trailer that would run into a tree, house or the creek stops the rig
         for (const o of towed) {
-          if (blockedAt(S, o.t.x, o.t.y, HC.TRAILERS[o.t.kind].r) && !blockedAt(S, o.x, o.y, HC.TRAILERS[o.t.kind].r)) {
+          // trees only catch the trailer body itself (narrow), and a light snag scrapes free if you keep pulling
+          const tr = HC.TRAILERS[o.t.kind].r;
+          if (blockedAt(S, o.t.x, o.t.y, tr, 0.35) && !blockedAt(S, o.x, o.y, tr, 0.35)) {
+            u.snagT = (u.snagT || 0) + dt;
+            const hard = blockedAt(Object.assign({}, S, { lot: Object.assign({}, S.lot, { trees: [] }) }), o.t.x, o.t.y, tr);
+            if (!hard && u.snagT > 0.8) { u.v *= 0.6; if (Math.random() < dt * 3) HC.Game.dust(o.t.x, o.t.y, '#6a8a4a', 2, 40); HC.Game.hintOnce('The trailer scraped past the tree.'); continue; }
             u.x = px; u.y = py; u.v = 0; // stop dead (no bounce: bouncing re-snags every frame)
             Object.assign(o.t, { x: o.x, y: o.y, a: o.a });
-            HC.Game.hintOnce('The trailer is snagged. Back up and take a wider line.');
-          }
+            HC.Game.hintOnce('The trailer is snagged. Keep pulling to scrape past a tree, or back up and take a wider line.');
+          } else u.snagT = 0;
         }
       }
       if (u.carrying.length) {

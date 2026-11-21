@@ -951,11 +951,12 @@
         const side = u.a + Math.PI / 2, d = (spec.deck || 1.2) * PXM * 0.55;
         HC.Game.dust(u.x + Math.cos(side) * d, u.y + Math.sin(side) * d, HC.pick(['#7fc455', '#6fb046', '#9bd36a']), 2, 70);
       }
-      const rock = S.lot.items.find((i) => i.kind === 'rock' && near(i, u, u.r + 4 + 10 * i.size));
-      if (rock && performance.now() - lastBump > 1200) {
+      // rocks: creep around them and the deck just rides up and over; only a fast hit nicks the blades (-2%)
+      const rock = S.lot.items.find((i) => i.kind === 'rock' && near(i, u, u.r * 0.8 + 8 * i.size));
+      if (rock && performance.now() - lastBump > 2500) {
         lastBump = performance.now();
-        U.wear(u, 10); u.v = -u.v * 0.4; HC.Audio.crash();
-        HC.Game.toast('Hit a rock with the deck: -10% condition.', 'warn');
+        if (Math.abs(u.v) > 40) { U.wear(u, 2); u.v *= 0.3; HC.Audio.crash(); HC.Game.toast('Clipped a rock with the deck at speed: -2% condition. Slow down near rocks and it rides over them.', 'warn'); }
+        else HC.Game.hintOnce('The deck rides up over rocks at a slow speed. Take it easy around them.');
       }
     },
     interact(u, S) { machineInteract(u, S, 'Just drive over the tall grass.'); },
