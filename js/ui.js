@@ -341,8 +341,7 @@
         <div class="buy-row">${L.sold ? '<span class="chip ok">Sold</span>' : `<button class="btn buy-used" data-id="${L.id}" ${C.money < L.price ? 'disabled' : ''}>Buy ${HC.money(L.price)}</button><span class="small was">new ${HC.money(L.list)}</span>`}</div></article>`;
     };
     const usedSec = `<p class="small cat-note">Second-hand machines, trucks and trailers. They're cheaper, but come worn: the shop can repair them. New listings in ${Math.floor(left / 60)}h ${Math.round(left % 60)}m.</p><div class="shop-grid">${ml.map(usedCard).join('') || '<p class="empty">Nothing listed right now.</p>'}</div>`;
-    const snowCards = HC.WINTER ? Object.keys(HC.WINTER).map((id) => { const it = HC.WINTER[id], fits = Object.keys(C.owned).filter((k) => C.owned[k] && HC.EQUIP[k] && it.fits(k)), map = id === 'spreader' ? (C.spreader || {}) : (C.plow || {});
-        return `<article class="shop-item"><h4>${esc(it.name)} <span class="role">${HC.money(it.price)}</span></h4><p>${esc(it.blurb)}</p><p class="small"><b>Works on:</b> ${esc(HC.winterFits(id).join(', '))}.</p>${fits.length ? fits.map((k) => map[k] ? `<span class="chip ok">${esc(HC.EQUIP[k].short)}: ${id === 'spreader' || map[k] === id ? 'fitted' : 'has a ' + (map[k] === 'pusher' ? 'pusher' : 'plow')}</span>` : `<button class="btn sm buy-winter" data-id="${id}" data-k="${k}" ${C.money < it.price ? 'disabled' : ''}>Fit to ${esc(HC.EQUIP[k].short)}</button>`).join(' ') : '<span class="chip no">You don\'t own anything it fits yet</span>'}</article>`; }).join('') : '';
+    const snowCards = '';
     const CATS = [
       ['used', `Used (${ml.filter((l) => !l.sold).length})`, usedSec],
       ['machines', 'Machines', `<div class="shop-grid">${keys.filter((k) => HC.EQUIP[k].move && HC.EQUIP[k].move !== 'car' && HC.EQUIP[k].move !== 'walk').map(card).join('')}</div>`],
@@ -515,7 +514,6 @@
       HC.Audio.cash(); HC.Save.save(); buildHud();
       return `${HC.EQUIP[key].name} bought and parked at your home yard.`;
     },
-    '.buy-winter'(d) { return HC.buyWinter(d.id, d.k); },
     '.buy-home'(d) { return HC.Homes.buy(d.id); },
     '.buy-exp'() {
       const C = HC.company, lvl = C.yardLevel || 1, price = { 2: 12000, 3: 22000 }[lvl + 1];

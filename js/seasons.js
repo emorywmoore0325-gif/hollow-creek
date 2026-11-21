@@ -72,40 +72,65 @@
     return j;
   };
 
-  // ---------- plows and spreaders ----------
-  // what each one fits: pickups and dump trucks take a plow and a spreader (never the semis); machines take a pusher box
+  // ---------- plows and spreaders: attachments like any other (buy one, it waits at your yard, hook it on with Q) ----------
   const FIT = {
-    truckplow: ['truck', 'truck2', 'dually', 'dumptruck', 'dumptruck2', 'dumptruck3', 'servicetruck'],
-    pusher: ['skid', 'skidXL', 'skidT', 'mini', 'loader', 'tractor', 'trackloader'],
+    truckplow: ['truck', 'truck2', 'dually', 'dumptruck', 'dumptruck2', 'dumptruck3', 'servicetruck'], // pickups and dump trucks; never the semis or the show truck
+    pusher: ['skid', 'tractor'], // every skid steer and track loader on the quick-attach, or the tractor
     spreader: ['truck', 'truck2', 'dually', 'dumptruck', 'dumptruck2', 'dumptruck3', 'servicetruck'],
   };
   const fitsOf = (id) => (k) => FIT[id].includes(HC.baseOf(k)) && !!HC.EQUIP[k];
-  const PLOW_TRUCK = fitsOf('truckplow'), PLOW_MACH = fitsOf('pusher'), SPREAD = fitsOf('spreader');
+  HC.ATT_FITS = Object.assign(HC.ATT_FITS || {}, { truckplow: fitsOf('truckplow'), pusher: fitsOf('pusher'), spreader: fitsOf('spreader') });
   HC.winterFits = (id) => Object.keys(HC.EQUIP).filter((k) => !k.includes('_') && fitsOf(id)(k) && HC.EQUIP[k].move).map((k) => HC.EQUIP[k].short);
-  HC.WINTER = {
-    truckplow: { name: 'Truck V-plow (8.5 ft)', price: 5200, fits: PLOW_TRUCK, w: 2.7, blurb: 'A hydraulic V-plow on the front of a truck. Drive forward over snow to clear it.' },
-    pusher: { name: 'Snow pusher box (machine)', price: 3400, fits: PLOW_MACH, w: 2.6, blurb: 'A rubber-edge snow pusher on a skid steer, tractor or loader. Fast in parking lots.' },
-    spreader: { name: 'Tailgate salt spreader', price: 2400, fits: SPREAD, blurb: 'Spins rock salt behind the truck on plowed pavement. Fill it with salt at the landscape supply pickup area (E).' },
-  };
+  HC.ATT_POINT = Object.assign(HC.ATT_POINT || {}, {
+    truckplow: (u) => { const d = (u.r || 16) * 1.12 + 10; return { x: u.x + Math.cos(u.a) * d, y: u.y + Math.sin(u.a) * d }; },
+    spreader: (u) => { const d = -((u.r || 16) * 1.2 + 6); return { x: u.x + Math.cos(u.a) * d, y: u.y + Math.sin(u.a) * d }; },
+  });
+  HC.WINTER = { truckplow: { w: 2.7 }, pusher: { w: 2.5 } };
+  Object.assign(HC.EQUIP, {
+    truckplow: { name: 'Truck V-Plow (8.5 ft, hydraulic)', short: 'V-plow', noUnit: true, price: 5200, attachTo: 'truck',
+      help: 'A hydraulic V-plow. Drive the truck\'s nose up square to it and press Q to pin it on (Q again to drop it). Plows snow as you drive forward and rolls it off into a windrow.' },
+    pusher: { name: 'Snow Pusher Box (8 ft)', short: 'Snow pusher', noUnit: true, price: 3400, attachTo: 'skid',
+      help: 'A rubber-edge snow pusher. Skid steers lock it on the quick-attach like any head (drop the grapple with Q, pick this up with Q); the tractor hooks it on its loader. It carries the snow and leaves a heap where you stop or back up.' },
+    spreader: { name: 'Tailgate Salt Spreader', short: 'Salt spreader', noUnit: true, price: 2400, attachTo: 'truck',
+      help: 'A receiver-mount salt spreader. Back the truck up to it and press Q. Fill it with rock salt at the landscape supply pickup area (E), then it salts plowed pavement behind you.' },
+  });
+  HC.BLURB.truckplow = `Front-mount V-plow. Works on: ${HC.winterFits('truckplow').join(', ')}.`;
+  HC.BLURB.pusher = `Snow pusher box. Works on: ${HC.winterFits('pusher').join(', ')}.`;
+  HC.BLURB.spreader = `Receiver salt spreader. Works on: ${HC.winterFits('spreader').join(', ')}.`;
+  HC.ATT_T = Object.assign(HC.ATT_T || {}, { truckplow: 0.45, pusher: 0.35, spreader: 0.2 });
+  HC.ATT_DELIVERY = Object.assign(HC.ATT_DELIVERY || {}, {
+    truckplow: 'V-plow delivered to your yard. Drive a pickup or dump truck nose-up to it and press Q.',
+    pusher: 'Snow pusher delivered to your yard. Skid steer: drop the grapple (Q) and pick the pusher up (Q). Tractor: drive up square to it and press Q.',
+    spreader: 'Salt spreader delivered to your yard. Back a pickup or dump truck up to it and press Q. Salt is at the landscape supply.',
+  });
   HC.SALT_PRICE = 16; HC.SALT_CAP = 24; // per unit (a few bags); a spreader holds 24
-  const has = (map, k) => !!(C()[map] || {})[k];
-  HC.hasPlow = (k) => has('plow', k);
-  HC.hasSpreader = (k) => has('spreader', k);
-  HC.buyWinter = function (item, k) {
-    const it = HC.WINTER[item], c = C();
-    if (!it || !c.owned[k] || !it.fits(k)) return 'That doesn\'t fit there.';
-    const map = item === 'spreader' ? 'spreader' : 'plow';
-    if ((c[map] || {})[k]) return `The ${HC.EQUIP[k].short.toLowerCase()} already has one.`;
-    if (c.money < it.price) return `You need ${HC.money(it.price)}.`;
-    c.money -= it.price; (c[map] = c[map] || {})[k] = item;
-    HC.Audio.cash(); HC.Save.save();
-    return `${it.name} mounted on the ${HC.EQUIP[k].short.toLowerCase()}.${item === 'spreader' ? ' Fill it with salt at the landscape supply pickup area (E).' : ' It clears snow as you drive forward over it.'}`;
+  const onUnit = (k, kind) => HC.session && (HC.session.attachments || []).find((a) => a.on === k && a.kind === kind);
+  HC.hasPlow = (k) => !!(onUnit(k, 'truckplow') || onUnit(k, 'pusher'));
+  HC.hasSpreader = (k) => !!onUnit(k, 'spreader');
+  // Q in a truck: hook up or drop a plow or spreader
+  const baseMode = U.mode;
+  U.mode = function (u, S) {
+    if (u && U.isTruck(u.kind) && (FIT.truckplow.includes(HC.baseOf(u.kind)) || (S.attachments || []).some((a) => a.on === u.kind))) return HC.Game.attachToggle(u, S);
+    return baseMode.apply(this, arguments);
   };
+  // older saves bought plows per vehicle: turn those into real attachments, already hooked on
+  function migrate() {
+    const c = C(), S = HC.session; if (!c || !S || !S.attachments || !(c.plow || c.spreader)) return;
+    for (const [map, kindOf] of [['plow', (v) => v], ['spreader', () => 'spreader']]) for (const k in c[map] || {}) {
+      const kind = kindOf(c[map][k]); if (!HC.EQUIP[kind] || !S.units[k]) continue;
+      let a = S.attachments.find((q) => q.kind === kind && !q.on);
+      if (!a) { if (c.owned[kind]) HC.Game.buyAttachment(kind); else { c.owned[kind] = true; HC.Game.addAttachment(kind, true); } a = S.attachments.filter((q) => q.kind === kind && !q.on).pop(); }
+      if (a) a.on = k;
+    }
+    delete c.plow; delete c.spreader;
+  }
+  const baseU = G.update; let migrated = null;
+  G.update = function () { const r = baseU.apply(this, arguments); if (HC.session && migrated !== HC.session) { migrated = HC.session; try { migrate(); } catch (e) { console.warn(e); } } return r; };
 
   // clearing and salting: the blade scrapes snow tiles in front; the spreader salts plowed pavement behind
   const under = (W, i) => (W.snowUnder && W.snowUnder.get(i)) ?? T.ROAD;
   function plowAt(u, S) {
-    const W = S.lot, item = C().plow[u.kind], wM = HC.WINTER[item].w, PXM = 32 / 3, c = Math.cos(u.a), s = Math.sin(u.a), half = (wM * PXM) / 2, ahead = (u.r || 14) * 1.05;
+    const W = S.lot, item = onUnit(u.kind, 'truckplow') ? 'truckplow' : 'pusher', wM = HC.WINTER[item].w, PXM = 32 / 3, c = Math.cos(u.a), s = Math.sin(u.a), half = (wM * PXM) / 2, ahead = (u.r || 14) * 1.05;
     const cx = u.x + c * ahead, cy = u.y + s * ahead; let n = 0;
     for (let o = -half; o <= half + 0.01; o += 4) {
       const x = cx - s * o, y = cy + c * o, tx = Math.floor(x / TS), ty = Math.floor(y / TS);

@@ -301,7 +301,8 @@
     const base = shed ? { x: shed.x + shed.w / 2, y: shed.y + shed.h + 40 } : { x: Y.spawn.x + 60, y: Y.spawn.y };
     const sp = clearSpot(base.x, base.y, bh ? 34 : 24);
     S.attachments.push({ id, kind, on: null, x: sp.x, y: sp.y, a: bh ? Math.PI / 2 : -Math.PI / 2 });
-    if (!initial) toast(bh ? 'Bush hog delivered to your equipment yard. Back the tractor up square to it and press Q.' : kind === 'forks' ? 'Pallet forks delivered to your equipment yard. Skid steer: drop the grapple (Q) and lock the forks on (Q). Tractor: drive the loader bucket up square to them and press Q.' : `${kind === 'brushcut' ? 'Brush cutter' : 'Forestry mulcher head'} delivered to your equipment yard. Take the skid steer over, drop the grapple (Q) and pick up the new head (Q).`, 'good');
+    if (!initial && HC.ATT_DELIVERY && HC.ATT_DELIVERY[kind]) toast(HC.ATT_DELIVERY[kind], 'good');
+    else if (!initial) toast(bh ? 'Bush hog delivered to your equipment yard. Back the tractor up square to it and press Q.' : kind === 'forks' ? 'Pallet forks delivered to your equipment yard. Skid steer: drop the grapple (Q) and lock the forks on (Q). Tractor: drive the loader bucket up square to them and press Q.' : `${kind === 'brushcut' ? 'Brush cutter' : 'Forestry mulcher head'} delivered to your equipment yard. Take the skid steer over, drop the grapple (Q) and pick up the new head (Q).`, 'good');
   }
   // another of an attachment you already own (two skid steers, two mulcher heads...)
   // a fixed installation sits on its station (the firewood processor at the Firewood Yard)
@@ -317,11 +318,11 @@
     C.attCount[kind] = S.attachments.filter((a) => a.kind === kind).length + 1;
     addAttachment(kind, false, `${kind}_${n}`);
   }
-  const ATT_NAME = { mulcher: 'Mulcher head', grapple: 'Grapple', bushhog: 'Bush hog', brushcut: 'Brush cutter', forks: 'Pallet forks' };
+  const ATT_NAME = { mulcher: 'Mulcher head', grapple: 'Grapple', bushhog: 'Bush hog', brushcut: 'Brush cutter', forks: 'Pallet forks', truckplow: 'V-plow', pusher: 'Snow pusher', spreader: 'Salt spreader' };
   // forks go on a skid steer's quick-attach or clamp onto the tractor's loader bucket; the bush hog hangs on the tractor's three-point hitch
-  const attFits = (a, u) => (a.kind === 'forks' ? ['skid', 'tractor'].includes(HC.baseOf(u.kind)) : (a.kind === 'bushhog' ? 'tractor' : 'skid') === HC.baseOf(u.kind));
-  const frontSlot = (a) => a.kind !== 'bushhog';
-  const attachPoint = (u, a) => HC.baseOf(u.kind) === 'tractor' && !(a && a.kind === 'forks') ? { x: u.x - Math.cos(u.a) * 24, y: u.y - Math.sin(u.a) * 24 } : { x: u.x + Math.cos(u.a) * (HC.baseOf(u.kind) === 'tractor' ? 40 : 28), y: u.y + Math.sin(u.a) * (HC.baseOf(u.kind) === 'tractor' ? 40 : 28) };
+  const attFits = (a, u) => (HC.ATT_FITS && HC.ATT_FITS[a.kind] ? HC.ATT_FITS[a.kind](u.kind) : a.kind === 'forks' ? ['skid', 'tractor'].includes(HC.baseOf(u.kind)) : (a.kind === 'bushhog' ? 'tractor' : 'skid') === HC.baseOf(u.kind));
+  const frontSlot = (a) => a.kind !== 'bushhog' && a.kind !== 'spreader';
+  const attachPoint = (u, a) => a && HC.ATT_POINT && HC.ATT_POINT[a.kind] ? HC.ATT_POINT[a.kind](u) : HC.baseOf(u.kind) === 'tractor' && !(a && a.kind === 'forks') ? { x: u.x - Math.cos(u.a) * 24, y: u.y - Math.sin(u.a) * 24 } : { x: u.x + Math.cos(u.a) * (HC.baseOf(u.kind) === 'tractor' ? 40 : 28), y: u.y + Math.sin(u.a) * (HC.baseOf(u.kind) === 'tractor' ? 40 : 28) };
   function attachmentNear(u, S) {
     return (S.attachments || []).filter((a) => (!a.on || a.on.startsWith('trailer:') || a.on.startsWith('truck:')) && attFits(a, u)).find((a) => { const p = attachPoint(u, a); return HC.dist(a.x, a.y, p.x, p.y) < 34 && Math.abs(HC.angDiff(u.a, a.a)) < 1.3; });
   }
@@ -332,7 +333,7 @@
     if (HC.Landscape && HC.Landscape.list().some((p) => p.ride && p.ride.held === u.kind)) return toast('Set the pallet down first (E).');
     const mine = (S.attachments || []).filter((a) => a.on === u.kind);
     let cur = mine[0];
-    if (HC.baseOf(u.kind) === 'tractor') { // two places to hang things: pick up into a free one first, else drop (forks before the bush hog)
+    if (HC.baseOf(u.kind) === 'tractor' || HC.Units.isTruck(u.kind)) { // two places to hang things (trucks: a plow on the front, a spreader on the back): pick up into a free one first, else drop (forks before the bush hog)
       const nearA = attachmentNear(u, S);
       if (nearA && !mine.some((m) => frontSlot(m) === frontSlot(nearA))) cur = null;
       else cur = mine.find((m) => m.kind === 'forks') || mine[0];
@@ -359,11 +360,11 @@
       return toast(`${ATT_NAME[cur.kind]} unhooked${deck ? ' on the trailer deck' : truck ? ' on the truck bed' : ''}.`);
     }
     const a = attachmentNear(u, S);
-    if (!a) return toast(HC.baseOf(u.kind) === 'tractor' ? 'Nothing to hook up. Back up square to the bush hog and press Q.' : 'Nothing to hook up. Line the quick-attach up square with an attachment and press Q.');
-    if (u.armT > 0.3) return toast(HC.baseOf(u.kind) === 'tractor' ? 'Lower the hitch (hold G) to line up the lift arms.' : 'Lower the arms (hold G) to scoop the attachment up.');
+    if (!a) return toast(HC.Units.isTruck(u.kind) ? 'Nothing to hook up. Drive the nose up square to a V-plow (or back up to a salt spreader) and press Q.' : HC.baseOf(u.kind) === 'tractor' ? 'Nothing to hook up. Back up square to the bush hog and press Q.' : 'Nothing to hook up. Line the quick-attach up square with an attachment and press Q.');
+    if (u.armT > 0.3 && !HC.Units.isTruck(u.kind)) return toast(HC.baseOf(u.kind) === 'tractor' ? 'Lower the hitch (hold G) to line up the lift arms.' : 'Lower the arms (hold G) to scoop the attachment up.');
     a.on = u.kind;
     HC.Audio.pick();
-    toast(`${ATT_NAME[a.kind]} ${a.kind === 'bushhog' ? 'hooked to the three-point hitch' : a.kind === 'forks' && HC.baseOf(u.kind) === 'tractor' ? 'clamped onto the loader bucket' : 'locked on'}.`, 'good');
+    toast(`${ATT_NAME[a.kind]} ${a.kind === 'truckplow' ? 'pinned onto the plow mount' : a.kind === 'spreader' ? 'slid into the receiver hitch' : a.kind === 'bushhog' ? 'hooked to the three-point hitch' : a.kind === 'forks' && HC.baseOf(u.kind) === 'tractor' ? 'clamped onto the loader bucket' : 'locked on'}.`, 'good');
   }
   function followAttachments(S) {
     for (const a of S.attachments || []) {

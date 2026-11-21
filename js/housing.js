@@ -4,8 +4,8 @@
 (() => {
   const TS = HC.TILE, T = HC.T, C = () => HC.company;
   const TIERS = [
-    { id: 'small', name: 'Starter house', price: 24000, early: 30, rested: 0.05, blurb: 'A two-bedroom ranch with a gravel drive. Up 30 minutes earlier.' },
-    { id: 'mid', name: 'Farmhouse', price: 58000, early: 60, rested: 0.08, bays: 2, shop: 'Two-bay garage', blurb: 'A roomy old farmhouse with a porch and a two-bay garage to park in. Up an hour earlier and well rested.' },
+    { id: 'small', name: 'Starter house', price: 24000, early: 30, rested: 0.05, blurb: 'A cozy ranch with a carport for one truck. Up 30 minutes earlier.' },
+    { id: 'mid', name: 'Farmhouse', price: 58000, early: 60, rested: 0.08, bays: 2, shop: 'Two-bay garage', blurb: 'A roomy old farmhouse with a wood stove and a red two-bay carriage barn to park in. Up an hour earlier and well rested.' },
     { id: 'big', name: 'Country home', price: 110000, early: 90, rested: 0.12, bays: 4, shop: 'Four-bay equipment shop', blurb: 'A big place on its own acreage with a four-bay equipment shop: park, fuel-free storage out of the weather, and repairs. Up 90 minutes earlier, fully rested.' },
   ];
   const COT = { id: 'cot', name: 'Cot in the yard office', price: 0, early: 0, rested: 0, blurb: 'A folding cot behind the desk.' };
@@ -31,27 +31,38 @@
 
   // your home's lot is off the job board; the bigger homes come with a garage or shop that counts as one of your yards
   function markHome() { for (const p of HC.world.parcels) if (p.id === C().home) p.isYard = true; homeShop(); }
+  // every listed house comes with its own garage, there before you buy it: a carport, a red carriage barn, or a steel shop.
+  // It only counts as one of your yards (parking, repairs, out of the weather) once the house is yours.
+  const STYLE = { small: { style: 'carport', bays: 1, name: 'Carport' }, mid: { style: 'barn', bays: 2, name: 'Carriage barn' }, big: { style: 'shop', bays: 4, name: 'Equipment shop' } };
+  let builtFor = null;
   function homeShop() {
     const W = HC.world; if (!W) return;
-    W.sheds = W.sheds.filter((s) => s.yard !== 'home'); W.bays = W.bays.filter((b) => b.yard !== 'home'); W.yards = W.yards.filter((y) => y.id !== 'home');
-    const m = mine(); if (!m || !m.bays) { HC.Render.yardChanged && HC.Render.yardChanged(); return; }
-    const p = W.parcels.find((q) => q.id === m.parcel), h = m.house, bh = 4 * TS;
-    // beside the house on whichever side has more room; a narrow lot gets as many bays as fit (at least two)
-    const right = p.x + p.w - TS * 0.5 - (h.x + h.w + TS * 1.2), left = h.x - TS * 1.2 - (p.x + TS * 0.5), room = Math.max(right, left);
-    const nb = Math.max(2, Math.min(m.bays, Math.floor((room - TS) / (2.4 * TS)))), bw = nb * 2.4 * TS + TS;
-    const x = right >= left ? h.x + h.w + TS * 1.2 : h.x - TS * 1.2 - bw;
-    const y = h.facing === -1 ? h.y + h.h - bh : h.y, yard = { id: 'home', name: m.shop, x: x - TS * 0.5, y: y - TS * 0.5, w: bw + TS, h: bh + TS * 4, owned: true, home: true };
-    W.trees = W.trees.filter((t) => !(t.parcel === p.id && HC.circleRectHit(t.x, t.y, t.trunkR + 10, yard)));
-    W.bushes = W.bushes.filter((b) => !HC.circleRectHit(b.x, b.y, (b.r || 10) + 4, yard)); yard.name = `${['', '', 'Two', 'Three', 'Four'][nb]}-bay ${m.id === 'big' ? 'equipment shop' : 'garage'}`;
-    for (let ty = Math.floor(yard.y / TS); ty < Math.ceil((yard.y + yard.h) / TS); ty++) for (let tx = Math.floor(yard.x / TS); tx < Math.ceil((yard.x + yard.w) / TS); tx++) {
-      const t = W.tile(tx, ty); if (t === T.ROAD || t === T.WATER) continue; if (t !== T.GRAVEL) { W.set(tx, ty, T.GRAVEL); HC.Render.setTile && HC.Render.setTile(tx, ty); }
+    if (builtFor !== W) {
+      builtFor = W;
+      W.sheds = W.sheds.filter((s) => s.yard !== 'home'); W.bays = W.bays.filter((b) => b.yard !== 'home'); W.yards = W.yards.filter((y) => y.id !== 'home');
+      for (const m of listed()) {
+        const st = STYLE[m.id]; if (!st) continue;
+        const p = W.parcels.find((q) => q.id === m.parcel), h = m.house, bh = 4 * TS;
+        const right = p.x + p.w - TS * 0.5 - (h.x + h.w + TS * 1.2), left = h.x - TS * 1.2 - (p.x + TS * 0.5), room = Math.max(right, left);
+        const nb = Math.max(1, Math.min(st.bays, Math.floor((room - TS) / (2.4 * TS)))), bw = nb * 2.4 * TS + TS;
+        const x = right >= left ? h.x + h.w + TS * 1.2 : h.x - TS * 1.2 - bw, flip = h.facing === -1;
+        const y = flip ? h.y + h.h - bh : h.y, yard = { id: 'home', home: m.parcel, name: `${['', 'Single', 'Two', 'Three', 'Four'][nb]}-bay ${st.name.toLowerCase()}`, x: x - TS * 0.5, y: flip ? y - TS * 3.5 : y - TS * 0.5, w: bw + TS, h: bh + TS * 4, owned: false };
+        W.trees = W.trees.filter((t) => !(t.parcel === p.id && HC.circleRectHit(t.x, t.y, t.trunkR + 10, yard)));
+        W.bushes = W.bushes.filter((b) => !HC.circleRectHit(b.x, b.y, (b.r || 10) + 4, yard));
+        W.fences = W.fences.filter((f) => !(f.parcel === p.id && HC.segRectHit(f.x, f.y, f.x + (f.w || 0), f.y + (f.h || 0), 2, yard)));
+        for (let ty = Math.floor(yard.y / TS); ty < Math.ceil((yard.y + yard.h) / TS); ty++) for (let tx = Math.floor(yard.x / TS); tx < Math.ceil((yard.x + yard.w) / TS); tx++) {
+          const t = W.tile(tx, ty); if (t === T.ROAD || t === T.WATER) continue; if (t !== T.GRAVEL) { W.set(tx, ty, T.GRAVEL); HC.Render.setTile && HC.Render.setTile(tx, ty); }
+        }
+        W.sheds.push({ x, y, w: bw, h: bh, yard: 'home', style: st.style, flip });
+        for (let i = 0; i < nb; i++) W.bays.push({ x: x + TS * (1.7 + i * 2.4), y: y + bh * 0.55, a: flip ? Math.PI / 2 : -Math.PI / 2, yard: 'home', home: m.parcel, kind: 'machine' });
+        W.yards.push(yard);
+      }
+      HC.Render.fencesChanged && HC.Render.fencesChanged();
     }
-    W.sheds.push({ x, y, w: bw, h: bh, yard: 'home' });
-    W.fences = W.fences.filter((f) => !(f.parcel === p.id && HC.segRectHit(f.x, f.y, f.x + (f.w || 0), f.y + (f.h || 0), 2, yard))); HC.Render.fencesChanged && HC.Render.fencesChanged();
-    for (let i = 0; i < nb; i++) W.bays.push({ x: x + TS * (1.7 + i * 2.4), y: y + bh * 0.55, a: h.facing === -1 ? Math.PI / 2 : -Math.PI / 2, yard: 'home', kind: 'machine' });
-    W.yards.push(yard);
+    for (const y of W.yards) if (y.id === 'home') y.owned = y.home === C().home; // yours only once you live there
     HC.Render.yardChanged && HC.Render.yardChanged();
   }
+
 
   function buy(parcel) {
     const L = listed().find((l) => l.parcel === +parcel); if (!L) return 'That house is gone.';
@@ -88,6 +99,8 @@
   function goIn(where) {
     const S = HC.session; css();
     inside = where; S.paused = true;
+    // walk around inside: a real 3D interior for each home (the old picture-panel is the fallback)
+    if (HC.Interior && HC.Interior.enter(where, { exit: () => goOut(), sleep: () => sleep(where) })) return;
     const t = S.time, night = t >= 19 * 60, eve = t >= 16.5 * 60;
     const el = document.createElement('div'); el.id = 'home-in'; if (where.id === 'cot') el.className = 'cot';
     el.style.setProperty('--sky1', night ? '#0d1530' : eve ? '#f2a86a' : '#8fc8f0'); el.style.setProperty('--sky2', night ? '#26365e' : eve ? '#f6d29a' : '#d8eefc'); el.style.setProperty('--glow', night ? 0.55 : eve ? 0.3 : 0.08);
@@ -150,7 +163,7 @@
     if (h && !(S.saw && S.saw.holder === u.kind)) return h.forSale ? `For sale: ${h.name} (${HC.money(h.price)}). E for details` : h.id === 'cot' && mine() ? 'Yard office' : `E: go inside (${h.name.toLowerCase()})`;
     return baseHint.apply(this, arguments);
   };
-  addEventListener('keydown', (e) => { if (inside && (e.key === 'Escape' || e.key.toLowerCase() === 'e')) { e.stopPropagation(); goOut(); } }, true);
+  addEventListener('keydown', (e) => { if (inside && document.getElementById('home-in') && (e.key === 'Escape' || e.key.toLowerCase() === 'e')) { e.stopPropagation(); goOut(); } }, true);
 
   HC.Homes = { listed, mine, tier, buy, door, TIERS, markHome, isInside: () => !!inside };
   const baseBoot = HC.Game.boot;
@@ -162,7 +175,7 @@
   const base = HC.Game.update;
   HC.Game.update = function () {
     const r = base.apply(this, arguments);
-    if (HC.world && HC.session && !HC.session.preview && doneFor !== HC.world) { doneFor = HC.world; try { if (HC.company.home) HC.Homes.markHome(); } catch (e) { console.warn(e); } }
+    if (HC.world && HC.session && !HC.session.preview && doneFor !== HC.world) { doneFor = HC.world; try { HC.Homes.markHome(); } catch (e) { console.warn(e); } }
     return r;
   };
 })();

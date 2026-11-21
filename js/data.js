@@ -13,7 +13,7 @@ HC.TREES = {
 };
 
 // Game version: co-op players must match (bump whenever the game changes)
-HC.VERSION = '2026.11.21-4';
+HC.VERSION = '2026.11.21-5';
 HC.MAP_VER = 4; // bump whenever the world layout changes (saves then park everything back at the yard)
 
 // Equipment. key = number key. fuel in units, use per second.
@@ -734,8 +734,8 @@ HC.FIREWOOD_SUPPLY = 40; HC.FIREWOOD_STAND = [62, 86];
 
 // ---------- a squatted show truck: a lifted, raked half-ton crew cab on big polished wheels. Quick and loud, but it only pulls light trailers ----------
 HC.EQUIP.squat = {
-  name: 'Squatted Show Truck (crew cab, 24s)', short: 'Show truck', move: 'car', speed: 178, turn: 2.2, r: 16, mass: 3,
-  fuelCap: 100, fuelUse: 0.34, wear: 0.025, price: 46000, repair: 9, tows: true, hitchOff: 34, wheelbase: 3.7, lightTow: true, showLights: true,
+  name: 'Squatted Show Truck (crew cab, 24s)', short: 'Show truck', move: 'car', speed: 178, turn: 2.2, r: 17, mass: 3,
+  fuelCap: 100, fuelUse: 0.34, wear: 0.025, price: 46000, repair: 9, tows: true, hitchOff: 36, wheelbase: 3.68, lightTow: true, showLights: true,
   help: 'A lifted, squatted half-ton crew cab on polished 24s and mud tires, with LED grille bars and rock lights (press L at night). It\'s the fastest thing you own on the road, but the rake and the lift mean it only pulls light bumper-pull trailers: the dump trailer, chippers and the log splitter. No goosenecks, no equipment trailer, no lowboy.',
 };
 HC.BLURB.squat = 'Raked, lifted crew cab on chrome 24s with rock lights. Fast, flashy, light trailers only.';

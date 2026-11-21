@@ -1551,23 +1551,59 @@
       Pm('box', '#2a2b2d', [-3.05, 1.2, 0], [1.2, 0.15, 1.5]), Pm('box', COL.black, [3.1, 1.15, 1.2], [1.3, 0.12, 0.3]), Pm('box', COL.black, [3.1, 1.15, -1.2], [1.3, 0.12, 0.3]),
       ...wheelM(3.0, 0.52, 1.0, 0.52, 0.32), ...wheelM(3.0, 0.52, -1.0, 0.52, 0.32),
       ...[-2.5, -3.75].flatMap((x) => [...wheelM(x, 0.52, 0.86, 0.52, 0.27), ...wheelM(x, 0.52, -0.86, 0.52, 0.27), ...wheelM(x, 0.52, 1.15, 0.52, 0.27), ...wheelM(x, 0.52, -1.15, 0.52, 0.27)])]),
-    squat: () => { // a squatted show truck: black half-ton crew cab, front lifted above the rear, polished wheels on mud tires, LED grille bars, amber headlamps, rock lights
-      const K = '#17181a', Kd = '#0e0f10', CH = '#d9dde2', lift = 0.2, rake = 0.04;
-      const body = [Pm('box', COL.black, [-0.2, 0.62, 0], [5.6, 0.22, 0.9]),
-        ...truckCabM(2.95, K, { hood: 1.45, cabL: 2.75, w: 2.02, hy: 0.98, cy: 1.08, ch: 1.02 }),
-        // short bed with rails, a black tonneau, tailgate and tail lamps
-        Pm('box', K, [-2.0, 1.25, 0], [1.75, 0.66, 2.02]), Pm('box', Kd, [-2.0, 1.5, 0], [1.72, 0.03, 1.94]), Pm('box', K, [-2.88, 1.2, 0], [0.05, 0.56, 1.95]),
-        ...[1, -1].flatMap((sd) => [Pm('box', '#c42a24', [-2.9, 1.28, sd * 0.88], [0.04, 0.36, 0.16]), Pm('box', Kd, [-0.9, 0.98, sd * 1.06], [1.4, 0.1, 0.14]), // tails, running boards
-          Pm('box', CH, [1.42, 1.72, sd * 1.16], [0.26, 0.22, 0.08]), Pm('box', '#2a2c2f', [1.48, 1.66, sd * 1.07], [0.06, 0.06, 0.14]), // chrome mirrors on the A-pillars
-          ...[2.35, -1.7].map((x) => Pm('box', Kd, [x, 1.2, sd * 1.04], [1.25, 0.1, 0.2])), // fender flares over the tires
-          Pm('box', '#e8a21f', [3.02, 1.36, sd * 0.8], [0.05, 0.1, 0.36]), Pm('box', '#f4f6ff', [3.03, 1.27, sd * 0.8], [0.05, 0.08, 0.3]), Pm('box', '#e8a21f', [3.02, 1.22, sd * 0.97], [0.05, 0.22, 0.05])]), // amber C-clamp headlamps
-        Pm('box', '#2a2c2f', [3.02, 1.22, 0], [0.06, 0.46, 1.24]), Pm('box', '#c9cdd2', [3.05, 1.22, 0], [0.02, 0.4, 1.18]), Pm('box', '#f4f6ff', [3.07, 1.36, 0], [0.03, 0.05, 1.16]), Pm('box', '#f4f6ff', [3.07, 1.1, 0], [0.03, 0.05, 1.16]), // satin grille with two LED bars
-        Pm('box', '#2f4a8a', [3.08, 1.23, 0], [0.02, 0.09, 0.22]), // oval grille badge
-        Pm('box', Kd, [3.0, 0.82, 0], [0.18, 0.24, 2.04]), Pm('box', '#e8e4d6', [3.1, 0.8, 0], [0.01, 0.12, 0.36]), // bumper and plate
-        Pm('box', CH, [-3.0, 0.78, 0], [0.16, 0.16, 2.0]), Pm('box', COL.steel, [-3.2, 0.66, 0], [0.36, 0.08, 0.08]), // rear bumper, receiver
-        Pm('box', '#e8eef2', [0.6, 0.58, 0], [3.6, 0.03, 0.06])]; // rock-light strip under the frame
-      for (const q of body) { q.pos = [q.pos[0], q.pos[1] + (lift + q.pos[0] * rake) * MM, q.pos[2]]; q.rot = [q.rot[0], q.rot[1], (q.rot[2] || 0) + rake]; } // lifted and raked: nose up, tail down
-      const wheels = [2.35, -1.7].flatMap((x) => [1, -1].flatMap((sd) => wheelM(x, 0.53, sd * 0.9, 0.53, 0.44, CH)));
+    squat: () => { // the show truck, after the photo: dark grey half-ton crew cab, lifted with a slight rake, chrome 24s on mud tires, big grille with two LED bars, C-clamp lamps with amber
+      const G = '#5c6066', Gd = '#474b50', Gl = '#6a6e74', TINT = '#1a2026', CH = '#e2e5e8', BK = '#151618', lift = 0.24, rake = 0.02;
+      const f = 2.95, r = -2.95, hw = 1.0, beltY = 1.45, hoodY = 1.52, roofY = 2.06, cabF = 1.4, cabR = -1.1, FA = 1.95, RA = -1.73; // real half-ton crew cab: 5.9 m long, 3.68 m wheelbase, short bed // nose, tail, half width, beltline, hood, roof, windshield base, back of cab
+      const body = [
+        Pm('box', BK, [0, 0.62, 0], [5.4, 0.2, 0.92]), // frame
+        // lower body: one long side from nose to tail, rocker panel under it
+        Pm('box', G, [0, 1.035, 0], [f - r, 0.83, hw * 2]), Pm('box', Gd, [0.1, 0.64, 0], [3.0, 0.08, hw * 2 + 0.02]),
+        // hood: tall and flat with a raised centre bulge
+        Pm('box', G, [(f + cabF) / 2, hoodY - 0.04, 0], [f - cabF, 0.12, hw * 2 - 0.04]), Pm('box', Gl, [(f + cabF) / 2 + 0.05, hoodY + 0.05, 0], [f - cabF - 0.3, 0.06, 0.9]),
+        // cab: a raked windshield, roof, back glass, side glass with B-pillars
+        Pm('box', TINT, [cabF - 0.3, (beltY + roofY) / 2, 0], [0.06, 0.86, hw * 2 - 0.12], [0, 0, 0.78]), // raked windshield
+        Pm('box', G, [(cabF - 0.6 + cabR) / 2, roofY, 0], [cabF - 0.6 - cabR, 0.08, hw * 2 - 0.1]),
+        Pm('box', TINT, [cabR + 0.03, (beltY + roofY) / 2, 0], [0.04, 0.5, hw * 2 - 0.3]),
+        ...[1, -1].flatMap((sd) => [
+          Pm('box', TINT, [(cabF - 0.62 + cabR) / 2, (beltY + roofY) / 2, sd * (hw - 0.04)], [cabF - 0.62 - cabR, 0.5, 0.03]), Pm('box', TINT, [cabF - 0.35, beltY + 0.2, sd * (hw - 0.04)], [0.3, 0.32, 0.03], [0, 0, 0.8]), // side glass
+          Pm('box', G, [-0.15, (beltY + roofY) / 2, sd * (hw - 0.03)], [0.1, 0.6, 0.04]), Pm('box', G, [cabR + 0.06, (beltY + roofY) / 2, sd * (hw - 0.03)], [0.12, 0.6, 0.04]), // B and C pillars
+          Pm('box', BK, [cabF - 0.3, (beltY + roofY) / 2, sd * (hw - 0.05)], [0.07, 0.83, 0.05], [0, 0, 0.8]), // A-pillars
+          Pm('box', Gd, [-0.15, 1.05, sd * hw], [0.02, 0.76, 0.01]), Pm('box', Gd, [cabR + 0.02, 1.05, sd * hw], [0.02, 0.76, 0.01]), Pm('box', Gd, [cabF - 0.05, 1.05, sd * hw], [0.02, 0.76, 0.01]), // door seams
+          Pm('box', CH, [0.4, 1.32, sd * (hw + 0.01)], [0.18, 0.04, 0.02]), Pm('box', CH, [-0.75, 1.32, sd * (hw + 0.01)], [0.18, 0.04, 0.02]), // chrome handles
+          Pm('box', CH, [cabF - 0.22, 1.62, sd * (hw + 0.14)], [0.26, 0.24, 0.12]), Pm('box', BK, [cabF - 0.12, 1.58, sd * (hw + 0.05)], [0.08, 0.06, 0.12]), // chrome mirrors
+          Pm('box', '#e8e8ea', [cabF + 0.25, 1.3, sd * (hw + 0.005)], [0.22, 0.05, 0.01]), // fender badge
+          Pm('box', BK, [-0.15, 0.6, sd * (hw + 0.04)], [2.4, 0.06, 0.16]), // step bar
+          ...[FA, RA].map((x) => Pm('box', Gd, [x, 1.2, sd * (hw + 0.02)], [1.2, 0.07, 0.07])), // wheel-arch lips
+          // C-clamp headlamp: dark housing, white projector, amber C around it
+          Pm('box', BK, [f + 0.005, 1.27, sd * 0.74], [0.04, 0.26, 0.46]), Pm('box', '#f4f6ff', [f + 0.02, 1.27, sd * 0.68], [0.03, 0.12, 0.22]),
+          Pm('box', '#f0a020', [f + 0.025, 1.38, sd * 0.78], [0.03, 0.04, 0.4]), Pm('box', '#f0a020', [f + 0.025, 1.16, sd * 0.78], [0.03, 0.04, 0.4]), Pm('box', '#f0a020', [f + 0.025, 1.27, sd * 0.97], [0.03, 0.26, 0.04]),
+          Pm('box', '#c42a24', [r - 0.02, 1.2, sd * 0.86], [0.04, 0.45, 0.12]), Pm('box', '#f0f0f0', [r - 0.025, 1.0, sd * 0.86], [0.03, 0.08, 0.1]), // tall tail lamps
+        ]),
+        // big grille: satin surround, dark mesh, three bars, two LED light bars and a blue oval
+        Pm('box', '#9aa0a6', [f + 0.01, 1.12, 0], [0.04, 0.56, 1.06]), Pm('box', '#1c1e21', [f + 0.03, 1.12, 0], [0.03, 0.48, 0.98]),
+        ...[1.0, 1.12, 1.24].map((y) => Pm('box', '#6a7078', [f + 0.045, y, 0], [0.02, 0.05, 0.96])),
+        Pm('box', '#f6f8ff', [f + 0.055, 1.33, 0], [0.02, 0.05, 0.94]), Pm('box', '#f6f8ff', [f + 0.055, 0.92, 0], [0.02, 0.05, 0.94]),
+        Pm('box', '#20408a', [f + 0.06, 1.12, 0], [0.02, 0.09, 0.22]), Pm('box', '#d8dde2', [f + 0.065, 1.12, 0], [0.01, 0.05, 0.16]),
+        // bumper with a plate, lower valance with fog lamps, tow hooks
+        Pm('box', Gd, [f + 0.04, 0.78, 0], [0.16, 0.24, hw * 2]), Pm('box', '#e8e4d6', [f + 0.13, 0.8, 0], [0.01, 0.13, 0.34]), Pm('box', BK, [f, 0.62, 0], [0.12, 0.08, hw * 1.8]),
+        ...[1, -1].map((sd) => Pm('box', '#f4f6ff', [f + 0.12, 0.78, sd * 0.72], [0.02, 0.06, 0.14])),
+        // short bed: rails, a cross-bed tool box, tailgate with a handle, chrome rear bumper
+        Pm('box', Gd, [(cabR + r) / 2 - 0.05, 1.46, 0], [cabR - r - 0.15, 0.03, hw * 2 - 0.1]), ...[1, -1].map((sd) => Pm('box', G, [(cabR + r) / 2 - 0.05, 1.46, sd * (hw - 0.04)], [cabR - r - 0.15, 0.06, 0.08])),
+        Pm('box', '#bfc4c9', [cabR - 0.25, 1.52, 0], [0.42, 0.18, hw * 2 - 0.12]), Pm('box', Gd, [r + 0.02, 1.05, 0], [0.04, 0.8, hw * 2 - 0.06]), Pm('box', CH, [r - 0.01, 1.32, 0], [0.02, 0.05, 0.3]),
+        Pm('box', CH, [r - 0.06, 0.74, 0], [0.16, 0.16, hw * 2]), Pm('box', COL.steel, [r - 0.22, 0.64, 0], [0.32, 0.08, 0.08]),
+        // rock-light strips under the body
+        Pm('box', '#eef4f8', [0, 0.53, 0.42], [3.4, 0.02, 0.03]), Pm('box', '#eef4f8', [0, 0.53, -0.42], [3.4, 0.02, 0.03]),
+      ];
+      for (const q of body) { q.pos = [q.pos[0], q.pos[1] + (lift + q.pos[0] * rake) * MM, q.pos[2]]; q.rot = [q.rot[0], q.rot[1], (q.rot[2] || 0) + rake]; } // lifted, a little nose-high
+      // chrome multi-spoke 24s on 37" mud tires; the spokes ride with each wheel
+      const wheels = [];
+      for (const x of [FA, RA]) for (const sd of [1, -1]) {
+        const w = wheelM(x, 0.52, sd * 0.9, 0.52, 0.38, CH), wh = w[0].wh, face = sd * 0.9 + sd * 0.195;
+        wheels.push(...w, Pm('cyl', CH, [x, 0.52, face], [0.74, 0.02, 0.74], [Math.PI / 2, 0, 0]));
+        for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; const sp = Pm('box', k % 2 ? '#f0f2f4' : '#c8ccd0', [x + Math.cos(a) * 0.19, 0.52 + Math.sin(a) * 0.19, face + sd * 0.012], [0.3, 0.05, 0.02], [0, 0, a]); sp.wh = wh; wheels.push(sp); }
+        const cap = Pm('cyl', CH, [x, 0.52, face + sd * 0.03], [0.14, 0.03, 0.14], [Math.PI / 2, 0, 0]); cap.wh = wh; wheels.push(cap);
+        wheels[wheels.length - 12].wh = wh;
+      }
       return build([...body, ...wheels]);
     },
     servicetruck: () => { // after the reference: white crew cab, a full-length tool body with compartment doors, a compressor and a folded knuckle crane
@@ -2003,6 +2039,36 @@
   };
   function shedGeo(sh) {
     const W = U(sh.w), D = U(sh.h), p = [];
+    if (sh.style === 'carport') { // the starter house: a white single carport with a low gable roof
+      for (const x of [-W / 2, W / 2]) for (const z of [-D / 2, D / 2]) p.push(P('box', '#f2f0ea', [x, 0.95, z], [0.14, 1.9, 0.14]));
+      p.push(P(prism(W + 0.5, D + 0.4, 0.45), '#6a5a4a', [0, 1.9, 0]), P('box', '#f2f0ea', [0, 1.88, D / 2], [W + 0.2, 0.12, 0.08]), P('box', '#f2f0ea', [0, 1.88, -D / 2], [W + 0.2, 0.12, 0.08]), P('box', '#8a8580', [0, 0.04, 0], [W, 0.06, D]));
+      return build(p);
+    }
+    if (sh.style === 'barn') { // the farmhouse: a red board-and-batten carriage barn, white trim, sliding doors rolled back, a cupola
+      const red = '#9a2e22';
+      p.push(P('box', red, [0, 1.3, -D / 2], [W, 2.6, 0.12]), P('box', red, [-W / 2, 1.3, 0], [0.12, 2.6, D]), P('box', red, [W / 2, 1.3, 0], [0.12, 2.6, D]));
+      for (let x = -W / 2 + 0.2; x < W / 2; x += 0.35) p.push(P('box', HC.shade(red, -0.12), [x, 1.3, -D / 2 - 0.07], [0.04, 2.6, 0.02]));
+      for (let z = -D / 2 + 0.2; z < D / 2; z += 0.35) for (const sx of [-1, 1]) p.push(P('box', HC.shade(red, -0.12), [sx * (W / 2 + 0.07), 1.3, z], [0.02, 2.6, 0.04]));
+      p.push(P('box', red, [0, 2.35, D / 2], [W, 0.5, 0.12]), P('box', '#f4f1e8', [0, 2.1, D / 2 + 0.07], [W, 0.08, 0.04]));
+      const nb = Math.max(2, Math.round(W / 2.4));
+      for (let i = 0; i <= nb; i++) { const x = -W / 2 + (W / nb) * i; p.push(P('box', '#f4f1e8', [x, 1.05, D / 2 + 0.05], [0.16, 2.1, 0.1])); }
+      for (const sx of [-1, 1]) { p.push(P('box', red, [sx * (W / 2 + 0.75), 1.05, D / 2 + 0.12], [1.4, 2.1, 0.08])); for (const d of [-0.5, 0.5]) p.push(P('box', '#f4f1e8', [sx * (W / 2 + 0.75), 1.05, D / 2 + 0.17], [1.4, 0.08, 0.02], [0, 0, d])); } // doors slid open, with white X braces
+      p.push(P(prism(W + 0.6, D + 0.6, 1.4), '#4a4f56', [0, 2.6, 0]), P('box', '#f4f1e8', [0, 3.15, 0], [0.9, 0.7, 0.9]), P(prism(1.2, 1.2, 0.5), '#4a4f56', [0, 3.5, 0]), P('box', '#2a2b2d', [0, 3.85, 0], [0.04, 0.4, 0.04]));
+      return build(p);
+    }
+    if (sh.style === 'shop') { // the country home: a tan steel equipment building, dark wainscot, tall bays with the roll-up doors up
+      const tan = '#c9b996', wain = '#4a4f56';
+      p.push(P('box', tan, [0, 1.8, -D / 2], [W, 3.6, 0.12]), P('box', tan, [-W / 2, 1.8, 0], [0.12, 3.6, D]), P('box', tan, [W / 2, 1.8, 0], [0.12, 3.6, D]));
+      p.push(P('box', wain, [0, 0.5, -D / 2 - 0.02], [W + 0.02, 1.0, 0.12]), P('box', wain, [-W / 2 - 0.02, 0.5, 0], [0.12, 1.0, D]), P('box', wain, [W / 2 + 0.02, 0.5, 0], [0.12, 1.0, D]));
+      for (let x = -W / 2 + 0.15; x < W / 2; x += 0.3) p.push(P('box', HC.shade(tan, -0.08), [x, 2.3, -D / 2 - 0.07], [0.03, 2.6, 0.02]));
+      const nb = Math.max(2, Math.round(W / 2.4));
+      p.push(P('box', tan, [0, 3.35, D / 2], [W, 0.5, 0.12]));
+      for (let i = 0; i <= nb; i++) { const x = -W / 2 + (W / nb) * i; p.push(P('box', tan, [x, 1.55, D / 2], [0.3, 3.1, 0.14])); }
+      for (let i = 0; i < nb; i++) { const x = -W / 2 + (W / nb) * (i + 0.5); p.push(P('cyl', '#e8e6e0', [x, 3.0, D / 2 - 0.15], [0.3, W / nb - 0.35, 0.3], [0, 0, Math.PI / 2]), P('box', '#ffe9b0', [x, 3.2, D / 2 + 0.1], [0.3, 0.1, 0.06])); } // rolled-up doors, a light over each bay
+      p.push(P(prism(W + 0.6, D + 0.6, 1.1), '#7a3a2a', [0, 3.6, 0]));
+      for (let x = -W / 2; x < W / 2; x += 0.4) p.push(P('box', '#6a3022', [x, 4.1, 0], [0.03, 0.02, D + 0.6]));
+      return build(p);
+    }
     for (let x = -W / 2; x <= W / 2 + 0.01; x += W / 4) { p.push(P('box', '#7a5a3a', [x, 1.1, D / 2], [0.16, 2.2, 0.16]), P('box', '#7a5a3a', [x, 1.25, -D / 2], [0.16, 2.5, 0.16])); }
     p.push(P('box', '#9a8f82', [0, 1.25, -D / 2 - 0.06], [W, 2.5, 0.08]));
     for (let x = -W / 2 + 0.3; x < W / 2; x += 0.6) p.push(P('box', '#8a7f72', [x, 1.25, -D / 2 - 0.1], [0.03, 2.5, 0.02]));
@@ -2605,7 +2671,7 @@
     shedModels = [];
     for (const sh of world.sheds) {
       const m = model(shedGeo(sh));
-      m.scale.y = 0.62;
+      m.scale.y = 0.62; if (sh.flip) m.rotation.y = Math.PI;
       shedModels.push({ m, sh });
       m.position.set(U(sh.x + sh.w / 2), gh(sh.x + sh.w / 2, sh.y + sh.h / 2), U(sh.y + sh.h / 2));
       worldGroup.add(m);
@@ -2815,7 +2881,33 @@
   }
   const rampRear = (t) => RAMP[t.kind].x * 32 / 3; // px from the axle to the ramp hinge
   const attObjs = {};
-  const attGeo = (kind) => cache('att_' + kind, () => kind === 'bushhog' ? BIG_MODELS.bushhog() : skidArms(kind));
+  const SNOW_GEO = {
+    truckplow: () => { // hydraulic V-plow: two moldboard wings on an A-frame, a light bar on top, a rubber deflector, shoes on the ground
+      const Y = '#e8b21f', D = '#1e1f21', p = [];
+      for (const s2 of [1, -1]) {
+        for (let i = 0; i < 6; i++) { const t = i / 5, ang = 0.3 * s2; p.push(Pm('box', Y, [0.12 + Math.abs(t * 1.3 * Math.sin(ang)) * 0.0 + (1 - t) * 0.0 + 0.0, 0.18 + t * 0.62, s2 * 0.66], [0.06 + (t > 0.6 ? 0.04 : 0), 0.14, 1.35], [0, ang, -0.25 + t * 0.55])); }
+        p.push(Pm('box', '#c49317', [0.06, 0.5, s2 * 0.66], [0.04, 0.76, 1.33], [0, 0.3 * s2, 0]), Pm('box', D, [0.18, 0.06, s2 * 0.66], [0.06, 0.08, 1.35], [0, 0.3 * s2, 0]), // backing, cutting edge
+          Pm('box', D, [-0.1, 0.05, s2 * 1.15], [0.24, 0.06, 0.18]), Pm('box', '#2a2b2d', [0.24, 0.92, s2 * 0.66], [0.02, 0.12, 1.3], [0, 0.3 * s2, 0])); // shoes, rubber deflector
+      }
+      p.push(Pm('box', D, [-0.35, 0.32, 0], [0.7, 0.14, 0.5]), Pm('box', D, [-0.75, 0.55, 0], [0.12, 0.6, 1.0]), Pm('cyl', '#c9cdd2', [-0.2, 0.45, 0.3], [0.06, 0.6, 0.06], [0, 0, 1.3]), Pm('cyl', '#c9cdd2', [-0.2, 0.45, -0.3], [0.06, 0.6, 0.06], [0, 0, 1.3]), // A-frame, mount, cylinders
+        Pm('box', D, [-0.6, 1.25, 0], [0.06, 0.06, 1.6]), ...[1, -1].flatMap((s2) => [Pm('box', D, [-0.6, 1.0, s2 * 0.75], [0.05, 0.5, 0.05]), Pm('box', '#f4f6ff', [-0.56, 1.25, s2 * 0.62], [0.04, 0.12, 0.2]), Pm('box', '#e8a21f', [-0.56, 1.25, s2 * 0.4], [0.04, 0.08, 0.1])])); // light bar with plow lamps
+      return build(p);
+    },
+    spreader: () => { // receiver-mount hopper spreader: poly hopper on a steel frame, spinner below, receiver bar
+      const p = [Pm('box', '#2a2b2d', [0.4, 0.55, 0], [0.8, 0.07, 0.07]), Pm('box', '#2a2b2d', [0, 0.45, 0], [0.5, 0.06, 0.6]),
+        Pm('cone', '#2a2b2d', [0, 0.75, 0], [0.62, 0.5, 0.62], [Math.PI, 0, 0]), Pm('box', '#2a2b2d', [0, 1.1, 0], [0.62, 0.36, 0.62]), Pm('box', '#e4e2da', [0, 1.29, 0], [0.64, 0.04, 0.64]), // hopper and lid
+        Pm('cyl', '#3a3b3d', [0, 0.42, 0], [0.4, 0.03, 0.4]), Pm('box', '#c9cdd2', [0.05, 0.42, 0], [0.36, 0.01, 0.03]), Pm('box', '#c42a24', [-0.32, 0.9, 0], [0.02, 0.14, 0.3])];
+      return build(p);
+    },
+    pusher: () => { // on the skid steer's quick-attach: a wide box with tall side plates and a rubber edge
+      const O = '#d04a1a', D = '#1e1f21', p = [Pm('box', D, [2.32, -1.3, 0], [0.1, 0.62, 1.2])];
+      p.push(Pm('box', O, [2.55, -1.32, 0], [0.06, 0.8, 2.5]), Pm('box', D, [2.6, -1.71, 0], [0.12, 0.06, 2.5]), Pm('box', HC.shade(O, -0.15), [2.5, -0.95, 0], [0.16, 0.06, 2.5]));
+      for (const s2 of [1, -1]) p.push(Pm('box', O, [3.05, -1.35, s2 * 1.24], [1.05, 0.76, 0.05]), Pm('box', D, [3.05, -1.72, s2 * 1.24], [1.0, 0.05, 0.08]));
+      for (const z of [-0.8, 0, 0.8]) p.push(Pm('box', HC.shade(O, -0.2), [2.5, -1.32, z], [0.08, 0.76, 0.06]));
+      return build(p);
+    },
+  };
+  const attGeo = (kind) => cache('att_' + kind, () => kind === 'bushhog' ? BIG_MODELS.bushhog() : SNOW_GEO[kind] ? SNOW_GEO[kind]() : skidArms(kind));
   const PAL_GEO = {
     base: () => build([...[-0.5, 0, 0.5].map((z) => Pm('box', '#a37f4f', [0, 0.06, z], [1.2, 0.1, 0.1])), ...[-0.48, -0.24, 0, 0.24, 0.48].map((x) => Pm('box', '#c49a63', [x, 0.13, 0], [0.12, 0.03, 1.1]))]),
     sod: () => build([...[0, 1, 2].flatMap((r) => [-0.38, -0.13, 0.13, 0.38].map((z) => Pm('cyl', r % 2 ? '#4f8f3a' : '#5a9a42', [0, 0.25 + r * 0.22, z], [0.22, 1.1, 0.22], [0, 0, Math.PI / 2])))]),
@@ -2853,7 +2945,7 @@
       }
       if (o.userData.drum) { const hu = a.on && S.units[a.on]; if (hu && hu.working) o.userData.drum.rotation.z -= 0.55; }
       const host = a.on && !a.on.startsWith('trailer:') && !a.on.startsWith('truck:') && unitObjs[a.on];
-      if (host && a.kind === 'forks' && host.userData.loaderArm && !host.userData.arms) { // clamp-on forks on the tractor's bucket
+      if (host && (a.kind === 'forks' || a.kind === 'pusher') && host.userData.loaderArm && !host.userData.arms) { // clamp-on forks on the tractor's bucket
         if (o.parent !== host.userData.loaderArm) host.userData.loaderArm.add(o);
         o.position.set((PLATE[0] + 0.62) * MM, (PLATE[1] - 0.05) * MM, 0); o.rotation.set(0, 0, 0);
         o.visible = !S.units[a.on].hidden;
@@ -2866,7 +2958,7 @@
       } else {
         if (o.parent !== scene) scene.add(o);
         const deck = a.on && a.on.startsWith('trailer:') ? S.trailers.find((t) => t.id === a.on.slice(8)) : null;
-        const lift = a.kind === 'bushhog' ? (host ? (S.units[a.on].armT || 0) * 0.5 * MM : 0) : 0.3 * MM;
+        const lift = a.kind === 'bushhog' ? (host ? (S.units[a.on].armT || 0) * 0.5 * MM : 0) : a.kind === 'truckplow' || a.kind === 'spreader' ? 0 : 0.3 * MM;
         const hu = host && S.units[a.on], hostDeck = hu ? S.trailers.find((t) => (hu.on ? t.id === hu.on.id : HC.Units.onDeck(t, hu))) : null; // riding with its tractor
         const dk = deck || (hostDeck && HC.RIDES(hu.kind) ? hostDeck : null), bed = a.on && a.on.startsWith('truck:') ? (HC.baseOf(a.on.slice(6)) === 'dually' ? 1.5 : 1.1) * MM : 0;
         o.position.set(U(a.x), gh(a.x, a.y) + (dk ? (DECK_H[dk.kind] || 0.6) * MM : 0) + bed + lift, U(a.y));
