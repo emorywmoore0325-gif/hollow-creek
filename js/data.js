@@ -726,3 +726,6 @@ HC.BLURB.tractor = 'Road-speed tractor: tows a trailer, runs the bush hog, loade
   help: 'A crew-cab service truck with a tool body, air compressor and a knuckle crane. Park it beside a machine and press E: it gets a broken-down machine running again, does the oil change and grease, and repairs wear at shop prices, right on the job. It winches stuck machines out of the mud, and tows any bumper-pull trailer (not goosenecks or the lowboy).',
 };
 HC.BLURB.servicetruck = 'Field service truck: repairs, oil and grease on site, winches machines out of the mud, tows bumper-pull trailers.';
+
+// ---------- seasons: snow on a lot to plow, salted pavement, fallen leaves to clean up ----------
+HC.T.SNOW = 15; HC.T.SALT = 16; HC.T.LEAVES = 17;

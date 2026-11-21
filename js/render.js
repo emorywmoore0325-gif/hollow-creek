@@ -58,6 +58,15 @@
     nightPools.count = pools.length; nightPools.frustumCulled = false; nightPools.renderOrder = 4; scene.add(nightPools);
     nightWorld = world;
   }
+  function repaintAll() {
+    const w = world;
+    for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) paintTile(x, y, true, 'base');
+    try { gctx.filter = `blur(${Math.round(G * 0.22)}px)`; gctx.drawImage(groundCanvas, 0, 0); gctx.filter = 'none'; } catch (e) { /* keep crisp */ }
+    for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) paintTile(x, y, true, 'detail');
+    drawRoads(-99, -99, groundCanvas.width + 99, groundCanvas.height + 99); paintDecals();
+    groundDirty = true; dirtyR = null; groundTex.needsUpdate = true; grassVer++;
+  }
+  function watchSeason() { const s2 = HC.season ? HC.season() : 'summer'; if (s2 !== seaNow) { const first = seaNow === null; seaNow = s2; if (!first || s2 !== 'summer') repaintAll(); } }
   // homes: a For Sale sign in front of each listed house, a mailbox with a flag at yours
   let homeGrp = null, homeSig = '';
   function syncHomes() {
@@ -71,8 +80,20 @@
       else parts.push(P('box', '#f4f1e8', [x - 0.55, y + 0.6, z], [0.07, 1.2, 0.07]), P('box', '#f4f1e8', [x, y + 1.15, z], [1.2, 0.06, 0.06]), P('box', '#ffffff', [x, y + 0.82, z], [0.9, 0.55, 0.05]), P('box', '#c8302a', [x, y + 0.98, z + 0.03], [0.8, 0.16, 0.01])); }
     homeGrp = model(build(parts), false, true); scene.add(homeGrp);
   }
+  // plowed snow: windrows and heaps on the ground, and the load riding in front of a pusher box
+  let snowMesh = null;
+  function syncSnow(S) {
+    const piles = S.lot.snowPiles || [], carried = Object.values(S.units).filter((u) => !u.hidden && u.blade > 0);
+    if (!piles.length && !carried.length) { if (snowMesh) snowMesh.visible = false; return; }
+    if (!snowMesh) { snowMesh = new THREE.InstancedMesh(GEO.ico, new THREE.MeshStandardMaterial({ color: '#f2f6fa', roughness: 0.9 }), 400); snowMesh.castShadow = true; snowMesh.receiveShadow = true; snowMesh.frustumCulled = false; scene.add(snowMesh); }
+    snowMesh.visible = true; let i = 0;
+    const put = (x, y, n, a) => { if (i >= 400) return; const r = 0.22 + Math.sqrt(n) * 0.11; _dummy.position.set(U(x), gh(x, y) + r * 0.18, U(y)); _dummy.rotation.set(0, a || 0, 0); _dummy.scale.set(r * 2.2, r * 0.9, r * 1.5); _dummy.updateMatrix(); snowMesh.setMatrixAt(i++, _dummy.matrix); };
+    for (const p of piles) if (inView(U(p.x), U(p.y), 4)) put(p.x, p.y, p.n, p.x * 0.01);
+    for (const u of carried) { const d = (u.r || 14) * 1.05 + 6; put(u.x + Math.cos(u.a) * d, u.y + Math.sin(u.a) * d, u.blade, -u.a); }
+    snowMesh.count = i; snowMesh.instanceMatrix.needsUpdate = true;
+  }
   function syncNight(S) {
-    syncHomes();
+    syncHomes(); watchSeason(); syncSnow(S);
     if (nightWorld !== world || !nightStatic) buildNightStatics();
     const n = nightLevel;
     nightStatic.material.opacity = n; nightPools.material.opacity = n * 0.7;
@@ -288,7 +309,8 @@
 
   function treeGeo(t) {
     const variant = Math.floor(t.seed) % 3;
-    return cache(`tree_${t.type}_${variant}_${t.maple || ''}`, () => {
+    const SEA = HC.season ? HC.season() : 'summer';
+    return cache(`tree_${t.type}_${variant}_${t.maple || ''}_${SEA}`, () => {
       const d = HC.TREES[t.type], r = rnd(variant * 77 + 3);
       const len = d.height, cr = d.crown, tr = (d.trunk / TS) * 0.9;
       const bark = t.type === 'pine' ? '#7a5434' : t.type === 'dead' ? '#9a8a76' : '#6e4e33';
@@ -299,6 +321,7 @@
         for (let i = 0; i < tiers; i++) {
           const f = i / (tiers - 1), y = len * (0.24 + f * 0.62), rad = cr * (1.9 - f * 1.45) * (0.92 + r() * 0.16);
           parts.push(P('cone', ['#21492f', '#28563a', '#2f6343', '#376f4b'][i % 4], [0, y, 0], [rad, len * 0.24, rad], [0, r() * 3, 0]));
+          if (SEA === 'winter') parts.push(P('cone', i % 2 ? '#f2f5f8' : '#e4eaf0', [0, y + len * 0.05, 0], [rad * 0.82, len * 0.12, rad * 0.82], [0, r() * 3, 0])); // snow on the boughs
         }
       } else if (t.type === 'dead') {
         parts.push(P('taper', bark, [0, len * 0.45, 0], [tr * 2, len * 0.9, tr * 2]));
@@ -308,14 +331,20 @@
         }
       } else if (t.type === 'sapling') {
         parts.push(P('taper', '#7a5a3a', [0, len * 0.3, 0], [0.12, len * 0.6, 0.12]));
-        parts.push(P('ico0', '#7fb54a', [0, len * 0.72, 0], [cr * 1.8, len * 0.5, cr * 1.8]));
+        if (SEA !== 'winter') parts.push(P('ico0', SEA === 'fall' ? '#d9a33a' : SEA === 'spring' ? '#9ad05a' : '#7fb54a', [0, len * 0.72, 0], [cr * 1.8, len * 0.5, cr * 1.8]));
       } else {
         // broadleaf: a trunk that forks into limbs, then many leaf clusters, darker underneath
-        const base = t.type === 'maple' ? t.maple : d.color;
+        const FALL = t.type === 'maple' ? ['#d9532a', '#e08a2a', '#c8402c'][variant] : ['#b8682e', '#a85a2a', '#c27a34'][variant];
+        const base = SEA === 'fall' ? FALL : SEA === 'spring' ? HC.shade(t.type === 'maple' ? t.maple : d.color, 0.1) : t.type === 'maple' ? t.maple : d.color;
         const dark = HC.shade(base, -0.22), mid = HC.shade(base, -0.08), lite = HC.shade(base, 0.12);
         const top = len - cr * 0.95;
         parts.push(P('taper', bark, [0, top * 0.45, 0], [tr * 2, top * 0.9, tr * 2]));
         for (let i = 0; i < 4; i++) { const a = i * 1.57 + r(); parts.push(P('cyl6', bark, [Math.cos(a) * cr * 0.28, top * 0.88, Math.sin(a) * cr * 0.28], [tr * 0.9, cr * 1.0, tr * 0.9], [Math.sin(a) * 0.75, 0, -Math.cos(a) * 0.75])); }
+        if (SEA === 'winter') { // bare limbs: twiggy branches, a dusting of snow
+          for (let i = 0; i < 9; i++) { const a = i * 0.7 + r(), h = top + (r() - 0.2) * cr * 0.8, l = cr * (0.6 + r() * 0.5);
+            parts.push(P('cyl6', bark, [Math.cos(a) * l * 0.4, h, Math.sin(a) * l * 0.4], [tr * 0.45, l, tr * 0.45], [Math.sin(a) * 1.0, 0, -Math.cos(a) * 1.0])); }
+          return build(parts);
+        }
         parts.push(P('ico', dark, [0, top - cr * 0.05, 0], [cr * 1.7, cr * 1.1, cr * 1.7]));
         const n = t.type === 'oak' ? 11 : 9;
         for (let i = 0; i < n; i++) {
@@ -1869,7 +1898,7 @@
   // ---------- ground texture ----------
   const TILE_COL = {
     [T.GRASS]: '#7cc24f', [T.TALL]: '#64a63e', [T.DIRT]: '#a5805a', [T.GRAVEL]: '#aea692', [T.ROAD]: '#9a978a',
-    [T.MULCH]: '#83502d', [T.SOD]: '#5fd14c', [T.PAVER]: '#d6c4a4', [T.BED]: '#5c3b25', [T.MOWED]: '#86cc58', [T.WATER]: '#6b6a4a', [T.FIELD]: '#6f8a3a', [T.QUARRY]: '#b0a58f', [T.DIRTROAD]: '#97815f', [T.ROCKFACE]: '#b39470',
+    [T.MULCH]: '#83502d', [T.SOD]: '#5fd14c', [T.PAVER]: '#d6c4a4', [T.BED]: '#5c3b25', [T.MOWED]: '#86cc58', [T.WATER]: '#6b6a4a', [T.FIELD]: '#6f8a3a', [T.QUARRY]: '#b0a58f', [T.DIRTROAD]: '#97815f', [T.ROCKFACE]: '#b39470', [T.SNOW]: '#f4f7fa', [T.SALT]: '#6c7076', [T.LEAVES]: '#9a7a3a',
   };
   const mix = (a, b, t) => { const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16); const ch = (sh) => Math.round(((A >> sh) & 255) * (1 - t) + ((B >> sh) & 255) * t); return '#' + ((1 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).slice(1); };
   const hash = (x, y, s = 0) => {
@@ -1884,10 +1913,22 @@
     if (t === T.GRASS || t === T.TALL || t === T.MOWED) {
       const n = 0.5 + 0.3 * Math.sin(x * 0.13 + 1.7) * Math.cos(y * 0.11) + 0.2 * Math.sin((x - y) * 0.31);
       const dry = 0.5 + 0.5 * Math.sin(x * 0.045 - y * 0.06);
+      const sea = seaNow || 'summer';
       const c1 = t === T.TALL ? '#5f8d36' : '#6c9f3f', c2 = t === T.TALL ? '#7f9c45' : '#8ab352';
       base = mix(c1, c2, n * 0.8 + dry * 0.2);
+      if (sea === 'spring') base = mix(base, '#7fd04c', 0.3);
+      if (sea === 'fall') base = mix(base, '#a89a4a', 0.45 + dry * 0.2);
+      if (sea === 'winter') base = mix(base, '#e8edf1', 0.86);
     }
+    if ((seaNow === 'winter') && (t === T.DIRT || t === T.FIELD || t === T.GRAVEL || t === T.MULCH || t === T.BED || t === T.DIRTROAD)) base = mix(base, '#e3e8ec', t === T.GRAVEL || t === T.DIRTROAD ? 0.55 : 0.75); // snow cover
     if (pass !== 'detail') { g.fillStyle = HC.shade(base, (hash(x, y) - 0.5) * 0.06); g.fillRect(px, py, G, G); }
+    if (seaNow === 'winter' && pass !== 'base' && (t === T.GRASS || t === T.MOWED || t === T.TALL)) { g.fillStyle = 'rgba(160,178,196,0.35)'; for (let k = 0; k < 4; k++) g.fillRect(px + Math.floor(hash(x, y, k + 40) * (G - 3)), py + Math.floor(hash(y, x, k + 41) * (G - 2)), 3, 1); if (t === T.TALL) { g.strokeStyle = 'rgba(150,140,110,0.6)'; g.beginPath(); g.moveTo(px + G / 2, py + G - 2); g.lineTo(px + G / 2 + 1, py + 4); g.stroke(); } return; } // under the snow: no grass detail
+    if (t === T.SNOW || t === T.SALT || t === T.LEAVES) {
+      if (t === T.SNOW) { g.fillStyle = '#f4f7fa'; g.fillRect(px, py, G, G); g.fillStyle = 'rgba(170,190,210,0.5)'; for (let k = 0; k < 5; k++) g.fillRect(px + Math.floor(hash(x, y, k) * (G - 4)), py + Math.floor(hash(y, x, k + 3) * (G - 2)), 4, 1); }
+      else if (t === T.SALT) { g.fillStyle = '#6c7076'; g.fillRect(px, py, G, G); g.fillStyle = '#e6e9ec'; for (let k = 0; k < 9; k++) g.fillRect(px + Math.floor(hash(x, y, k) * (G - 1)), py + Math.floor(hash(y, x, k + 5) * (G - 1)), 1, 1); }
+      else { g.fillStyle = mix('#6c9f3f', '#8a7a3a', 0.4); g.fillRect(px, py, G, G); for (let k = 0; k < 10; k++) { g.fillStyle = ['#c8642a', '#e0a030', '#a8442a', '#d8862e', '#8a5a2a'][Math.floor(hash(x, y, k + 60) * 5)]; g.fillRect(px + Math.floor(hash(x, y, k) * (G - 3)), py + Math.floor(hash(y, x, k + 7) * (G - 3)), 3, 2); } }
+      return;
+    }
     if (pass === 'base') return; // the first pass lays colour only, so tile edges can be blended before the detail goes on
     const dots = (col, n, sz = 2) => { g.fillStyle = col; for (let k = 0; k < n; k++) g.fillRect(px + Math.floor(hash(x, y, k) * (G - sz)), py + Math.floor(hash(y, x, k + 9) * (G - sz)), sz, sz); };
     switch (t) {
@@ -2522,6 +2563,7 @@
   }
   const inView = (x, z, r = 0) => Math.abs(x - cam.tx) < 46 + r && z - cam.tz < 36 + r && cam.tz - z < 56 + r;
 
+  let seaNow = null;
   function syncTrees(S) {
     const qa = new THREE.Quaternion(), axis = new THREE.Vector3();
     const au = S.units[S.active];
@@ -2540,6 +2582,7 @@
     }, (t, g) => {
       g.visible = t.state !== 'gone' && inView(U(t.x), U(t.y), 8);
       if (!g.visible) return;
+      if (g.userData.sea !== seaNow) { g.userData.sea = seaNow; const old = g.userData.m, m2 = model(treeGeo(t)); m2.rotation.y = t.seed; g.remove(old); g.add(m2); g.userData.m = m2; } // the season turned: new leaves (or none)
       g.position.set(U(t.x), g.userData.base, U(t.y));
       g.userData.ribbon.visible = !!t.marked && t.state === 'standing';
       let fade = false;
@@ -3119,6 +3162,27 @@
     else { hoseMesh.geometry.dispose(); hoseMesh.geometry = geo; }
     hoseMesh.visible = true;
   }
+  // snow gear: a V-plow or a snow pusher on the front, a salt spreader on the back
+  function winterGear(o, k) {
+    const C = HC.company, pl = (C.plow || {})[k] || '', sp = !!(C.spreader || {})[k], sig = pl + '|' + sp;
+    if (o.userData.wg === sig) return; o.userData.wg = sig;
+    if (o.userData.wgObj) { o.remove(o.userData.wgObj); o.userData.wgObj = null; }
+    if (!pl && !sp) return;
+    const g = o.userData.body && o.userData.body.geometry; if (!g) return;
+    if (!g.boundingBox) g.computeBoundingBox();
+    const bb = g.boundingBox, f = bb.max.x, b = bb.min.x, w = Math.min(1.1, bb.max.z - bb.min.z), parts = [];
+    if (pl === 'truckplow') {
+      const bw = Math.max(w * 1.15, 0.85);
+      for (const s of [1, -1]) parts.push(P('box', '#e8b21f', [f + 0.16 - 0.06, 0.2, s * bw * 0.26], [0.06, 0.3, bw * 0.55], [0, s * 0.32, 0.12]), P('box', '#1e1f21', [f + 0.18 - 0.06, 0.05, s * bw * 0.26], [0.07, 0.04, bw * 0.55], [0, s * 0.32, 0]));
+      parts.push(P('box', '#2a2b2d', [f + 0.02, 0.18, 0], [0.16, 0.08, 0.3]), P('box', '#2a2b2d', [f - 0.02, 0.28, 0], [0.06, 0.16, 0.5]), P('cyl', '#c9cdd2', [f + 0.06, 0.34, 0.12], [0.02, 0.18, 0.02], [0, 0, 1.2]));
+    } else if (pl === 'pusher') {
+      const bw = Math.max(w * 1.25, 0.8);
+      parts.push(P('box', '#c23b1e', [f + 0.12, 0.17, 0], [0.05, 0.28, bw]), P('box', '#1e1f21', [f + 0.13, 0.03, 0], [0.06, 0.05, bw]));
+      for (const s of [1, -1]) parts.push(P('box', '#c23b1e', [f + 0.02, 0.17, s * bw / 2], [0.25, 0.28, 0.03]));
+    }
+    if (sp) { parts.push(P('box', '#d8d2c4', [b - 0.08, 0.36, 0], [0.18, 0.18, 0.3]), P('cone', '#d8d2c4', [b - 0.08, 0.24, 0], [0.24, 0.12, 0.24], [Math.PI, 0, 0]), P('cyl', '#2a2b2d', [b - 0.08, 0.15, 0], [0.16, 0.02, 0.16]), P('box', '#2a2b2d', [b + 0.02, 0.3, 0], [0.06, 0.04, 0.16])); }
+    const m = model(build(parts)); o.add(m); o.userData.wgObj = m;
+  }
   function syncUnits(S) {
     syncHose(S);
     for (const k in unitObjs) if (!S.units[k]) { scene.remove(unitObjs[k]); delete unitObjs[k]; } // sold
@@ -3143,6 +3207,7 @@
       }
       o.position.set(U(u.x), gh(u.x, u.y) + lift, U(u.y));
       o.rotation.y = -u.a;
+      winterGear(o, k);
       if (o.userData.arms) {
         o.userData.arms.rotation.z = (u.armT || 0) * 0.6 + (u.working ? Math.sin(performance.now() / 40) * 0.01 : 0);
       }
@@ -3389,14 +3454,15 @@
     hemi.intensity = LIGHT.hemi * (1 - dark * 0.8); hemi.color.set('#cfe4ff').lerp(new THREE.Color('#5a6c9a'), night); hemi.groundColor.set('#4a5a32').lerp(new THREE.Color('#1c2230'), night);
     bodyMat.envMapIntensity = fadeMat.envMapIntensity = 0.75 * (1 - dark * 0.7);
     sun.color.set('#fff3d6').lerp(new THREE.Color('#ff9a55'), eve * (1 - night)).lerp(new THREE.Color('#8fa6e0'), night); // sunset, then cold moonlight
-    rain.visible = !!w.wet;
-    if (w.wet) {
+    rain.visible = !!w.wet || !!w.snow;
+    if (rain.material.color) rain.material.color.set(w.snow ? '#ffffff' : rain.userData.col || (rain.userData.col = '#' + rain.material.color.getHexString()));
+    if (w.wet || w.snow) {
       const arr = rain.geometry.attributes.position.array;
       rain.userData.drops.forEach((d, i) => {
-        d.y -= dt * 22; d.x -= dt * 3;
+        d.y -= dt * (w.snow ? 3.5 : 22); d.x -= dt * (w.snow ? 1.2 + Math.sin(d.z + d.y) * 0.8 : 3);
         if (d.y < 0) { d.y = 25; d.x = HC.rand(-30, 30); d.z = HC.rand(-30, 30); }
         const x = cam.tx + d.x, z = cam.tz + d.z;
-        arr.set([x, d.y, z, x - 0.12, d.y + 0.6, z], i * 6);
+        if (w.snow) arr.set([x, d.y, z, x + 0.06, d.y + 0.07, z], i * 6); else arr.set([x, d.y, z, x - 0.12, d.y + 0.6, z], i * 6);
       });
       rain.geometry.attributes.position.needsUpdate = true;
     }
@@ -3583,7 +3649,7 @@
     mowMesh.count = n; mowMesh.instanceMatrix.needsUpdate = true;
   }
   function syncGrass(S, dt) {
-    if (curQ === 'low') { if (grassMesh) grassMesh.visible = false; return; }
+    if (curQ === 'low' || seaNow === 'winter') { if (grassMesh) grassMesh.visible = false; return; } // tall grass is flattened under the snow
     if (!grassMesh) makeGrass();
     grassMesh.visible = true;
     grassUni.uTime.value += dt;

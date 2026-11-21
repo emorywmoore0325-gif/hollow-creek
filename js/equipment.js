@@ -926,7 +926,7 @@
     for (let s2 = -half; s2 <= half + 0.01; s2 += 3) {
       const x = cx - sn * s2, y = cy + c * s2, { tx, ty } = tileAt(x, y);
       const t = HC.Lot.tile(W, x, y);
-      if (t === T.GRASS) { HC.Game.setTile(tx, ty, T.MOWED); continue; }
+      if (t === T.GRASS || t === T.LEAVES) { HC.Game.setTile(tx, ty, T.MOWED); if (t === T.LEAVES && Math.random() < 0.3) HC.Game.dust(x, y, HC.pick(['#c8642a', '#e0a030', '#a8442a']), 2, 60); continue; } // a mulching deck eats leaves
       if (t !== T.TALL) continue;
       tall = true;
       const idx = ty * W.w + tx, bit = 1 << (Math.min(2, Math.floor((y - ty * TS) / (TS / 3))) * 3 + Math.min(2, Math.floor((x - tx * TS) / (TS / 3))));

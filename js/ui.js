@@ -347,6 +347,8 @@
       ['trailers', 'Trailers', `<div class="shop-grid">${trl}</div>`],
       ['tools', 'Chainsaws & attachments', `<p class="small cat-note">${C.owned.saw ? 'Buy another of your saw so more than one of you can cut (co-op). Switching to a different model trades in your saws (40% of what one cost).' : 'You need a chainsaw to fell and buck trees. Climb out of the truck (F), then G picks it up.'}</p><div class="shop-grid">${saws}${tools.map(card).join('')}</div>`],
       ['supply', 'Landscape supply', supplySec()],
+      ['winter', 'Snow gear', HC.WINTER ? `<p class="small cat-note">${esc(HC.seasonName())}, day ${HC.seasonDay()} of ${HC.SEASON_DAYS}. ${HC.season() === 'winter' ? 'Snow season: plowing and salting jobs are on the board.' : 'Winter brings snow plowing and salting jobs. Get set up before it comes.'} Rock salt is sold at the landscape supply pickup area (${HC.money(HC.SALT_PRICE)} a unit; drive the spreader truck there and press E).</p><div class="shop-grid">${Object.keys(HC.WINTER).map((id) => { const it = HC.WINTER[id], fits = Object.keys(C.owned).filter((k) => C.owned[k] && HC.EQUIP[k] && it.fits(k)), map = id === 'spreader' ? (C.spreader || {}) : (C.plow || {});
+        return `<article class="shop-item"><h4>${esc(it.name)}</h4><p>${esc(it.blurb)} ${HC.money(it.price)}.</p>${fits.length ? fits.map((k) => map[k] ? `<span class="chip ok">${esc(HC.EQUIP[k].short)}: ${map[k] === id || id === 'spreader' ? 'fitted' : 'has a ' + (map[k] === 'pusher' ? 'pusher' : 'plow')}</span>` : `<button class="btn sm buy-winter" data-id="${id}" data-k="${k}" ${C.money < it.price ? 'disabled' : ''}>Fit to ${esc(HC.EQUIP[k].short)}</button>`).join(' ') : '<span class="chip no">You don\'t own anything it fits</span>'}</article>`; }).join('')}</div>` : ''],
       ['upgrades', 'Upgrades', `<div class="shop-grid">${up}</div>`],
       ['property', 'Homes & yards', yards ? `<div class="shop-grid">${yards}</div>` : '<p class="empty">You own every yard.</p>'],
       ['crew', 'Hire help', `<div class="shop-grid">${keys.filter((k) => HC.EQUIP[k].move === 'walk').map(card).join('')}${crew}</div>`],
@@ -511,6 +513,7 @@
       HC.Audio.cash(); HC.Save.save(); buildHud();
       return `${HC.EQUIP[key].name} bought and parked at your home yard.`;
     },
+    '.buy-winter'(d) { return HC.buyWinter(d.id, d.k); },
     '.buy-home'(d) { return HC.Homes.buy(d.id); },
     '.buy-exp'() {
       const C = HC.company, lvl = C.yardLevel || 1, price = { 2: 12000, 3: 22000 }[lvl + 1];
@@ -613,7 +616,7 @@
     const act = (sel, close) => bind(sel, (el) => doAct(sel, { ...el.dataset }, close));
     act('.take', true); act('.counter'); act('#b-invoice', true); act('#b-switch', true);
     bind('.bid', (el) => { const inp = screen.querySelector(`.bid-in[data-id="${el.dataset.id}"]`); doAct('.bid', { id: el.dataset.id, amt: inp ? inp.value : 0 }); });
-    for (const sel of ['.buy-used', '.buy-eq', '.buy-tr', '.buy-more', '.buy-att', '.buy-pal', '.buy-mulch', '.buy-exp', '.buy-home', '.buy-quarry', '.buy-yard', '.buy-saw', '.buy-saw2', '.svc', '.wear-oh', '.wear-haul', '.wear-scrap', '.buy-up', '.hire', '.fire', '.repair', '#b-repair-all', '#b-fuel-all']) act(sel);
+    for (const sel of ['.buy-used', '.buy-eq', '.buy-tr', '.buy-more', '.buy-att', '.buy-pal', '.buy-mulch', '.buy-exp', '.buy-home', '.buy-winter', '.buy-quarry', '.buy-yard', '.buy-saw', '.buy-saw2', '.svc', '.wear-oh', '.wear-haul', '.wear-scrap', '.buy-up', '.hire', '.fire', '.repair', '#b-repair-all', '#b-fuel-all']) act(sel);
     for (const sel of ['.sell-u', '.sell-t', '.sell-a']) bind(sel, (el) => armSell(el, () => { doAct(sel, { ...el.dataset }); return false; }));
   }
   function closePhone() { hide(); pauseWorld(false); }
@@ -678,7 +681,7 @@
     $('h-money').classList.toggle('neg', C.money < 0);
     $('h-day').textContent = `Day ${C.day}`;
     $('h-clock').textContent = HC.clock(S.time);
-    $('h-weather').textContent = S.weather.name;
+    $('h-weather').textContent = HC.seasonName ? `${HC.seasonName()} · ${S.weather.name}` : S.weather.name;
     const calls = (C.board || []).filter((j) => !j.lost && !(j.tier > HC.Co.tier())).length;
     $('h-calls').textContent = calls ? ` · ${calls}` : '';
     const guest = HC.Net && HC.Net.role === 'guest';
