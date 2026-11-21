@@ -44,7 +44,7 @@
     }
     const u = S.units[S.active];
     if (!u) return;
-    if (k === 'r') { if (HC.Units.isTruck(u.kind)) HC.Units.hitchToggle(u, S); else HC.Game.toast('Get in a truck to hitch or drop a trailer.'); }
+    if (k === 'r') { if (HC.Units.isTruck(u.kind) || (HC.EQUIP[u.kind] && HC.EQUIP[u.kind].move !== 'walk')) HC.Units.hitchToggle(u, S); else HC.Game.toast('Get in a truck to hitch or drop a trailer.'); } // machines use R to pull a stuck one out
     if (k === 'x') HC.Game.dumpLoad(u);
     if (k === 'f') HC.Game.climb();
     if (k === 'g') { if (HC.EQUIP[u.kind].move === 'walk') HC.Units.sawGrab(u, S); else HC.Game.toast('Climb out (F) to handle the chainsaw.'); }

@@ -715,3 +715,11 @@ HC.BLURB.loader = 'Rubber-tired loader: drives to the job on its own, scoops 16 
 Object.assign(HC.EQUIP.tractor, { price: 19500, cap: 9, speed: 92,
   help: 'Cab tractor: drives to the job at road speed and tows a dump or equipment trailer behind it, runs the bush hog off its PTO (the only machine that can), and its front-end loader scoops 9 pieces (clamp-on forks lift pallets). G lowers the bucket, E scoops, T raises it and E dumps into a trailer or truck. Back up square to the bush hog and press Q to hook it on; hold left click to cut.' });
 HC.BLURB.tractor = 'Road-speed tractor: tows a trailer, runs the bush hog, loader scoops 9, takes pallet forks.';
+
+// the field service truck (its work is in realism.js)
+  HC.EQUIP.servicetruck = {
+  name: 'Service Truck (crane, compressor, tool body)', short: 'Service', move: 'car', speed: 140, turn: 2.0, r: 18, mass: 6,
+  fuelCap: 150, fuelUse: 0.35, wear: 0.02, price: 39000, repair: 9, tows: true, hitchOff: 40, wheelbase: 4.4, service: true,
+  help: 'A crew-cab service truck with a tool body, air compressor and a knuckle crane. Park it beside a machine and press E: it gets a broken-down machine running again, does the oil change and grease, and repairs wear at shop prices, right on the job. It winches stuck machines out of the mud, and tows any bumper-pull trailer (not goosenecks or the lowboy).',
+};
+HC.BLURB.servicetruck = 'Field service truck: repairs, oil and grease on site, winches machines out of the mud, tows bumper-pull trailers.';

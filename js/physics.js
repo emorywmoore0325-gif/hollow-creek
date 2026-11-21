@@ -94,11 +94,34 @@
     }
   }
 
+  // loose scoops of mulch, chips or firewood that end up together merge into one heap (and join a heap of the same stuff nearby)
+  const PRODUCT = { mulch: 'mulch', chips: 'chips', firewood: 'firewood' };
+  let groupT = 0;
+  function group(S) {
+    const items = S.lot.items, loose = items.filter((i) => PRODUCT[i.kind] && !(i.z > 0.05));
+    if (!loose.length) return;
+    for (const it of loose) {
+      if (!items.includes(it)) continue;
+      const flag = PRODUCT[it.kind];
+      let pile = items.find((q) => q.kind === 'pile' && q[flag] && HC.dist(q.x, q.y, it.x, it.y) < 22 + 8 * (q.size || 1));
+      if (!pile) {
+        const mates = loose.filter((q) => q !== it && q.kind === it.kind && items.includes(q) && HC.dist(q.x, q.y, it.x, it.y) < 24);
+        if (!mates.length) continue;
+        pile = { id: HC.uid(), kind: 'pile', [flag]: true, x: it.x, y: it.y, a: 0, size: 0.6, content: [] };
+        items.push(pile);
+        for (const m of mates) { items.splice(items.indexOf(m), 1); pile.content.push(m); }
+      }
+      items.splice(items.indexOf(it), 1); pile.content.push(it);
+      pile.size = 0.6 + Math.sqrt(pile.content.length) * 0.28;
+    }
+  }
+
   const baseUpd = HC.Game.update;
   HC.Game.update = function (dt) {
     baseUpd.apply(this, arguments);
     const S = HC.session;
     if (!S || S.preview || S.paused || (HC.Net && HC.Net.role === 'guest')) return;
     step(S, Math.min(dt, 0.05));
+    groupT += dt; if (groupT > 0.5) { groupT = 0; group(S); }
   };
 })();

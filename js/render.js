@@ -11,6 +11,62 @@
   const cam = { tx: 0, tz: 0, dist: 20, pitch: 0.92, yaw: -Math.PI / 2 };
   const meshes = { trees: new Map(), items: new Map(), stumps: new Map(), bushes: new Map(), plants: new Map(), houses: new Map() };
   let fenceMesh = null, poleMesh = null, wireLines = null, unitObjs = {}, trailerObjs = {};
+  let workLight = null, nightLevel = 0;
+  // ---------- night: glowing lamps everywhere (streetlights, yard floods, house windows, every machine's head and tail lights) ----------
+  let nightStatic = null, nightPools = null, nightUnits = null, glowTex = null, nightWorld = null;
+  function makeGlowTex() {
+    const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,0.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); return t;
+  }
+  function glowPoints(n, size) {
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3)); geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size, map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true, sizeAttenuation: true, opacity: 0 }));
+    pts.frustumCulled = false; pts.renderOrder = 5; scene.add(pts); return pts;
+  }
+  function buildNightStatics() {
+    if (!glowTex) glowTex = makeGlowTex();
+    if (nightStatic) { scene.remove(nightStatic); scene.remove(nightPools); }
+    const lamps = [], pools = [], warm = [1, 0.82, 0.55], cool = [0.85, 0.9, 1], win = [1, 0.75, 0.4];
+    world.poles.forEach((p, i) => { if (i % 2) return; const y = gh(p.x, p.y); lamps.push([U(p.x), y + 3.05, U(p.y) + 0.45, warm, 1.6]); pools.push([U(p.x), y + 0.04, U(p.y) + 0.45, 2.6]); }); // streetlights on every other pole
+    for (const yd of world.yards || []) for (const [fx, fy] of [[0.12, 0.15], [0.88, 0.15], [0.12, 0.85], [0.88, 0.85]]) { const x = yd.x + yd.w * fx, z = yd.y + yd.h * fy, y = gh(x, z); lamps.push([U(x), y + 2.4, U(z), cool, 2.0]); pools.push([U(x), y + 0.04, U(z), 3.4]); } // yard floods
+    for (const s2 of [world.sawmill, world.dumpSite, world.supply, world.quarry]) if (s2) { const x = s2.x + s2.w / 2, z = s2.y + s2.h * 0.6, y = gh(x, z); lamps.push([U(x), y + 2.6, U(z), cool, 2.2]); pools.push([U(x), y + 0.04, U(z), 4]); }
+    for (const h of world.houses) { if (h.yard) continue; const fz = h.y + h.h + 1, y = gh(h.x + h.w / 2, fz); for (const fx of [0.28, 0.72]) lamps.push([U(h.x + h.w * fx), y + 0.42, U(fz), win, 0.7]); lamps.push([U(h.x + h.w * 0.5), y + 0.62, U(fz) + 0.05, warm, 0.5]); } // windows and a porch light
+    const n = lamps.length;
+    nightStatic = glowPoints(n, 1.4);
+    const pa = nightStatic.geometry.attributes.position.array, ca = nightStatic.geometry.attributes.color.array;
+    lamps.forEach(([x, y, z, c], i) => { pa.set([x, y, z], i * 3); ca.set(c, i * 3); });
+    nightStatic.geometry.attributes.position.needsUpdate = true; nightStatic.geometry.attributes.color.needsUpdate = true;
+    // pools of light on the ground under the lamps
+    const pg = new THREE.PlaneGeometry(1, 1); pg.rotateX(-Math.PI / 2);
+    nightPools = new THREE.InstancedMesh(pg, new THREE.MeshBasicMaterial({ map: glowTex, color: '#ffd9a0', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }), Math.max(1, pools.length));
+    pools.forEach(([x, y, z, r], i) => { _dummy.position.set(x, y, z); _dummy.rotation.set(0, 0, 0); _dummy.scale.set(r * 2, 1, r * 2); _dummy.updateMatrix(); nightPools.setMatrixAt(i, _dummy.matrix); });
+    nightPools.count = pools.length; nightPools.frustumCulled = false; nightPools.renderOrder = 4; scene.add(nightPools);
+    nightWorld = world;
+  }
+  function syncNight(S) {
+    if (nightWorld !== world || !nightStatic) buildNightStatics();
+    const n = nightLevel;
+    nightStatic.material.opacity = n; nightPools.material.opacity = n * 0.55;
+    nightStatic.visible = nightPools.visible = n > 0.02;
+    if (!nightUnits) nightUnits = glowPoints(400, 0.9);
+    nightUnits.visible = n > 0.02; nightUnits.material.opacity = Math.min(1, n * 1.2);
+    if (!nightUnits.visible) return;
+    const pa = nightUnits.geometry.attributes.position.array, ca = nightUnits.geometry.attributes.color.array; let i = 0;
+    const put = (x, y, z, c) => { if (i >= 400) return; pa[i * 3] = x; pa[i * 3 + 1] = y; pa[i * 3 + 2] = z; ca[i * 3] = c[0]; ca[i * 3 + 1] = c[1]; ca[i * 3 + 2] = c[2]; i++; };
+    const all = Object.values(S.units).concat(Object.values(S.remote || {}));
+    for (const u of all) {
+      if (!u || u.hidden || !HC.EQUIP[u.kind] || HC.EQUIP[u.kind].move === 'walk' || HC.EQUIP[u.kind].move === 'tow') continue;
+      if (!inView(U(u.x), U(u.y), 6)) continue;
+      const c = Math.cos(u.a), s = Math.sin(u.a), f = (u.r || 14) * 1.05, w = (u.r || 14) * 0.5, y = gh(u.x, u.y) + 0.32;
+      for (const sd of [-1, 1]) { const hx = u.x + c * f - s * w * sd, hy = u.y + s * f + c * w * sd; put(U(hx), y, U(hy), [1, 0.95, 0.8]); }
+      for (const sd of [-1, 1]) { const tx = u.x - c * f * 0.95 - s * w * sd, ty = u.y - s * f * 0.95 + c * w * sd; put(U(tx), y - 0.04, U(ty), [1, 0.12, 0.08]); }
+      const roof = HC.Units.isTruck(u.kind) || HC.EQUIP[HC.baseOf(u.kind)].heavy; if (roof) put(U(u.x), y + 0.55, U(u.y), [1, 0.62, 0.12]); // amber beacon / cab light
+    }
+    for (const t of S.trailers) { if (!t.hitch || HC.Units.isBed(t) || !inView(U(t.x), U(t.y), 6)) continue; const c = Math.cos(t.a), s = Math.sin(t.a), b = U((HC.TRAILERS[t.kind] || {}).len || 36) * TS * 0.5 + 4, y = gh(t.x, t.y) + 0.25; for (const sd of [-1, 1]) put(U(t.x - c * b - s * 10 * sd), y, U(t.y - s * b + c * 10 * sd), [1, 0.12, 0.08]); }
+    for (let j = i; j < 400; j++) pa[j * 3 + 1] = -50;
+    nightUnits.geometry.attributes.position.needsUpdate = true; nightUnits.geometry.attributes.color.needsUpdate = true;
+  }
   let aimMesh = null, landMesh = null, zoneLine = null, zoneSig = '', targetGroup = null, targetSig = '', beacon = null, marker = null;
   let points = null, rain = null, saleSign = null, shedModels = [];
   let frameNo = 0;
@@ -1058,6 +1114,18 @@
         Pm('box', COL.frame, [-1.02, 1.12, 0], [0.06, 0.06, 0.62]), Pm('box', yel, [-0.98, 1.0, 0], [0.12, 0.18, 0.3])];
       return build(p);
     },
+    splitter: () => {
+      const b = '#1c1d1f', o = '#e8821a', L = HC.TRAILERS.splitter.len / 32 * 3, X = Math.PI / 2;
+      return build([...wheelM(0, 0.3, 0.55, 0.3, 0.2, '#b9bdc2'), ...wheelM(0, 0.3, -0.55, 0.3, 0.2, '#b9bdc2'), Pm('cyl', '#3a3b3d', [0, 0.3, 0], [0.08, 1.1, 0.08], [X, 0, 0]),
+        ...[1, -1].map((s) => Pm('box', b, [0, 0.5, s * 0.48], [0.45, 0.06, 0.18])), // fenders
+        Pm('box', b, [0.1, 0.82, 0], [2.1, 0.16, 0.16]), Pm('box', b, [0.1, 0.92, 0], [2.1, 0.03, 0.3]), // I-beam
+        Pm('cyl', o, [0.62, 1.08, 0], [0.2, 0.95, 0.2], [0, 0, X]), Pm('cyl', COL.chrome, [0.02, 1.08, 0], [0.09, 0.35, 0.09], [0, 0, X]), Pm('box', b, [-0.2, 1.08, 0], [0.12, 0.26, 0.28]), // ram and push plate
+        Pm('box', '#e6e6e6', [0.62, 1.08, 0.105], [0.42, 0.08, 0.01]), // "30 TON"
+        Pm('box', b, [-0.92, 1.12, 0], [0.12, 0.55, 0.3]), Pm('box', COL.steel, [-0.83, 1.08, 0], [0.12, 0.3, 0.04]), Pm('box', b, [-0.95, 0.98, 0], [0.3, 0.05, 0.6]), // wedge and log cradle
+        Pm('box', '#2a2c2f', [0.2, 0.5, 0], [0.42, 0.3, 0.32]), Pm('cyl', '#c22', [0.2, 0.68, 0.1], [0.12, 0.08, 0.12]), Pm('box', '#3a3b3d', [0.45, 0.6, -0.1], [0.12, 0.14, 0.14]), // engine and pump
+        Pm('box', b, [(0.9 + L) / 2, 0.42, 0], [L - 0.9, 0.1, 0.1]), Pm('box', COL.steel, [L, 0.42, 0], [0.2, 0.1, 0.14]), Pm('cyl', '#9aa0a6', [L - 0.25, 0.3, 0.12], [0.02, 0.35, 0.02], [0.5, 0, 0.6]), // tongue, coupler, chain
+        Pm('box', b, [0.95, 0.28, 0], [0.06, 0.4, 0.06]), Pm('box', b, [0.95, 0.08, 0], [0.18, 0.03, 0.18])]); // stand
+    },
     chipper: () => chipperM({ color: '#f2c200', len: 4.6, cpl: HC.TRAILERS.chipper.len, w: 1.6, axles: [0], eng: [0.95, 1.3], disc: -0.25, dr: 0.62, inf: -1.3, iw: 1.3, ch: 2.4 }),
     mower: () => ztMower({ col: '#2f7d32', dark: '#1f5c24', rim: '#f2c200', deck: 1.22, R: 0.34, Wt: 0.27, track: 0.56, len: 0.85, tan: '#2a2c2f' }),
   };
@@ -1318,6 +1386,25 @@
       Pm('box', '#2a2b2d', [-3.05, 1.2, 0], [1.2, 0.15, 1.5]), Pm('box', COL.black, [3.1, 1.15, 1.2], [1.3, 0.12, 0.3]), Pm('box', COL.black, [3.1, 1.15, -1.2], [1.3, 0.12, 0.3]),
       ...wheelM(3.0, 0.52, 1.0, 0.52, 0.32), ...wheelM(3.0, 0.52, -1.0, 0.52, 0.32),
       ...[-2.5, -3.75].flatMap((x) => [...wheelM(x, 0.52, 0.86, 0.52, 0.27), ...wheelM(x, 0.52, -0.86, 0.52, 0.27), ...wheelM(x, 0.52, 1.15, 0.52, 0.27), ...wheelM(x, 0.52, -1.15, 0.52, 0.27)])]),
+    servicetruck: () => { // after the reference: white crew cab, a full-length tool body with compartment doors, a compressor and a folded knuckle crane
+      const W = '#f2f2ef', Wd = '#d8d9d5', g = '#9aa0a6', X = Math.PI / 2;
+      const seg = (c, a2, b2, t, w, z) => { const dx = b2[0] - a2[0], dy = b2[1] - a2[1]; return Pm('box', c, [(a2[0] + b2[0]) / 2, (a2[1] + b2[1]) / 2, z], [Math.hypot(dx, dy), t, w], [0, 0, Math.atan2(dy, dx)]); };
+      const p = [Pm('box', COL.black, [-0.3, 0.82, 0], [7.0, 0.28, 0.95]), ...truckCabM(3.5, W, { hood: 1.45, cabL: 2.1, w: 2.3, hy: 1.2, cy: 1.25, ch: 1.32 }),
+        Pm('box', W, [-1.55, 1.42, 0], [3.9, 1.05, 2.36]), Pm('box', Wd, [-1.55, 1.97, 0], [3.95, 0.06, 2.4]), Pm('box', '#3a3d42', [-1.55, 0.98, 0], [3.9, 0.12, 1.2]), // tool body, top deck, bed floor
+        ...[1, -1].flatMap((s2) => [...[-3.05, -2.25, -1.45, -0.65, 0.15].map((x) => Pm('box', g, [x, 1.42, s2 * 1.185], [0.02, 0.95, 0.01])), // compartment seams
+          ...[-2.65, -1.85, -1.05, -0.25].map((x) => Pm('box', '#c9ced3', [x, 1.55, s2 * 1.19], [0.14, 0.05, 0.02])), // handles
+          Pm('box', W, [-1.9, 0.98, s2 * 1.06], [1.3, 0.14, 0.3]), Pm('box', '#c42a24', [-3.48, 1.6, s2 * 0.95], [0.03, 0.18, 0.16])]), // rear fenders, tail lights
+        Pm('box', '#2a2c2f', [-3.5, 1.42, 0], [0.04, 0.9, 1.6]), Pm('box', COL.chrome, [-3.62, 0.85, 0], [0.18, 0.18, 2.3]), // tailgate, rear bumper
+        Pm('box', W, [0.0, 2.3, -0.65], [0.85, 0.62, 0.85]), Pm('box', '#3a3d42', [0.0, 2.3, -0.22], [0.7, 0.45, 0.02]), // air compressor with a grille
+        // the knuckle crane on the rear corner, folded forward over the body
+        Pm('cyl', W, [-3.0, 2.25, 0.75], [0.36, 0.5, 0.36]), Pm('cyl', '#2a2c2f', [-3.0, 2.02, 0.75], [0.5, 0.06, 0.5]),
+        seg(W, [-3.0, 2.4], [-2.75, 3.05], 0.22, 0.22, 0.75), seg(W, [-2.75, 3.05], [-0.6, 2.72], 0.18, 0.18, 0.75), seg(COL.chrome, [-2.95, 2.45], [-2.3, 2.95], 0.07, 0.07, 0.62),
+        Pm('box', '#2a2c2f', [-0.55, 2.55, 0.75], [0.12, 0.28, 0.14]), Pm('cyl', '#3a3b3d', [-0.45, 2.38, 0.75], [0.03, 0.3, 0.03]),
+        ...[1, -1].map((s2) => Pm('box', COL.amber, [0.9, 2.62, s2 * 0.75], [0.12, 0.07, 0.14])), // roof markers
+        ...wheelM(2.65, 0.5, 0.98, 0.5, 0.3), ...wheelM(2.65, 0.5, -0.98, 0.5, 0.3),
+        ...wheelM(-1.9, 0.5, 0.84, 0.5, 0.26), ...wheelM(-1.9, 0.5, -0.84, 0.5, 0.26), ...wheelM(-1.9, 0.5, 1.12, 0.5, 0.26), ...wheelM(-1.9, 0.5, -1.12, 0.5, 0.26)];
+      return build(p);
+    },
     fueltruck: () => { // medium-duty fuel & service truck: polished elliptical tank, walkway, hose reel cabinet
       const red = '#c8231d', tank = '#c9cdd2', X = Math.PI / 2;
       const p = [Pm('box', COL.black, [-0.3, 0.85, 0], [7.4, 0.3, 0.95]), ...truckCabM(3.7, red, { hood: 1.4, cabL: 1.6, w: 2.3, hy: 1.25, cy: 1.3, ch: 1.35 }),
@@ -1515,7 +1602,10 @@
     loaderArms: () => { // lift arms, tilt cylinder and a 3 yd bucket; origin at the arm pivot
       const y = COL.cat, X = Math.PI / 2, p = [];
       for (const s of [1, -1]) p.push(Pm('box', y, [1.25, -0.55, s * 0.62], [2.85, 0.3, 0.16], [0, 0, -0.42]), Pm('cyl', COL.chrome, [0.7, -0.75, s * 0.62], [0.12, 1.3, 0.12], [0, 0, -1.1]));
-      p.push(Pm('box', y, [1.3, -0.5, 0], [0.25, 0.25, 1.25]), Pm('cyl', COL.chrome, [1.2, 0.15, 0], [0.13, 1.5, 0.13], [0, 0, -1.3]));
+      p.push(Pm('box', y, [1.3, -0.5, 0], [0.25, 0.25, 1.25]), // cross tube
+        // Z-bar tilt linkage tucked between the arms: tilt cylinder up to a bellcrank, then a link down to the bucket
+        Pm('cyl', y, [0.62, -0.12, 0], [0.2, 0.75, 0.2], [0, 0, -1.92]), Pm('cyl', COL.chrome, [1.02, -0.27, 0], [0.11, 0.6, 0.11], [0, 0, -1.92]),
+        Pm('box', y, [1.32, -0.45, 0], [0.22, 0.6, 0.2], [0, 0, 0.25]), Pm('box', y, [1.95, -0.72, 0], [1.2, 0.14, 0.16], [0, 0, -0.08]));
       // bucket
       p.push(Pm('box', '#3f4246', [2.95, -1.45, 0], [0.9, 0.08, 2.9]), Pm('box', '#4a4d52', [2.55, -1.0, 0], [0.12, 1.0, 2.9], [0, 0, 0.15]),
         Pm('hshell', '#4a4d52', [2.85, -1.05, 0], [0.9, 0.9, 2.9], [0, 0, X]),
@@ -2230,7 +2320,7 @@
       parts.push(P('box', '#5a3a26', [sx - 0.9, sy + 0.6, sz], [0.12, 1.2, 0.12]), P('box', '#5a3a26', [sx + 0.9, sy + 0.6, sz], [0.12, 1.2, 0.12]), P('box', '#2f6b3a', [sx, sy + 1.1, sz], [2.2, 0.6, 0.08]));
     }
     for (const yd of world.yards) { // entrance sign
-      const x = U(yd.x + yd.w / 2) + 3.2, z = U(yd.y + yd.h) + 0.6, y = gh(yd.x + yd.w / 2, yd.y + yd.h);
+      const x = U(yd.x) + 1.7, z = U(yd.y + yd.h) - 0.5, y = gh(yd.x + 54, yd.y + yd.h); // out at the front corner, clear of the drive
       parts.push(P('box', '#5a3a26', [x - 0.9, y + 0.6, z], [0.12, 1.2, 0.12]), P('box', '#5a3a26', [x + 0.9, y + 0.6, z], [0.12, 1.2, 0.12]),
         P('box', yd.id === 'hq' ? '#f07a22' : '#3e7a4a', [x, y + 1.1, z], [2.2, 0.6, 0.08]));
     }
@@ -2241,18 +2331,39 @@
       m.rotation.y = b.seed;
       worldGroup.add(m);
     }
-    // guard rails where roads cross the creek
+    // bridges where roads cross the creek: a flat concrete deck with painted lines, deep side beams, parapet walls with a steel rail, abutments and a pier
+    const bparts = [];
     for (const r of world.roads) {
-      for (let k = 1; k < r.pts.length; k += 3) {
-        const [x, y] = r.pts[k], i = Math.floor(y) * world.w + Math.floor(x);
-        if (!(world.waterDist[i] < 2.4)) continue;
-        const [px, py] = r.pts[k - 1], a = Math.atan2(y - py, x - px);
-        for (const s of [-1, 1]) {
-          const rx = x + Math.cos(a + Math.PI / 2) * 1.45 * s, rz = y + Math.sin(a + Math.PI / 2) * 1.45 * s;
-          parts.push(P('box', '#e8e8e8', [rx, 0.42, rz], [0.08, 0.6, 0.08]), P('box', '#c9ccd1', [rx, 0.62, rz], [0.85, 0.12, 0.05], [0, -a, 0]));
+      const runs = []; let run = null;
+      r.pts.forEach(([x, y], k) => { const i = Math.floor(y) * world.w + Math.floor(x); if (world.waterDist[i] < 2.4) { if (!run) runs.push(run = [k, k]); run[1] = k; } else run = null; });
+      for (const [k0, k1] of runs) {
+        const a0 = Math.max(1, k0 - 8), a1 = Math.min(r.pts.length - 1, k1 + 8), top = 0.105, W = 1.42;
+        let step = 0;
+        for (let k = a0; k < a1; k += 2) {
+          const k2 = Math.min(a1, k + 2), [x1, y1] = r.pts[k], [x2, y2] = r.pts[k2], L = Math.hypot(x2 - x1, y2 - y1) + 0.1, a = Math.atan2(y2 - y1, x2 - x1), mx = (x1 + x2) / 2, mz = (y1 + y2) / 2, nx = -Math.sin(a), nz = Math.cos(a), rot = [0, -a, 0];
+          bparts.push(P('box', '#a9a59a', [mx, top - 0.18, mz], [L, 0.36, W * 2 + 0.3], rot)); // concrete slab and side beams (seen from the creek)
+          bparts.push(P('box', '#8c887e', [mx, top - 0.44, mz], [L, 0.12, W * 2 - 0.4], rot)); // girder shadow line under the slab
+          for (const sd of [-1, 1]) {
+            const ex = mx + nx * (W - 0.12) * sd, ez = mz + nz * (W - 0.12) * sd, wx = mx + nx * (W + 0.05) * sd, wz = mz + nz * (W + 0.05) * sd;
+            bparts.push(P('box', '#bdb9ae', [wx, top + 0.17, wz], [L, 0.32, 0.2], rot)); // parapet wall
+            bparts.push(P('box', '#d2cec4', [wx, top + 0.34, wz], [L, 0.03, 0.24], rot)); // coping
+            bparts.push(P('box', '#8f969e', [wx, top + 0.52, wz], [L, 0.05, 0.06], rot)); // steel rail
+            if (step % 3 === 0) bparts.push(P('box', '#8f969e', [wx, top + 0.44, wz], [0.05, 0.18, 0.05], rot)); // rail post
+          }
+          step++;
         }
+        // abutments at both ends: concrete wing walls splaying into the banks
+        for (const [k, dir] of [[a0, 1], [a1, -1]]) {
+          const [x, y] = r.pts[k], [px, py] = r.pts[Math.max(0, Math.min(r.pts.length - 1, k + dir))], a = Math.atan2(py - y, px - x), nx = -Math.sin(a), nz = Math.cos(a);
+          for (const sd of [-1, 1]) bparts.push(P('box', '#a29e93', [x + nx * (W + 0.35) * sd, top - 0.05, y + nz * (W + 0.35) * sd], [0.9, 0.55, 0.22], [0, -a + 0.5 * sd * dir, 0]));
+          bparts.push(P('box', '#8a867c', [x + Math.cos(a) * 0.15, top - 0.3, y + Math.sin(a) * 0.15], [0.3, 0.5, W * 2 + 0.4], [0, -a, 0]));
+        }
+        // a pier in the middle of the creek
+        const km = Math.round((k0 + k1) / 2), [cx, cy] = r.pts[km], [qx, qy] = r.pts[km + 1], am = Math.atan2(qy - cy, qx - cx);
+        bparts.push(P('box', '#9a968b', [cx, top - 0.55, cy], [0.35, 0.6, W * 2 - 0.2], [0, -am, 0]));
       }
     }
+    if (bparts.length) worldGroup.add(model(build(bparts), false, false));
     if (parts.length) { const m = model(build(parts)); worldGroup.add(m); }
     const ridge = world.yards.find((y) => y.id === 'ridge');
     if (ridge) {
@@ -2697,7 +2808,13 @@
     const bulk = cargo.filter((c) => c.kind === 'mulch' || c.kind === 'chips');
     if (bulk.length) { // a mound of mulch or chips
       const col = bulk.every((c) => c.kind === 'chips') ? '#c9a26a' : '#3a2618', g = bulk.length / Math.max(1, cap), h = 0.12 + g * 1.1;
-      p.push(Pm('box', col, [mid, fy + h / 2, 0], [L * 0.98, h, hw * 1.96]), Pm('sph', HC.shade(col, 0.05), [mid, fy + h, 0], [L * 0.9, 0.25 + g * 0.6, hw * 1.8]));
+      p.push(Pm('box', col, [mid, fy + h / 2, 0], [L * 0.98, h, hw * 1.96]));
+      // a lumpy heaped top: overlapping low mounds, then loose clumps scattered over them (no smooth dome)
+      const rr = rnd(bulk.length * 31 + 5), mh = 0.12 + g * 0.45;
+      for (let m = 0; m < 5; m++) { const mx = x0 + L * (0.14 + m * 0.18) + (rr() - 0.5) * 0.3, mz = (rr() - 0.5) * hw * 0.5, sc = 1 - Math.abs(m - 2) * 0.18;
+        p.push(Pm('ico0', HC.shade(col, (rr() - 0.5) * 0.08), [mx, fy + h - 0.02, mz], [L * 0.3, mh * sc * 2, hw * 1.6 * sc], [0, rr() * 3, 0])); }
+      for (let m = 0; m < 22; m++) { const mx = x0 + 0.25 + rr() * (L - 0.5), mz = (rr() * 2 - 1) * (hw - 0.2), up = mh * (1 - Math.abs(mx - mid) / (L * 0.6)) * (1 - Math.abs(mz) / (hw * 1.4));
+        p.push(Pm('ico0', HC.shade(col, (rr() - 0.5) * 0.16), [mx, fy + h + up * 0.9, mz], [0.16 + rr() * 0.14, 0.1 + rr() * 0.08, 0.16 + rr() * 0.14], [rr() * 3, rr() * 3, 0])); }
     }
     const pieces = cargo.filter((c) => c.kind !== 'mulch' && c.kind !== 'chips');
     const perLayer = Math.max(4, Math.round(L * hw * 1.4));
@@ -2992,6 +3109,11 @@
         o.userData.hBoom.rotation.y += (want - o.userData.hBoom.rotation.y) * 0.12;
         o.userData.hBoom.rotation.z = u.working ? Math.sin(performance.now() / 70) * 0.01 : 0;
       }
+      if (HC.baseOf(k) === 'splitter') { // the log on the beam, and the push plate working along it
+        if (!o.userData.beamLog) { const m = model(cache('splitLog', () => build([Pm('cyl', '#7a5434', [0, 0, 0], [0.4, 0.7, 0.4], [0, 0, Math.PI / 2]), Pm('cyl', '#e3c08a', [0.36, 0, 0], [0.34, 0.02, 0.34], [0, 0, Math.PI / 2])]))); m.position.set(-0.55 * MM, 1.12 * MM, 0); o.add(m); o.userData.beamLog = m; }
+        o.userData.beamLog.visible = (u.deck || []).length > 0;
+        o.userData.beamLog.position.x = (-0.55 + (u.working ? Math.max(0, 0.15 - ((u.ram || 0) % 4.2) * 0.04) : 0)) * MM;
+      }
       if (HC.baseOf(k) === 'fwproc') { // logs waiting on the deck
         const n = Math.min(5, (u.deck || []).length);
         if (!o.userData.deckLogs) { o.userData.deckLogs = []; for (let i = 0; i < 5; i++) { const m = model(cache('deckLog', () => build([Pm('cyl', '#7a5434', [0, 0, 0], [0.42, 2.6, 0.42], [0, 0, Math.PI / 2]), Pm('cyl', '#e3c08a', [1.31, 0, 0], [0.36, 0.02, 0.36], [0, 0, Math.PI / 2])]))); m.position.set(1.0 * MM, 0.62 * MM, (1.1 + i * 0.26) * MM); o.add(m); o.userData.deckLogs.push(m); } }
@@ -3199,12 +3321,19 @@
 
   function weather(S, dt) {
     const w = S.weather, t = S.time;
-    const eve = HC.clamp((t - 15.5 * 60) / 150, 0, 1);
-    const dark = (w.dark || 0) + eve * 0.35;
-    const horizon = new THREE.Color('#cfe2ee').lerp(new THREE.Color('#8e9aa6'), HC.clamp((w.dark || 0) * 2.5, 0, 1)).lerp(new THREE.Color('#e8a77a'), eve * 0.55);
+    const eve = HC.clamp((t - 16.5 * 60) / 150, 0, 1), night = HC.clamp((t - 19 * 60) / 90, 0, 1);
+    nightLevel = HC.clamp(night * 1.1 + eve * 0.25 + (w.dark || 0) * 0.4, 0, 1);
+    const dark = Math.min(0.92, (w.dark || 0) + eve * 0.3 + night * 0.62);
+    const horizon = new THREE.Color('#cfe2ee').lerp(new THREE.Color('#8e9aa6'), HC.clamp((w.dark || 0) * 2.5, 0, 1)).lerp(new THREE.Color('#e8a77a'), eve * 0.55 * (1 - night)).lerp(new THREE.Color('#1b2436'), night * 0.92);
+    // work lights: as it gets dark, the machine (or truck) you're in lights up the ground ahead
+    if (!workLight) { workLight = new THREE.SpotLight('#fff1d6', 0, 30, 0.75, 0.5, 1.2); workLight.castShadow = false; scene.add(workLight); scene.add(workLight.target); }
+    const au = S.units[S.active], lit = au && !au.hidden && HC.EQUIP[au.kind] && HC.EQUIP[au.kind].move !== 'walk' ? night * 1.6 + eve * 0.3 : 0;
+    workLight.intensity = lit * (LIGHT.sun || 1) * 1.8;
+    if (au && lit > 0) { const hx = au.x + Math.cos(au.a) * 6, hy = au.y + Math.sin(au.a) * 6, tx = au.x + Math.cos(au.a) * 120, ty = au.y + Math.sin(au.a) * 120;
+      workLight.position.set(U(hx), gh(hx, hy) + 1.0, U(hy)); workLight.target.position.set(U(tx), gh(tx, ty), U(ty)); workLight.target.updateMatrixWorld(); }
     scene.background.copy(horizon);
     scene.fog.color.copy(horizon);
-    sky.material.color.set('#ffffff').lerp(new THREE.Color('#9aa3ad'), HC.clamp((w.dark || 0) * 2.5, 0, 1)).lerp(new THREE.Color('#ffb08a'), eve * 0.6);
+    sky.material.color.set('#ffffff').lerp(new THREE.Color('#9aa3ad'), HC.clamp((w.dark || 0) * 2.5, 0, 1)).lerp(new THREE.Color('#ffb08a'), eve * 0.6 * (1 - night)).lerp(new THREE.Color('#2a3550'), night * 0.9);
     sky.position.copy(camera.position);
     scene.fog.near = w.wet ? 25 : 42; scene.fog.far = w.wet ? 70 : 100;
     sun.intensity = LIGHT.sun * (1 - dark * 0.9);
@@ -3334,7 +3463,7 @@
     updateCamera(S, dt);
     // co-op: the other companies' machines, trailers and attachments are drawn alongside yours
     const V = S.remote && (Object.keys(S.remote).length || (S.remoteTrailers || []).length) ? Object.assign(Object.create(S), { units: Object.assign({}, S.units, S.remote), trailers: S.trailers.concat(S.remoteTrailers || []), attachments: (S.attachments || []).concat(S.remoteAt || []) }) : S;
-    syncTrees(S); syncUnits(V); syncSmall(V); syncStand(); syncSaw(S); syncAttachments(V); syncJob(S); syncAim(S); syncParticles(S); syncGrass(S, dt); syncMowMarks(S, dt); syncPallets(S);
+    syncTrees(S); syncUnits(V); syncSmall(V); syncStand(); syncSaw(S); syncAttachments(V); syncJob(S); syncAim(S); syncParticles(S); syncGrass(S, dt); syncMowMarks(S, dt); syncPallets(S); syncNight(S);
     weather(S, dt);
     if (groundDirty && now - lastUpload > 120) { uploadGround(now); groundDirty = false; lastUpload = now; }
     if (mipDirty && now - lastMip > 500) refreshMips(now);

@@ -315,7 +315,7 @@
       const where = here ? '' : `<span class="chip no">${u && u.boarded ? 'In a truck' : 'Not in a yard'}</span>`;
       const sellable = HC.EQUIP[k].move !== 'walk' && k !== 'saw' && !HC.EQUIP[HC.baseOf(k)].fixed; // the firewood processor is part of its yard
       return `<tr><td>${k === 'saw' ? 'Chainsaw' : esc(HC.EQUIP[k].name)}</td><td><div class="bar"><i style="width:${C.cond[k]}%;background:${C.cond[k] < 30 ? '#d9483b' : '#4f9a3c'}"></i></div></td>
-        <td class="num">${Math.round(C.cond[k])}%</td><td>${!cost ? '<span class="chip ok">Good</span>' : here ? `<button class="btn sm repair" data-k="${k}" ${C.money < cost ? 'disabled' : ''}>Fix ${HC.money(cost)}</button>` : where}</td>
+        <td class="num">${Math.round(C.cond[k])}%</td><td>${HC.serviceDue && HC.serviceDue(k) ? (here ? `<button class="btn sm svc" data-k="${k}" ${C.money < HC.serviceCost(k) ? 'disabled' : ''}>Oil &amp; grease ${HC.money(HC.serviceCost(k))}</button> ` : '<span class="chip warn">Service due</span> ') : ''}${HC.EQUIP[k] && HC.session && HC.session.units[k] && HC.session.units[k].broken ? '<span class="chip no">Broken down</span> ' : ''}${!cost ? '<span class="chip ok">Good</span>' : here ? `<button class="btn sm repair" data-k="${k}" ${C.money < cost ? 'disabled' : ''}>Fix ${HC.money(cost)}</button>` : where}</td>
         <td>${!sellable ? '' : S && S.active === k ? '<span class="chip no">You\'re in it</span>' : u && u.on ? '<span class="chip no">On a trailer</span>' : here ? `<button class="btn sm ghost-dark sell-u" data-k="${k}">Sell ${HC.money(HC.Game.resaleValue(k))}</button>` : '<span class="chip no">Park it at your yard to sell</span>'}</td></tr>`;
     }).join('') + (C.owned.saw && S && S.saw ? (() => {
       const k = 'saw', cost = Math.round((100 - C.cond[k]) * (HC.EQUIP[k].repair || 3)), here = inYard(k);
@@ -545,6 +545,7 @@
     },
     '.fire'(d) { HC.company.crew[d.id] = false; HC.Save.save(); return null; },
     '.repair'(d) { repairOne(d.k); HC.Audio.cash(); return null; },
+    '.svc'(d) { const c = HC.serviceCost(d.k); if (HC.company.money < c) return null; HC.company.money -= c; HC.doService(d.k); const u = HC.session.units[d.k]; if (u) u.broken = false; HC.Audio.cash(); HC.Save.save(); return `Oil changed and greased: ${HC.money(c)}.`; },
     '#b-repair-all'() { const C = HC.company; for (const k in C.owned) if (C.owned[k] && (!HC.EQUIP[k].noUnit || k === 'saw') && !HC.EQUIP[k].hidden && inYard(k)) repairOne(k); if (C.owned.saw && inYard('saw')) repairOne('saw'); HC.Audio.cash(); return null; },
     '#b-fuel-all'() { const S = HC.session; for (const k in S.units) if (inYard(k)) HC.Units.refuel(S.units[k], true); if (S.saw && inYard('saw')) HC.Units.refuelSaw(S, true); HC.Audio.fuel(); return null; },
     '.sell-u'(d) { if (HC.Game.sellUnit(d.k)) buildHud(); return null; },
@@ -602,7 +603,7 @@
     const act = (sel, close) => bind(sel, (el) => doAct(sel, { ...el.dataset }, close));
     act('.take', true); act('.counter'); act('#b-invoice', true); act('#b-switch', true);
     bind('.bid', (el) => { const inp = screen.querySelector(`.bid-in[data-id="${el.dataset.id}"]`); doAct('.bid', { id: el.dataset.id, amt: inp ? inp.value : 0 }); });
-    for (const sel of ['.buy-used', '.buy-eq', '.buy-tr', '.buy-more', '.buy-att', '.buy-pal', '.buy-mulch', '.buy-exp', '.buy-quarry', '.buy-yard', '.buy-saw', '.buy-saw2', '.buy-up', '.hire', '.fire', '.repair', '#b-repair-all', '#b-fuel-all']) act(sel);
+    for (const sel of ['.buy-used', '.buy-eq', '.buy-tr', '.buy-more', '.buy-att', '.buy-pal', '.buy-mulch', '.buy-exp', '.buy-quarry', '.buy-yard', '.buy-saw', '.buy-saw2', '.svc', '.buy-up', '.hire', '.fire', '.repair', '#b-repair-all', '#b-fuel-all']) act(sel);
     for (const sel of ['.sell-u', '.sell-t', '.sell-a']) bind(sel, (el) => armSell(el, () => { doAct(sel, { ...el.dataset }); return false; }));
   }
   function closePhone() { hide(); pauseWorld(false); }

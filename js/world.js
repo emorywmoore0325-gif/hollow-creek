@@ -190,9 +190,12 @@
     for (let i = 0; i < 3; i++) world.bays.push({ ...P(23.6 + i * 3.1, 12), a: Math.PI / 2, yard: 'hq', kind: 'trailer' });
     for (let i = 0; i < 3; i++) world.bays.push({ ...P(23.6 + i * 3.1, 8.2), a: Math.PI / 2, yard: 'hq', kind: 'trailer' });
     if (level >= 2) for (let i = 0; i < 4; i++) world.bays.push({ ...P(35.6 + i * 3.1, 12), a: Math.PI / 2, yard: 'hq', kind: 'trailer' });
-    if (level >= 3) {
-      world.sheds.push({ ...P(34.5, 2), w: 12.5 * TS, h: 4.5 * TS, yard: 'hq' });
-      for (let i = 0; i < 5; i++) world.bays.push({ ...P(36 + i * 2.4, 4.4), a: -Math.PI / 2, yard: 'hq', kind: 'machine' });
+    // the expansion comes with a second building: an enclosed storage barn along the back fence
+    world.houses = world.houses.filter((h) => h.id !== 'hqBarn');
+    if (level >= 2) world.houses.push({ ...P(35, 2), w: 12 * TS, h: 4.2 * TS, wall: '#9a4a36', roof: '#4a5058', damaged: [], label: 'Storage barn', yard: true, shed: true, facing: 1, parcel: 'hq', id: 'hqBarn' });
+    if (level >= 3) { // and then a lean-to equipment shed out front of the barn
+      world.sheds.push({ ...P(34.5, 6.4), w: 12.5 * TS, h: 3.4 * TS, yard: 'hq' });
+      for (let i = 0; i < 5; i++) world.bays.push({ ...P(36 + i * 2.4, 8.1), a: -Math.PI / 2, yard: 'hq', kind: 'machine' });
     }
   }
   function upgradeHQ(world, level) { layoutHQ(world, level); }
@@ -511,7 +514,7 @@
         const bench = edge < 1.5 ? 3 : edge < 3 ? 2 : edge < 4.5 ? 1 : 0;
         h = gate ? 0.12 : 0.12 + bench * 0.8;
       }
-      if (wd < 2.4 && world.roadDist[i] > 1.6) h = HC.lerp(-0.6, h, HC.clamp(wd / 2.4, 0, 1));
+      if (wd < 2.4 && world.roadDist[i] > 1.7) h = HC.lerp(h, HC.lerp(-0.6, h, HC.clamp(wd / 2.4, 0, 1)), HC.clamp((world.roadDist[i] - 1.7) / 0.35, 0, 1)); // the road stays level all the way across a bridge
       hT[i] = h;
     }
     world.hT = hT;

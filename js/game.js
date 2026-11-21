@@ -2,7 +2,7 @@
 'use strict';
 (() => {
   const TS = HC.TILE;
-  const DAY_START = 8 * 60, DAY_END = 18 * 60;
+  const DAY_START = 8 * 60, DAY_END = 21.5 * 60; // work runs late: dusk after 4:30, dark from about 8:30
 
   // ---------- jobs (customers hiring you) ----------
   function freeParcel(exclude, tract = false) {
@@ -220,6 +220,7 @@
     if (S.saws.length && C.pos && C.pos.saw) { Object.assign(S.saws[0], C.pos.saw); if (S.saws[0].holder && !S.units[S.saws[0].holder]) S.saws[0].holder = 'op'; }
     if (C.pos && C.pos.saws) C.pos.saws.forEach((s, i) => { if (S.saws[i + 1]) { Object.assign(S.saws[i + 1], s); if (s.holder && !S.units[s.holder]) S.saws[i + 1].holder = null; } });
     if (C.pos && C.pos.attachments) for (const a of C.pos.attachments) { const m = S.attachments.find((q) => q.id === a.id); if (m) Object.assign(m, a); }
+    for (const a of S.attachments) if (!a.on && HC.world.fences.some((f) => HC.segRectHit(f.x, f.y, f.x + (f.w || 0), f.y + (f.h || 0), 2, { x: a.x - 20, y: a.y - 20, w: 40, h: 40 }))) Object.assign(a, clearSpot(a.x, a.y, 24)); // out of the fence line
     // you start in the crew truck (or the machine you saved in)
     // you start in the crew truck (or the machine you saved in); with nothing bought yet, you're on foot at the office
     const startIn = C.pos && S.units[C.pos.active] && !S.units[C.pos.active].hidden ? C.pos.active : S.units.truck ? 'truck' : (Object.keys(S.units).find((k) => HC.Units.isTruck(k)) || 'op');
@@ -275,14 +276,31 @@
   }
 
   // ---------- skid steer attachments ----------
+  // a clear patch of yard for something set down: inside the yard, away from fences, buildings, machines and other attachments
+  function clearSpot(x0, y0, rad = 26) {
+    const W = HC.world, S = HC.session, yd = HC.World.yardAt(x0, y0, false) || W.yard;
+    const ok = (x, y) => {
+      if (yd && !HC.inRect(x, y, { x: yd.x + rad, y: yd.y + rad, w: yd.w - rad * 2, h: yd.h - rad * 2 })) return false;
+      for (const f of W.fences) if (HC.segRectHit(f.x, f.y, f.x + (f.w || 0), f.y + (f.h || 0), 2, { x: x - rad, y: y - rad, w: rad * 2, h: rad * 2 })) return false;
+      for (const h of W.houses) if (HC.circleRectHit(x, y, rad, h)) return false;
+      for (const a of S.attachments || []) if (!a.on && HC.dist(a.x, a.y, x, y) < rad * 1.6) return false;
+      for (const k in S.units) { const u = S.units[k]; if (!u.hidden && HC.dist(u.x, u.y, x, y) < rad + (u.r || 12)) return false; }
+      return true;
+    };
+    for (let r = 0; r < 260; r += 12) for (let k = 0; k < Math.max(1, Math.round(r / 6)); k++) {
+      const a = (k / Math.max(1, Math.round(r / 6))) * Math.PI * 2, x = x0 + Math.cos(a) * r, y = y0 + Math.sin(a) * r;
+      if (ok(x, y)) return { x, y };
+    }
+    return { x: x0, y: y0 };
+  }
   function addAttachment(kind, initial, id = kind) {
     const S = HC.session, Y = HC.world.yard;
     if (S.attachments.some((a) => a.id === id)) return;
     const shed = HC.world.sheds.find((sh) => sh.yard === 'hq');
-    const n = S.attachments.filter((a) => !a.on && a.kind !== 'grapple').length;
-    const x = (shed ? shed.x + shed.w - 40 : Y.spawn.x + 60) - (n % 4) * 34, y = shed ? shed.y + shed.h + 34 : Y.spawn.y;
     const bh = kind === 'bushhog';
-    S.attachments.push({ id, kind, on: null, x: bh ? x - 70 : x, y: bh ? y + 30 : y, a: bh ? Math.PI / 2 : -Math.PI / 2 });
+    const base = shed ? { x: shed.x + shed.w / 2, y: shed.y + shed.h + 40 } : { x: Y.spawn.x + 60, y: Y.spawn.y };
+    const sp = clearSpot(base.x, base.y, bh ? 34 : 24);
+    S.attachments.push({ id, kind, on: null, x: sp.x, y: sp.y, a: bh ? Math.PI / 2 : -Math.PI / 2 });
     if (!initial) toast(bh ? 'Bush hog delivered to your equipment yard. Back the tractor up square to it and press Q.' : kind === 'forks' ? 'Pallet forks delivered to your equipment yard. Skid steer: drop the grapple (Q) and lock the forks on (Q). Tractor: drive the loader bucket up square to them and press Q.' : `${kind === 'brushcut' ? 'Brush cutter' : 'Forestry mulcher head'} delivered to your equipment yard. Take the skid steer over, drop the grapple (Q) and pick up the new head (Q).`, 'good');
   }
   // another of an attachment you already own (two skid steers, two mulcher heads...)

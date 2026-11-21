@@ -106,6 +106,7 @@
   K.skid.feedHint = (u, S, fp) => {
     if (!u.carrying.length) return null;
     if (grinderNear(S, fp, 56)) return `E: feed ${u.carrying.length} piece(s) into the grinder hopper`;
+    if (HC.splitterNear && HC.splitterNear(S, fp, 42) && u.carrying.some((c) => c.kind === 'log')) return 'E: drop logs on the log splitter';
     if (procNear(S, fp, 56) && u.carrying.some((c) => c.kind === 'log')) return `E: put ${u.carrying.filter((c) => c.kind === 'log').length} log(s) on the firewood processor deck`;
     if (chipperNear(S, fp, 56)) return 'E: feed the chipper';
     return null;
@@ -176,6 +177,15 @@
   const chips = (ch, c) => c.kind === 'brush' || (HC.baseOf(ch.kind) === 'chipper2' && c.kind === 'log'); // the 18" chipper eats logs too
   K.skid.deposit = (u, S, fp) => {
     const reach = ['excavator', 'miniex'].includes(HC.baseOf(u.kind)) ? 64 : 50;
+    const sp = HC.splitterNear && HC.splitterNear(S, fp, reach - 14);
+    if (sp) { // logs onto the log splitter's beam
+      const room = HC.Units.KINDS.splitter.canTake(sp), logs = u.carrying.filter((c) => c.kind === 'log').slice(0, Math.max(0, room));
+      if (!u.carrying.some((c) => c.kind === 'log')) { HC.Game.toast('The splitter takes logs.'); return true; }
+      if (!logs.length) { HC.Game.toast('The splitter beam is full (3 logs). Let it work.'); return true; }
+      sp.deck = (sp.deck || []).concat(logs); u.carrying = u.carrying.filter((c) => !logs.includes(c));
+      HC.Audio.drop(); HC.Game.toast(`${logs.length} log(s) on the splitter (${sp.deck.length}/3).`);
+      return true;
+    }
     const fw = procNear(S, fp, reach);
     if (fw) { // logs onto the processor's deck
       const logs = u.carrying.filter((c) => c.kind === 'log');
