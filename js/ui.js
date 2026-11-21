@@ -406,6 +406,13 @@
   // cheat / test codes typed into the shop
   const CODES = {
     STORM: () => { const n = HC.Storms.storm(true).length; return n ? `A storm just went through: ${n} road(s) blocked. The state is taking bids (J).` : 'The wind blew, but nothing came down.'; },
+    ...Object.fromEntries(['SPRING', 'SUMMER', 'FALL', 'WINTER'].map((name, idx) => [name, () => { // jump straight to a season (snow, plowing jobs and all in WINTER)
+      const C = HC.company, S = HC.session, D = HC.SEASON_DAYS || 7, year = Math.floor(((C.day || 1) - 1) / (D * 4));
+      C.day = year * D * 4 + idx * D + 1; if (C.day < 1) C.day = 1;
+      if (HC.Seasons) { S.weather = HC.Seasons.roll(HC.season()); if (idx === 3) S.weather = Object.assign({}, HC.WEATHER.find((w) => w.id === 'snow') || S.weather); C.weather = S.weather; HC.Seasons.turn(S, false); }
+      C.board = HC.Game.makeBoard(); HC.Save.save();
+      return `It's ${name.toLowerCase()} now (day ${C.day}): ${S.weather.name.toLowerCase()}.${idx === 3 ? ' Snow plowing and salting jobs are on the board.' : ''}`;
+    }])),
     BIGBUCKS: () => { HC.company.money += 1000000; HC.Save.save(); return `+${HC.money(1000000)} added to the bank.`; },
     HOLLOWADMIN: () => {
       const C = HC.company;

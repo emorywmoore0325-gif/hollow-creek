@@ -42,9 +42,9 @@
       W.sheds = W.sheds.filter((s) => s.yard !== 'home'); W.bays = W.bays.filter((b) => b.yard !== 'home'); W.yards = W.yards.filter((y) => y.id !== 'home');
       for (const m of listed()) {
         const st = STYLE[m.id]; if (!st) continue;
-        const p = W.parcels.find((q) => q.id === m.parcel), h = m.house, bh = 4 * TS;
+        const p = W.parcels.find((q) => q.id === m.parcel), h = m.house, bh = 3.4 * TS; // bays about 4.8 m wide and 10 m deep
         const right = p.x + p.w - TS * 0.5 - (h.x + h.w + TS * 1.2), left = h.x - TS * 1.2 - (p.x + TS * 0.5), room = Math.max(right, left);
-        const nb = Math.max(1, Math.min(st.bays, Math.floor((room - TS) / (2.4 * TS)))), bw = nb * 2.4 * TS + TS;
+        const nb = Math.max(1, Math.min(st.bays, Math.floor((room - TS * 0.6) / (1.6 * TS)))), bw = nb * 1.6 * TS + TS * 0.6;
         const x = right >= left ? h.x + h.w + TS * 1.2 : h.x - TS * 1.2 - bw, flip = h.facing === -1;
         const y = flip ? h.y + h.h - bh : h.y, yard = { id: 'home', home: m.parcel, name: `${['', 'Single', 'Two', 'Three', 'Four'][nb]}-bay ${st.name.toLowerCase()}`, x: x - TS * 0.5, y: flip ? y - TS * 3.5 : y - TS * 0.5, w: bw + TS, h: bh + TS * 4, owned: false };
         W.trees = W.trees.filter((t) => !(t.parcel === p.id && HC.circleRectHit(t.x, t.y, t.trunkR + 10, yard)));
@@ -54,7 +54,7 @@
           const t = W.tile(tx, ty); if (t === T.ROAD || t === T.WATER) continue; if (t !== T.GRAVEL) { W.set(tx, ty, T.GRAVEL); HC.Render.setTile && HC.Render.setTile(tx, ty); }
         }
         W.sheds.push({ x, y, w: bw, h: bh, yard: 'home', style: st.style, flip });
-        for (let i = 0; i < nb; i++) W.bays.push({ x: x + TS * (1.7 + i * 2.4), y: y + bh * 0.55, a: flip ? Math.PI / 2 : -Math.PI / 2, yard: 'home', home: m.parcel, kind: 'machine' });
+        for (let i = 0; i < nb; i++) W.bays.push({ x: x + TS * (1.1 + i * 1.6), y: y + bh * 0.55, a: flip ? Math.PI / 2 : -Math.PI / 2, yard: 'home', home: m.parcel, kind: 'machine' });
         W.yards.push(yard);
       }
       HC.Render.fencesChanged && HC.Render.fencesChanged();

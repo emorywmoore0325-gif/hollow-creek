@@ -48,7 +48,7 @@
     if (k === 'x') HC.Game.dumpLoad(u);
     if (k === 'l') { if (!HC.EQUIP[u.kind] || HC.EQUIP[u.kind].move === 'walk') HC.Game.toast('Get in a vehicle or machine to switch its lights.'); else { u.lights = !HC.lightsOn(u, S); HC.Game.toast(`Lights ${u.lights ? 'on' : 'off'}.`); } }
     if (k === 'f') HC.Game.climb();
-    if (k === 'g') { if (HC.EQUIP[u.kind].move === 'walk') HC.Units.sawGrab(u, S); else HC.Game.toast('Climb out (F) to handle the chainsaw.'); }
+    if (k === 'g') { if (HC.EQUIP[u.kind].move === 'walk') HC.Units.sawGrab(u, S); else if (!(HC.hasPlow && HC.hasPlow(u.kind)) && !HC.EQUIP[HC.baseOf(u.kind)].boom && !(u.armT >= 0)) HC.Game.toast('Climb out (F) to handle the chainsaw.'); } // G also lowers plows, arms and booms
     if (k === 'e') HC.Units.interact(u, S);
     if (k === 'q') HC.Units.mode(u, S);
     if (k === 'enter' && S.stage === 'onsite' && HC.Game.objectives(S).complete) HC.Game.finish();

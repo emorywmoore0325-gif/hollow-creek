@@ -190,7 +190,14 @@
   U.update = function (u, dt, S, active) {
     baseUpdate.apply(this, arguments);
     if (!u || u.hidden || u.on || u.broken) return;
-    if (HC.hasPlow(u.kind) && (u.v || 0) > 3) { const n = plowAt(u, S); if (n) u.v *= 1 - Math.min(0.5, n * 0.04); if (u.blade) u.v *= 1 - Math.min(0.6, u.blade * 0.004); } // a full pusher box gets heavy
+    // the truck plow raises and lowers on its hydraulics: T up, G down (it only scrapes when it's down)
+    if (U.isTruck(u.kind) && onUnit(u.kind, 'truckplow')) {
+      if (active && HC.input.keys.has('t')) u.plowUp = true; if (active && HC.input.keys.has('g')) u.plowUp = false;
+      u.plowT = HC.clamp((u.plowT || 0) + (u.plowUp ? 1 : -1) * dt * 2.5, 0, 1);
+      if (active && u.plowUp && Math.abs(u.v || 0) > 20) HC.Game.hintOnce('Plow is up (G lowers it to plow).');
+    }
+    const bladeDown = U.isTruck(u.kind) ? !(u.plowT > 0.15) : !(u.armT > 0.3); // machines: the arms have to be down
+    if (HC.hasPlow(u.kind) && bladeDown && (u.v || 0) > 3) { const n = plowAt(u, S); if (n) u.v *= 1 - Math.min(0.5, n * 0.04); if (u.blade) u.v *= 1 - Math.min(0.6, u.blade * 0.004); } // a full pusher box gets heavy
     else if (HC.hasPlow(u.kind) && u.blade > 0 && (u.v || 0) <= 0.5) dropBlade(u, S);
     if (HC.hasSpreader(u.kind) && Math.abs(u.v || 0) > 3) {
       if ((u.salt || 0) > 0) saltAt(u, S);
@@ -214,7 +221,7 @@
   U.hint = function (u, S) {
     if (u && HC.hasSpreader(u.kind) && inPickup(u)) return `E: fill the salt spreader (${Math.floor(u.salt || 0)}/${HC.SALT_CAP}, ${HC.money(HC.SALT_PRICE)} a unit)`;
     const h = baseHint.apply(this, arguments);
-    if (u && (HC.hasPlow(u.kind) || HC.hasSpreader(u.kind)) && HC.season() === 'winter') return `${h}${HC.hasPlow(u.kind) ? ' · Plow down' : ''}${HC.hasSpreader(u.kind) ? ` · Salt ${Math.floor(u.salt || 0)}/${HC.SALT_CAP}` : ''}`;
+    if (u && (HC.hasPlow(u.kind) || HC.hasSpreader(u.kind))) return `${h}${HC.hasPlow(u.kind) ? (U.isTruck(u.kind) ? (u.plowT > 0.15 ? ' · Plow up (G: lower)' : ' · Plow down (T: raise)') : (u.armT > 0.3 ? ' · Pusher up (G: lower)' : ' · Pusher down')) : ''}${HC.hasSpreader(u.kind) ? ` · Salt ${Math.floor(u.salt || 0)}/${HC.SALT_CAP}` : ''}`;
     return h;
   };
 

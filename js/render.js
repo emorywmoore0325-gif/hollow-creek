@@ -33,7 +33,7 @@
     if (nightStatic) { scene.remove(nightStatic); scene.remove(nightPools); }
     const lamps = [], pools = [], warm = [1, 0.82, 0.55], cool = [0.85, 0.9, 1], win = [1, 0.75, 0.4];
     world.poles.forEach((p, i) => { if (i % 2) return; const y = gh(p.x, p.y); lamps.push([U(p.x), y + 3.05, U(p.y) + 0.45, warm, 1.6]); pools.push([U(p.x), y + 0.04, U(p.y) + 0.45, 2.6]); }); // streetlights on every other pole
-    for (const yd of world.yards || []) for (const [fx, fy] of [[0.015, 0.04], [0.985, 0.04], [0.015, 0.96], [0.985, 0.96], [0.5, 0.04]]) { const x = yd.x + yd.w * fx, z = yd.y + yd.h * fy, y = gh(x, z); lamps.push([U(x), y + 2.4, U(z), cool, 2.0]); pools.push([U(x), y + 0.04, U(z), 3.4]); } // yard floods
+    for (const yd of (world.yards || []).filter((q) => !q.home)) for (const [fx, fy] of [[0.015, 0.04], [0.985, 0.04], [0.015, 0.96], [0.985, 0.96], [0.5, 0.04]]) { const x = yd.x + yd.w * fx, z = yd.y + yd.h * fy, y = gh(x, z); lamps.push([U(x), y + 2.4, U(z), cool, 2.0]); pools.push([U(x), y + 0.04, U(z), 3.4]); } // yard floods
     for (const s2 of [world.sawmill, world.dumpSite, world.supply, world.quarry, world.scrapyard]) if (s2) { const x = s2.x + s2.w / 2, z = s2.y + s2.h * 0.6, y = gh(x, z); lamps.push([U(x), y + 2.6, U(z), cool, 2.2]); pools.push([U(x), y + 0.04, U(z), 4]); }
     for (const h of world.houses) { const fz = h.y + h.h + 1, y = gh(h.x + h.w / 2, fz); for (const fx of [0.28, 0.72]) lamps.push([U(h.x + h.w * fx), y + 0.42, U(fz), win, 0.7]); lamps.push([U(h.x + h.w * 0.5), y + 0.62, U(fz) + 0.05, warm, 0.5]); if (h.yard) { lamps.push([U(h.x + h.w * 0.5), y + 1.6, U(fz) + 0.1, cool, 1.6]); pools.push([U(h.x + h.w * 0.5), y + 0.04, U(fz) + 2.6, 4.6]); } } // windows and a porch light; yard buildings get a wall-pack flood
     // the fixtures themselves, day and night: cobra-head streetlights on their poles, flood poles at the yards, porch lamps
@@ -41,7 +41,7 @@
     const fx = [];
     world.poles.forEach((p, i) => { if (i % 2) return; const y = gh(p.x, p.y), x = U(p.x), z = U(p.y);
       fx.push(P('box', '#8a8f94', [x, y + 3.25, z + 0.22], [0.06, 0.06, 0.5]), P('box', '#5d6166', [x, y + 3.15, z + 0.5], [0.22, 0.1, 0.36]), P('box', '#fff4d8', [x, y + 3.09, z + 0.5], [0.16, 0.02, 0.28])); });
-    for (const yd of world.yards || []) for (const [px, py] of [[0.015, 0.04], [0.985, 0.04], [0.015, 0.96], [0.985, 0.96], [0.5, 0.04]]) { const x = yd.x + yd.w * px, z = yd.y + yd.h * py, y = gh(x, z);
+    for (const yd of (world.yards || []).filter((q) => !q.home)) for (const [px, py] of [[0.015, 0.04], [0.985, 0.04], [0.015, 0.96], [0.985, 0.96], [0.5, 0.04]]) { const x = yd.x + yd.w * px, z = yd.y + yd.h * py, y = gh(x, z);
       fx.push(P('cyl', '#6b6f74', [U(x), y + 1.25, U(z)], [0.07, 2.5, 0.07]), P('box', '#3d4146', [U(x), y + 2.48, U(z)], [0.5, 0.18, 0.22], [-0.4, 0, 0]), P('box', '#f4f8ff', [U(x), y + 2.42, U(z) + 0.08], [0.42, 0.1, 0.03], [-0.4, 0, 0])); }
     for (const s2 of [world.sawmill, world.dumpSite, world.supply, world.quarry, world.scrapyard]) if (s2) { const x = s2.x + s2.w / 2, z = s2.y + s2.h * 0.6, y = gh(x, z);
       fx.push(P('cyl', '#6b6f74', [U(x), y + 1.35, U(z)], [0.08, 2.7, 0.08]), P('box', '#3d4146', [U(x), y + 2.68, U(z)], [0.6, 0.18, 0.24])); }
@@ -2039,34 +2039,70 @@
   };
   function shedGeo(sh) {
     const W = U(sh.w), D = U(sh.h), p = [];
-    if (sh.style === 'carport') { // the starter house: a white single carport with a low gable roof
-      for (const x of [-W / 2, W / 2]) for (const z of [-D / 2, D / 2]) p.push(P('box', '#f2f0ea', [x, 0.95, z], [0.14, 1.9, 0.14]));
-      p.push(P(prism(W + 0.5, D + 0.4, 0.45), '#6a5a4a', [0, 1.9, 0]), P('box', '#f2f0ea', [0, 1.88, D / 2], [W + 0.2, 0.12, 0.08]), P('box', '#f2f0ea', [0, 1.88, -D / 2], [W + 0.2, 0.12, 0.08]), P('box', '#8a8580', [0, 0.04, 0], [W, 0.06, D]));
+    const hy = (m) => m / 3 / 0.62; // metres to the shed's (vertically squashed) tile units
+    const slab = () => p.push(P('box', '#a9a59c', [0, 0.02, 0], [W + 0.3, 0.04, D + 0.3]), P('box', '#9a968c', [0, 0.021, D / 2 + 0.55], [W + 0.3, 0.04, 1.1]));
+    if (sh.style === 'carport') { // steel carport: square posts with knee braces, eave beams, a ribbed metal roof pitched to the back, a concrete pad
+      slab(); const ph = hy(2.6), POST = '#e9e7e1', ROOF = '#7a2a22';
+      for (const x of [-W / 2 + 0.1, W / 2 - 0.1]) for (const z of [-D / 2 + 0.1, 0, D / 2 - 0.1]) {
+        p.push(P('box', POST, [x, ph / 2, z], [0.12, ph, 0.12]), P('box', POST, [x, ph - hy(0.35), z + (z > 0 ? -0.22 : 0.22)], [0.05, hy(0.6), 0.05], [z > 0 ? 0.75 : -0.75, 0, 0]));
+      }
+      for (const x of [-W / 2 + 0.1, W / 2 - 0.1]) p.push(P('box', POST, [x, ph + 0.04, 0], [0.14, 0.12, D]));
+      for (const z of [-D / 2 + 0.1, D / 2 - 0.1]) p.push(P('box', POST, [0, ph + 0.04, z], [W, 0.1, 0.1]));
+      p.push(P('box', ROOF, [0, ph + 0.22, 0], [W + 0.5, 0.05, D + 0.5], [-0.07, 0, 0]));
+      for (let x = -W / 2 - 0.2; x <= W / 2 + 0.2; x += 0.22) p.push(P('box', HC.shade(ROOF, -0.12), [x, ph + 0.26, 0], [0.04, 0.04, D + 0.52], [-0.07, 0, 0]));
+      p.push(P('box', '#f2f0ea', [0, ph + 0.06, D / 2 + 0.24], [W + 0.52, 0.12, 0.05]));
       return build(p);
     }
-    if (sh.style === 'barn') { // the farmhouse: a red board-and-batten carriage barn, white trim, sliding doors rolled back, a cupola
-      const red = '#9a2e22';
-      p.push(P('box', red, [0, 1.3, -D / 2], [W, 2.6, 0.12]), P('box', red, [-W / 2, 1.3, 0], [0.12, 2.6, D]), P('box', red, [W / 2, 1.3, 0], [0.12, 2.6, D]));
-      for (let x = -W / 2 + 0.2; x < W / 2; x += 0.35) p.push(P('box', HC.shade(red, -0.12), [x, 1.3, -D / 2 - 0.07], [0.04, 2.6, 0.02]));
-      for (let z = -D / 2 + 0.2; z < D / 2; z += 0.35) for (const sx of [-1, 1]) p.push(P('box', HC.shade(red, -0.12), [sx * (W / 2 + 0.07), 1.3, z], [0.02, 2.6, 0.04]));
-      p.push(P('box', red, [0, 2.35, D / 2], [W, 0.5, 0.12]), P('box', '#f4f1e8', [0, 2.1, D / 2 + 0.07], [W, 0.08, 0.04]));
-      const nb = Math.max(2, Math.round(W / 2.4));
-      for (let i = 0; i <= nb; i++) { const x = -W / 2 + (W / nb) * i; p.push(P('box', '#f4f1e8', [x, 1.05, D / 2 + 0.05], [0.16, 2.1, 0.1])); }
-      for (const sx of [-1, 1]) { p.push(P('box', red, [sx * (W / 2 + 0.75), 1.05, D / 2 + 0.12], [1.4, 2.1, 0.08])); for (const d of [-0.5, 0.5]) p.push(P('box', '#f4f1e8', [sx * (W / 2 + 0.75), 1.05, D / 2 + 0.17], [1.4, 0.08, 0.02], [0, 0, d])); } // doors slid open, with white X braces
-      p.push(P(prism(W + 0.6, D + 0.6, 1.4), '#4a4f56', [0, 2.6, 0]), P('box', '#f4f1e8', [0, 3.15, 0], [0.9, 0.7, 0.9]), P(prism(1.2, 1.2, 0.5), '#4a4f56', [0, 3.5, 0]), P('box', '#2a2b2d', [0, 3.85, 0], [0.04, 0.4, 0.04]));
+    if (sh.style === 'barn') { // red carriage barn: board-and-batten walls, a gambrel roof, sliding doors on a track, a hayloft door, trimmed windows, a cupola with a weathervane
+      slab(); const red = '#9a2e22', redD = HC.shade(red, -0.14), WH = '#f4f1e8', RF = '#3f444b', wh = hy(3.0);
+      p.push(P('box', red, [0, wh / 2, -D / 2], [W, wh, 0.12]), P('box', red, [-W / 2, wh / 2, 0], [0.12, wh, D]), P('box', red, [W / 2, wh / 2, 0], [0.12, wh, D]));
+      for (let x = -W / 2 + 0.15; x < W / 2; x += 0.3) p.push(P('box', redD, [x, wh / 2, -D / 2 - 0.07], [0.04, wh, 0.02]));
+      for (let z = -D / 2 + 0.15; z < D / 2; z += 0.3) for (const sx of [-1, 1]) p.push(P('box', redD, [sx * (W / 2 + 0.07), wh / 2, z], [0.02, wh, 0.04]));
+      for (const sx of [-1, 1]) for (const z of [-D / 4, D / 4]) p.push(P('box', '#bfe0f0', [sx * (W / 2 + 0.07), hy(1.7), z], [0.02, hy(0.8), 0.55]), P('box', WH, [sx * (W / 2 + 0.08), hy(1.7), z], [0.03, hy(0.95), 0.05]), P('box', WH, [sx * (W / 2 + 0.08), hy(1.7), z], [0.03, 0.05, 0.62])); // side windows
+      const nb = Math.max(1, Math.round(W / 1.6)), opW = W / nb - 0.25;
+      p.push(P('box', red, [0, wh - hy(0.35), D / 2], [W, hy(0.7), 0.12]), P('box', WH, [0, wh - hy(0.7), D / 2 + 0.07], [W, 0.06, 0.04]), P('box', '#2a2b2d', [0, wh - hy(0.62), D / 2 + 0.1], [W + 2 * opW, 0.05, 0.04])); // header, trim, door track
+      for (let i = 0; i <= nb; i++) p.push(P('box', WH, [-W / 2 + (W / nb) * i, (wh - hy(0.7)) / 2, D / 2 + 0.06], [0.14, wh - hy(0.7), 0.08]));
+      for (const sx of [-1, 1]) { const dx = sx * (W / 2 + opW * 0.15), dh = wh - hy(0.75); p.push(P('box', red, [dx, dh / 2, D / 2 + 0.14], [opW, dh, 0.07])); for (const d of [-1, 1]) p.push(P('box', WH, [dx, dh / 2, D / 2 + 0.18], [Math.hypot(opW, dh) * 0.95, 0.07, 0.02], [0, 0, d * Math.atan2(dh, opW)])); p.push(P('box', WH, [dx, dh / 2, D / 2 + 0.18], [opW, 0.07, 0.02]), P('box', WH, [dx, 0.04, D / 2 + 0.18], [opW, 0.07, 0.02]), P('box', WH, [dx, dh - 0.04, D / 2 + 0.18], [opW, 0.07, 0.02])); } // sliding doors, rolled open, white X braces
+      // gambrel roof: steep lower slopes, shallow upper slopes, a red gable with a hayloft door
+      const lw = W / 2 + 0.25, ang1 = 1.05, ang2 = 0.42, l1 = hy(1.6), l2 = (lw - Math.cos(ang1) * l1) / Math.cos(ang2) + 0.04; // upper slopes reach the ridge
+      for (const sx of [-1, 1]) { const x1 = sx * (lw - Math.cos(ang1) * l1 / 2), y1 = wh + Math.sin(ang1) * l1 / 2, x2 = sx * (lw - Math.cos(ang1) * l1 - Math.cos(ang2) * l2 / 2), y2 = wh + Math.sin(ang1) * l1 + Math.sin(ang2) * l2 / 2;
+        p.push(P('box', RF, [x1, y1, 0], [l1, 0.06, D + 0.4], [0, 0, sx * -ang1]), P('box', RF, [x2, y2, 0], [l2 + 0.05, 0.06, D + 0.4], [0, 0, sx * -ang2])); }
+      const peak = wh + Math.sin(ang1) * l1 + Math.sin(ang2) * l2;
+      const kneeY = wh + Math.sin(ang1) * l1, kneeX = lw - Math.cos(ang1) * l1;
+      for (const z of [D / 2, -D / 2]) for (let y = wh; y < peak - 0.02; y += 0.08) { // gable ends filled in strips that follow the gambrel profile
+        const hwid = y < kneeY ? lw - (y - wh) / Math.tan(ang1) : kneeX - (y - kneeY) / Math.tan(ang2); if (hwid > 0.2) p.push(P('box', red, [0, y + 0.04, z], [hwid * 2 - 0.34, 0.08, 0.1])); }
+      p.push(P('box', red, [0, wh + hy(0.9), D / 2 + 0.06], [0.7, hy(1.1), 0.04]), P('box', WH, [0, wh + hy(0.9), D / 2 + 0.09], [0.78, 0.05, 0.02], [0, 0, 0.9]), P('box', WH, [0, wh + hy(0.9), D / 2 + 0.09], [0.78, 0.05, 0.02], [0, 0, -0.9]), P('box', WH, [0, wh + hy(0.9), D / 2 + 0.085], [0.8, hy(1.2), 0.01])); // hayloft door
+      p.push(P('box', WH, [0, peak + hy(0.35), 0], [0.6, hy(0.7), 0.6]), P(prism(0.85, 0.85, hy(0.5)), RF, [0, peak + hy(0.7), 0]), P('box', '#2a2b2d', [0, peak + hy(1.4), 0], [0.03, hy(0.6), 0.03]), P('box', '#2a2b2d', [0.12, peak + hy(1.55), 0], [0.3, 0.03, 0.05])); // cupola and weathervane
       return build(p);
     }
-    if (sh.style === 'shop') { // the country home: a tan steel equipment building, dark wainscot, tall bays with the roll-up doors up
-      const tan = '#c9b996', wain = '#4a4f56';
-      p.push(P('box', tan, [0, 1.8, -D / 2], [W, 3.6, 0.12]), P('box', tan, [-W / 2, 1.8, 0], [0.12, 3.6, D]), P('box', tan, [W / 2, 1.8, 0], [0.12, 3.6, D]));
-      p.push(P('box', wain, [0, 0.5, -D / 2 - 0.02], [W + 0.02, 1.0, 0.12]), P('box', wain, [-W / 2 - 0.02, 0.5, 0], [0.12, 1.0, D]), P('box', wain, [W / 2 + 0.02, 0.5, 0], [0.12, 1.0, D]));
-      for (let x = -W / 2 + 0.15; x < W / 2; x += 0.3) p.push(P('box', HC.shade(tan, -0.08), [x, 2.3, -D / 2 - 0.07], [0.03, 2.6, 0.02]));
-      const nb = Math.max(2, Math.round(W / 2.4));
-      p.push(P('box', tan, [0, 3.35, D / 2], [W, 0.5, 0.12]));
-      for (let i = 0; i <= nb; i++) { const x = -W / 2 + (W / nb) * i; p.push(P('box', tan, [x, 1.55, D / 2], [0.3, 3.1, 0.14])); }
-      for (let i = 0; i < nb; i++) { const x = -W / 2 + (W / nb) * (i + 0.5); p.push(P('cyl', '#e8e6e0', [x, 3.0, D / 2 - 0.15], [0.3, W / nb - 0.35, 0.3], [0, 0, Math.PI / 2]), P('box', '#ffe9b0', [x, 3.2, D / 2 + 0.1], [0.3, 0.1, 0.06])); } // rolled-up doors, a light over each bay
-      p.push(P(prism(W + 0.6, D + 0.6, 1.1), '#7a3a2a', [0, 3.6, 0]));
-      for (let x = -W / 2; x < W / 2; x += 0.4) p.push(P('box', '#6a3022', [x, 4.1, 0], [0.03, 0.02, D + 0.6]));
+    if (sh.style === 'shop') { // steel equipment shop: ribbed tan walls over a dark wainscot, overhead doors (one down, the rest up), a man door with a light, a ridge-capped roof, a workbench and tool chest inside
+      slab(); const tan = '#cdbf9e', tanD = HC.shade(tan, -0.1), wain = '#3f444b', RF = '#7a3a2a', wh = hy(4.3);
+      p.push(P('box', '#5a5d60', [0, 0.03, 0], [W - 0.2, 0.03, D - 0.2])); // shop floor
+      p.push(P('box', tan, [0, wh / 2, -D / 2], [W, wh, 0.12]), P('box', tan, [-W / 2, wh / 2, 0], [0.12, wh, D]), P('box', tan, [W / 2, wh / 2, 0], [0.12, wh, D]));
+      for (const [x, z, w2, d2] of [[0, -D / 2 - 0.02, W + 0.02, 0.13], [-W / 2 - 0.02, 0, 0.13, D], [W / 2 + 0.02, 0, 0.13, D]]) p.push(P('box', wain, [x, hy(0.5), z], [w2, hy(1.0), d2]));
+      for (let x = -W / 2 + 0.12; x < W / 2; x += 0.24) p.push(P('box', tanD, [x, wh / 2 + hy(0.5), -D / 2 - 0.07], [0.035, wh - hy(1.0), 0.02]));
+      for (let z = -D / 2 + 0.12; z < D / 2; z += 0.24) for (const sx of [-1, 1]) p.push(P('box', tanD, [sx * (W / 2 + 0.07), wh / 2 + hy(0.5), z], [0.02, wh - hy(1.0), 0.035]));
+      const nb = Math.max(2, Math.round(W / 1.6)), bw = W / nb, dh = hy(3.6);
+      p.push(P('box', tan, [0, (wh + dh) / 2, D / 2], [W, wh - dh, 0.12]));
+      for (let i = 0; i <= nb; i++) p.push(P('box', tan, [-W / 2 + bw * i, dh / 2, D / 2], [0.22, dh, 0.14]), P('box', wain, [-W / 2 + bw * i, hy(0.5), D / 2 + 0.01], [0.24, hy(1.0), 0.15]));
+      for (let i = 0; i < nb; i++) {
+        const x = -W / 2 + bw * (i + 0.5), w2 = bw - 0.3;
+        p.push(P('box', '#f2f0ea', [x, dh + 0.05, D / 2 + 0.07], [w2 + 0.12, 0.08, 0.04]), P('box', '#ffe9b0', [x, dh + hy(0.25), D / 2 + 0.1], [0.24, 0.07, 0.05]));
+        if (i === nb - 1) { p.push(P('box', '#e8e6e0', [x, dh / 2, D / 2 - 0.02], [w2, dh, 0.05])); for (let k = 1; k < 5; k++) p.push(P('box', '#c9c6be', [x, (dh / 5) * k, D / 2 + 0.005], [w2, 0.03, 0.02])); p.push(P('box', '#9fc4d6', [x, dh * 0.72, D / 2 + 0.01], [w2 * 0.8, hy(0.3), 0.01])); } // the last door is down: panels and a row of windows
+        else p.push(P('cyl', '#e8e6e0', [x, dh - hy(0.25), D / 2 - 0.3], [hy(0.5), w2, hy(0.5)], [0, 0, Math.PI / 2])); // the rest rolled up
+      }
+      // inside: a workbench and a red roll-around tool chest along the back wall, steel shelving, an air compressor
+      p.push(P('box', '#6a4a30', [-W / 4, hy(0.9), -D / 2 + 0.35], [W / 3, 0.05, 0.5]), P('box', '#4a4f56', [-W / 4, hy(0.45), -D / 2 + 0.35], [W / 3, hy(0.9), 0.45]), P('box', '#2f5a8a', [-W / 4, hy(1.6), -D / 2 + 0.1], [W / 3, hy(0.9), 0.04])); // bench and pegboard
+      p.push(P('box', '#b8261c', [W / 6, hy(0.55), -D / 2 + 0.35], [0.7, hy(1.1), 0.45]), ...[0.2, 0.45, 0.7, 0.95].map((y) => P('box', '#d6d8db', [W / 6, hy(y), -D / 2 + 0.58], [0.6, 0.02, 0.01])));
+      p.push(P('box', '#7a7d80', [W / 2 - 0.4, hy(1.0), -D / 4], [0.5, hy(2.0), 1.4]), ...[0.4, 1.0, 1.6].map((y) => P('box', HC.pick(['#c9a24a', '#8a3a2a', '#3a6a8a']), [W / 2 - 0.4, hy(y) + 0.1, -D / 4], [0.4, hy(0.3), 1.2]))); // shelving
+      p.push(P('cyl', '#c42a24', [-W / 2 + 0.45, hy(0.5), D / 4], [0.45, hy(1.0), 0.45]), P('box', '#2a2b2d', [-W / 2 + 0.45, hy(1.05), D / 4], [0.35, hy(0.2), 0.3])); // compressor
+      // man door with a light, gutters, a ridge-capped ribbed roof
+      p.push(P('box', '#e8e6e0', [W / 2 + 0.07, hy(1.05), D / 3], [0.04, hy(2.1), 0.32]), P('box', '#9fc4d6', [W / 2 + 0.09, hy(1.6), D / 3], [0.02, hy(0.4), 0.2]), P('box', '#2a2b2d', [W / 2 + 0.1, hy(2.35), D / 3], [0.06, 0.08, 0.1]));
+      const rise = hy(1.4), half = (D + 0.5) / 2, rang = Math.atan2(rise, half), rlen = Math.hypot(rise, half);
+      p.push(P(prism(W + 0.6, D + 0.5, rise), RF, [0, wh, 0]), P('box', HC.shade(RF, -0.2), [0, wh + rise + 0.02, 0], [W + 0.62, 0.06, 0.25])); // roof and ridge cap
+      for (let x = -W / 2 - 0.2; x < W / 2 + 0.3; x += 0.3) for (const sz of [1, -1]) p.push(P('box', HC.shade(RF, -0.1), [x, wh + rise / 2 + 0.03, sz * half / 2], [0.03, 0.03, rlen], [sz * rang, 0, 0])); // ribs down each slope
+      for (const z of [D / 2 + 0.25, -D / 2 - 0.25]) p.push(P('box', '#e8e6e0', [0, wh - 0.02, z], [W + 0.6, 0.08, 0.08]));
+      for (const sx of [-1, 1]) p.push(P('box', '#e8e6e0', [sx * (W / 2 + 0.1), wh / 2, D / 2 + 0.25], [0.07, wh, 0.07]));
       return build(p);
     }
     for (let x = -W / 2; x <= W / 2 + 0.01; x += W / 4) { p.push(P('box', '#7a5a3a', [x, 1.1, D / 2], [0.16, 2.2, 0.16]), P('box', '#7a5a3a', [x, 1.25, -D / 2], [0.16, 2.5, 0.16])); }
@@ -2993,7 +3029,7 @@
       } else {
         if (o.parent !== scene) scene.add(o);
         const deck = a.on && a.on.startsWith('trailer:') ? S.trailers.find((t) => t.id === a.on.slice(8)) : null;
-        const lift = a.kind === 'bushhog' ? (host ? (S.units[a.on].armT || 0) * 0.5 * MM : 0) : a.kind === 'truckplow' || a.kind === 'spreader' || a.kind === 'pusherXL' ? 0 : 0.3 * MM;
+        const lift = a.kind === 'bushhog' ? (host ? (S.units[a.on].armT || 0) * 0.5 * MM : 0) : a.kind === 'truckplow' ? (host ? (S.units[a.on].plowT || 0) * 0.45 * MM : 0) : a.kind === 'spreader' || a.kind === 'pusherXL' ? 0 : 0.3 * MM; // a raised truck plow rides 45 cm up
         const hu = host && S.units[a.on], hostDeck = hu ? S.trailers.find((t) => (hu.on ? t.id === hu.on.id : HC.Units.onDeck(t, hu))) : null; // riding with its tractor
         const dk = deck || (hostDeck && HC.RIDES(hu.kind) ? hostDeck : null), bed = a.on && a.on.startsWith('truck:') ? (HC.baseOf(a.on.slice(6)) === 'dually' ? 1.5 : 1.1) * MM : 0;
         o.position.set(U(a.x), gh(a.x, a.y) + (dk ? (DECK_H[dk.kind] || 0.6) * MM : 0) + bed + lift, U(a.y));
