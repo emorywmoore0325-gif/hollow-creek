@@ -371,6 +371,9 @@
           world.parcels.push(p);
         }
       }
+      // Hollow Creek Salvage takes over one roadside lot on Bottom Rd (so every other lot keeps its number in old saves)
+      let scrapR = null;
+      for (let i = world.parcels.length - 1; i >= 0; i--) { const p = world.parcels[i]; if (p.road === 'Bottom Rd' && !p.tract && p.pw >= 23) { scrapR = p; world.parcels.splice(i, 1); break; } }
       const used = new Set();
       for (const p of world.parcels) { let n = 0; while (used.has(p.owner) && n++ < 30) p.owner = HC.pick(p.tract ? HC.LANDOWNERS : HC.CLIENTS); used.add(p.owner); }
       for (const p of world.parcels) {
@@ -385,6 +388,7 @@
       if (fwR) buildFirewoodYard(world, fwR);
       if (millR) buildSawmill(world, millR);
       if (dumpR) buildBrushDump(world, dumpR);
+      if (scrapR) buildScrapyard(world, scrapR);
       const driveOut = (r, cols, max = 9) => { for (const c of cols) for (let y = r.gy + r.ph, n = 0; n < max && world.tile(r.gx + c, y) !== T.ROAD; y++, n++) world.set(r.gx + c, y, T.GRAVEL); };
       driveOut(hqR, [13, 14, 15, 16, 17, 18]);
       driveOut(hqR, [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]); // a broad apron straight from the road to the equipment gate
@@ -572,6 +576,17 @@
     world.houses.push({ ...P(20, 9), w: 4 * TS, h: 3 * TS, wall: '#c9c2a8', roof: '#4b5560', damaged: [], label: 'County dump scale', yard: true, facing: 1, parcel: 'dump' });
     world.dumpSite = { id: 'dump', name: 'County Brush & Stump Dump', x: gx * TS, y: gy * TS, w: pw * TS, h: ph * TS, pad,
       mounds: [{ ...P(5, 3.5), r: 2.6, c: '#56622f' }, { ...P(10.5, 3.2), r: 3.0, c: '#4d5a2b' }, { ...P(16, 3.6), r: 2.4, c: '#6b4b30' }, { ...P(21, 3.4), r: 2.2, c: '#5f6a36' }] };
+  }
+
+  // Hollow Creek Salvage: crushed cars stacked three high, a wrecked-machine row, a scale and a crane with a magnet
+  function buildScrapyard(world, r) {
+    const { gx, gy, pw, ph, flip } = r, Y = (y, h = 0) => (flip ? ph - y - h : y), P = (x, y, h) => ({ x: (gx + x) * TS, y: (gy + Y(y, h)) * TS });
+    for (let y = 0; y < ph; y++) for (let x = 1; x < pw - 1; x++) world.set(gx + x, gy + y, T.GRAVEL);
+    for (let y = 8; y < 13; y++) for (let x = 3; x < 14; x++) world.set(gx + x, gy + Y(y, 1), T.DIRT);
+    world.houses.push({ ...P(pw - 7, 2, 3.5), w: 5 * TS, h: 3.5 * TS, wall: '#7a7d80', roof: '#3d4248', damaged: [], label: 'Hollow Creek Salvage', yard: true, facing: flip ? -1 : 1, parcel: 'scrap' });
+    const stacks = []; for (let i = 0; i < 5; i++) stacks.push({ ...P(3 + i * 2.6, 3), n: 2 + (i % 3), seed: i });
+    for (let c = Math.floor(pw / 2) - 2; c < Math.floor(pw / 2) + 3; c++) { let y = flip ? gy - 1 : gy + ph; for (let n = 0; n < 9 && world.tile(c + gx, y) !== T.ROAD && world.tile(c + gx, y) !== -1; n++, y += flip ? -1 : 1) world.set(c + gx, y, T.GRAVEL); }
+    world.scrapyard = { id: 'scrap', name: 'Hollow Creek Salvage', x: gx * TS, y: gy * TS, w: pw * TS, h: ph * TS, pad: { ...P(3, 8, 5), w: 11 * TS, h: 5 * TS }, stacks, crane: P(pw - 6, 9), wrecks: [P(pw - 8, 12.5), P(pw - 4.5, 12.5)] };
   }
 
   // Hollow Creek Landscape Supply: concrete-block bins of dyed mulch, a red barn, a sales pad

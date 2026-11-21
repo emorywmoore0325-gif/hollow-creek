@@ -187,6 +187,9 @@ table.eq td:nth-child(2) { width: 45%; padding: 0 10px; }
 .gauge { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 6px; font-size: 11px; color: #b3aa90; margin-top: 3px; }
 .gauge .bar { background: rgba(255,255,255,0.12); }
 #h-extra { font: 600 11px var(--f-mono); color: #ffd36b; margin-top: 4px; min-height: 1em; }
+#h-hours { font: 600 11px var(--f-mono); color: #cfd6c8; margin-top: 4px; }
+#h-hours .hrm { background: #111; color: #9df07a; padding: 0 4px; border-radius: 3px; letter-spacing: 1px; }
+.warn-t { color: #ff8a6b; }
 #h-slots { display: flex; gap: 4px; flex-wrap: wrap; }
 .slot { width: 58px; height: 52px; background: var(--hud-bg); border: 2px solid rgba(255,255,255,0.12); border-radius: 6px; color: var(--hud-ink); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; }
 .slot b { font: 700 15px var(--f-mono); }

@@ -1130,6 +1130,6 @@
   HC.Game = {
     buySaw, sawTrade, buyAttachment, switchJob, buyExtraSaw, sawProps, stockStand, makeJob, makeBoard, rollWeather, boot, accept, addUnit, buyAnother, sellUnit, sellTrailer, sellAttachment, resaleValue, trailerResale, buyTrailer, registerClone, addAttachment, attachToggle, attachmentNear, select, take, climb, nearestMachine, update, finish, snapshot, toast, hintOnce, float, dust, penalty, setTile,
     spray, fell, fallGeom, predictHits, spreadDeg, buck, cutBush, loadTrailer, haul, trailerCap, sellRocks, sellMulch, dumpLoad, dropItems, takeItem,
-    objectives, inZone, jobHint, debrisOn, padAt, storageAt, sweepPads, bucketTree, addTrailer, ESTIMATE, OBJECTIVES, DAY_START, DAY_END,
+    objectives, inZone, jobHint, debrisOn, padAt, storageAt, sweepPads, bucketTree, addTrailer, ESTIMATE, OBJECTIVES, DAY_START, DAY_END, freeBay, clearSpot,
   };
 })();

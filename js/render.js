@@ -16,7 +16,7 @@
   HC.lightsOn = (u, S) => u && !u.hidden && (u.lights ?? (nightLevel > 0.3 && (u === S.units[S.active] || u.moving || u.working || u.occupied)));
   HC.nightLevel = () => nightLevel;
   // ---------- night: glowing lamps everywhere (streetlights, yard floods, house windows, every machine's head and tail lights) ----------
-  let nightStatic = null, nightPools = null, nightUnits = null, nightBeams = null, glowTex = null, nightWorld = null;
+  let nightFix = null, nightStatic = null, nightPools = null, nightUnits = null, nightBeams = null, glowTex = null, nightWorld = null;
   function makeGlowTex() {
     const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
     const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,0.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
@@ -32,9 +32,20 @@
     if (nightStatic) { scene.remove(nightStatic); scene.remove(nightPools); }
     const lamps = [], pools = [], warm = [1, 0.82, 0.55], cool = [0.85, 0.9, 1], win = [1, 0.75, 0.4];
     world.poles.forEach((p, i) => { if (i % 2) return; const y = gh(p.x, p.y); lamps.push([U(p.x), y + 3.05, U(p.y) + 0.45, warm, 1.6]); pools.push([U(p.x), y + 0.04, U(p.y) + 0.45, 2.6]); }); // streetlights on every other pole
-    for (const yd of world.yards || []) for (const [fx, fy] of [[0.12, 0.15], [0.88, 0.15], [0.12, 0.85], [0.88, 0.85]]) { const x = yd.x + yd.w * fx, z = yd.y + yd.h * fy, y = gh(x, z); lamps.push([U(x), y + 2.4, U(z), cool, 2.0]); pools.push([U(x), y + 0.04, U(z), 3.4]); } // yard floods
-    for (const s2 of [world.sawmill, world.dumpSite, world.supply, world.quarry]) if (s2) { const x = s2.x + s2.w / 2, z = s2.y + s2.h * 0.6, y = gh(x, z); lamps.push([U(x), y + 2.6, U(z), cool, 2.2]); pools.push([U(x), y + 0.04, U(z), 4]); }
-    for (const h of world.houses) { const fz = h.y + h.h + 1, y = gh(h.x + h.w / 2, fz); for (const fx of [0.28, 0.72]) lamps.push([U(h.x + h.w * fx), y + 0.42, U(fz), win, 0.7]); lamps.push([U(h.x + h.w * 0.5), y + 0.62, U(fz) + 0.05, warm, 0.5]); } // windows and a porch light
+    for (const yd of world.yards || []) for (const [fx, fy] of [[0.015, 0.04], [0.985, 0.04], [0.015, 0.96], [0.985, 0.96], [0.5, 0.04]]) { const x = yd.x + yd.w * fx, z = yd.y + yd.h * fy, y = gh(x, z); lamps.push([U(x), y + 2.4, U(z), cool, 2.0]); pools.push([U(x), y + 0.04, U(z), 3.4]); } // yard floods
+    for (const s2 of [world.sawmill, world.dumpSite, world.supply, world.quarry, world.scrapyard]) if (s2) { const x = s2.x + s2.w / 2, z = s2.y + s2.h * 0.6, y = gh(x, z); lamps.push([U(x), y + 2.6, U(z), cool, 2.2]); pools.push([U(x), y + 0.04, U(z), 4]); }
+    for (const h of world.houses) { const fz = h.y + h.h + 1, y = gh(h.x + h.w / 2, fz); for (const fx of [0.28, 0.72]) lamps.push([U(h.x + h.w * fx), y + 0.42, U(fz), win, 0.7]); lamps.push([U(h.x + h.w * 0.5), y + 0.62, U(fz) + 0.05, warm, 0.5]); if (h.yard) { lamps.push([U(h.x + h.w * 0.5), y + 1.6, U(fz) + 0.1, cool, 1.6]); pools.push([U(h.x + h.w * 0.5), y + 0.04, U(fz) + 2.6, 4.6]); } } // windows and a porch light; yard buildings get a wall-pack flood
+    // the fixtures themselves, day and night: cobra-head streetlights on their poles, flood poles at the yards, porch lamps
+    if (nightFix) scene.remove(nightFix);
+    const fx = [];
+    world.poles.forEach((p, i) => { if (i % 2) return; const y = gh(p.x, p.y), x = U(p.x), z = U(p.y);
+      fx.push(P('box', '#8a8f94', [x, y + 3.25, z + 0.22], [0.06, 0.06, 0.5]), P('box', '#5d6166', [x, y + 3.15, z + 0.5], [0.22, 0.1, 0.36]), P('box', '#fff4d8', [x, y + 3.09, z + 0.5], [0.16, 0.02, 0.28])); });
+    for (const yd of world.yards || []) for (const [px, py] of [[0.015, 0.04], [0.985, 0.04], [0.015, 0.96], [0.985, 0.96], [0.5, 0.04]]) { const x = yd.x + yd.w * px, z = yd.y + yd.h * py, y = gh(x, z);
+      fx.push(P('cyl', '#6b6f74', [U(x), y + 1.25, U(z)], [0.07, 2.5, 0.07]), P('box', '#3d4146', [U(x), y + 2.48, U(z)], [0.5, 0.18, 0.22], [-0.4, 0, 0]), P('box', '#f4f8ff', [U(x), y + 2.42, U(z) + 0.08], [0.42, 0.1, 0.03], [-0.4, 0, 0])); }
+    for (const s2 of [world.sawmill, world.dumpSite, world.supply, world.quarry, world.scrapyard]) if (s2) { const x = s2.x + s2.w / 2, z = s2.y + s2.h * 0.6, y = gh(x, z);
+      fx.push(P('cyl', '#6b6f74', [U(x), y + 1.35, U(z)], [0.08, 2.7, 0.08]), P('box', '#3d4146', [U(x), y + 2.68, U(z)], [0.6, 0.18, 0.24])); }
+    for (const h of world.houses) { const fz = h.y + h.h + 1, y = gh(h.x + h.w / 2, fz); fx.push(P('box', '#2d2f31', [U(h.x + h.w * 0.5), y + 0.64, U(fz) + 0.02], [0.1, 0.14, 0.06]), P('box', '#ffe9b0', [U(h.x + h.w * 0.5), y + 0.62, U(fz) + 0.05], [0.07, 0.09, 0.02])); }
+    nightFix = model(build(fx), false, false); scene.add(nightFix);
     const n = lamps.length;
     nightStatic = glowPoints(n, 1.4);
     const pa = nightStatic.geometry.attributes.position.array, ca = nightStatic.geometry.attributes.color.array;
@@ -50,7 +61,7 @@
   function syncNight(S) {
     if (nightWorld !== world || !nightStatic) buildNightStatics();
     const n = nightLevel;
-    nightStatic.material.opacity = n; nightPools.material.opacity = n * 0.55;
+    nightStatic.material.opacity = n; nightPools.material.opacity = n * 0.7;
     nightStatic.visible = nightPools.visible = n > 0.02;
     if (!nightUnits) nightUnits = glowPoints(400, 1.15);
     if (!nightBeams) { // headlight beams: a soft pool of light thrown on the ground ahead of every lit vehicle
@@ -2280,6 +2291,18 @@
     if (world.sawmill) for (const l of world.sawmill.lumber) { const y = gh(l.x, l.y), x = U(l.x), z = U(l.y);
       for (let k = 0; k < 6; k++) parts.push(P('box', k % 2 ? '#d9b98a' : '#cfae7c', [x, y + 0.12 + k * 0.2, z], [3.2, 0.18, 1.2]));
       for (const dx of [-1.2, 0, 1.2]) parts.push(P('box', '#6b5a44', [x + dx, y + 0.05, z], [0.1, 0.1, 1.3])); }
+    if (world.scrapyard) { // Hollow Creek Salvage: crushed cars stacked up, a crane with a magnet, a row of dead machines
+      const sy = world.scrapyard, CARS = ['#8a3b32', '#4d5f7a', '#6f7468', '#a8a196', '#3f5a45', '#7a5a3a', '#b8b2a6', '#5a4a6a'];
+      for (const st of sy.stacks) { const r = rnd(st.seed * 13 + 3), y = gh(st.x, st.y);
+        for (let i = 0; i < st.n; i++) { const c = HC.pick(CARS), yy = y + 0.2 + i * 0.36, rot = [0, (r() - 0.5) * 0.4, (r() - 0.5) * 0.06];
+          parts.push(P('box', c, [U(st.x) + (r() - 0.5) * 0.2, yy, U(st.y) + (r() - 0.5) * 0.2], [1.9, 0.32, 0.95], rot), P('box', HC.shade(c, -0.25), [U(st.x), yy + 0.17, U(st.y)], [1.4, 0.04, 0.8], rot), P('box', '#2a2c2e', [U(st.x) + 0.6, yy - 0.05, U(st.y)], [0.3, 0.2, 0.97], rot)); } }
+      { const c = sy.crane, y = gh(c.x, c.y), x = U(c.x), z = U(c.y);
+        parts.push(P('box', '#2a2b2d', [x, y + 0.25, z - 0.55], [2.0, 0.5, 0.45]), P('box', '#2a2b2d', [x, y + 0.25, z + 0.55], [2.0, 0.5, 0.45]), P('box', '#d4a21c', [x, y + 0.85, z], [1.7, 0.7, 1.4]),
+          P('box', '#3b4652', [x + 0.4, y + 1.45, z + 0.3], [0.7, 0.6, 0.6]), P('box', '#d4a21c', [x + 1.6, y + 2.3, z], [3.6, 0.22, 0.25], [0, 0, 0.62]), P('box', '#d4a21c', [x + 3.6, y + 2.6, z], [1.8, 0.2, 0.22], [0, 0, -0.5]),
+          P('cyl', '#555', [x + 4.25, y + 1.6, z], [0.03, 1.6, 0.03]), P('cyl', '#3a3b3d', [x + 4.25, y + 0.75, z], [0.55, 0.14, 0.55])); }
+      for (const [i, w] of sy.wrecks.entries()) { const y = gh(w.x, w.y), x = U(w.x), z = U(w.y), c = i ? '#b58a2a' : '#9a8a3a';
+        parts.push(P('box', c, [x, y + 0.45, z], [1.8, 0.6, 1.1], [0, 0.2 * (i ? 1 : -1), 0.05]), P('box', HC.shade(c, -0.2), [x - 0.3, y + 1.0, z], [0.8, 0.6, 0.8], [0, 0.2, 0.15]), P('box', '#3a2a1e', [x + 0.6, y + 0.15, z + 0.4], [0.5, 0.3, 0.2])); }
+    }
     if (world.dumpSite) for (const m of world.dumpSite.mounds) { const y = gh(m.x, m.y);
       parts.push(P('cone', m.c, [U(m.x), y + m.r * 0.38, U(m.y)], [m.r * 2, m.r * 0.8, m.r * 2]), P('cone', HC.shade(m.c, 0.1), [U(m.x) + m.r * 0.2, y + m.r * 0.55, U(m.y) - m.r * 0.15], [m.r, m.r * 0.5, m.r])); }
     if (world.quarry) { // gravel stockpiles and a sign
@@ -3399,6 +3422,7 @@
     for (const p of world.pads || []) labels.push([p.x + p.w / 2, p.y + p.h / 2, p.type === 'mill' ? `Sawmill log yard · logs ${Math.round((HC.MILL_PRICE - 1) * 100)}% over pad price` : `County dump · brush ${HC.money(HC.DUMP_FEES.brush)}, stumps ${HC.money(HC.DUMP_FEES.stump * 3)}, rock ${HC.money(HC.DUMP_FEES.rock * 3)}`]);
     for (const p of world.storage || []) { const y = world.yards.find((q) => q.id === p.yard); if (y && y.owned) labels.push([p.x + p.w / 2, p.y + p.h / 2, 'Debris storage']); }
     if (world.supply && world.supply.pickup) { const p = world.supply.pickup; labels.push([p.x + p.w / 2, p.y + p.h / 2, 'Pickup area']); }
+    if (world.scrapyard) { const sy = world.scrapyard; labels.push([sy.x + sy.w / 2, sy.y + sy.h * 0.5, 'Hollow Creek Salvage · scrapyard']); }
     for (const pm of world.pumps) labels.push([pm.x, pm.y, 'Fuel']);
     if (world.fwStand) labels.push([world.fwStand.x, world.fwStand.y - 30, `Firewood stand · ${(HC.company.stand || {}).stock || 0}/${HC.STAND_CAP}`]);
     for (const c of (HC.company && HC.company.contracts) || []) if (c.status === 'bidding' || c.status === 'won') labels.push([c.x, c.y, c.status === 'won' ? `Your state contract · ${c.road}` : `Storm damage · ${c.road} (bids open)`]);
