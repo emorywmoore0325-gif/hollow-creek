@@ -108,6 +108,7 @@
           if (HC.company.cond[k] === undefined) HC.company.cond[k] = 100;
         }
         const Cm = HC.company, up = Cm.upgrades || {};
+        if (up.grapple) { Cm.money += [0, 700, 2200][up.grapple] || 2200; delete up.grapple; Cm.upRefund = true; } // the grapple upgrade is gone: money back
         if (up.trailer) { Cm.money += [0, 900, 2700][up.trailer] || 2700; delete up.trailer; Cm.upRefund = true; } // the trailer upgrade is gone: money back
         // the processor now comes with the Firewood Yard: yard owners get one, a processor bought without the yard is refunded
         if ((Cm.yards || {}).firewood && !Cm.owned.fwproc) { Cm.owned.fwproc = true; Cm.cond.fwproc = 100; }

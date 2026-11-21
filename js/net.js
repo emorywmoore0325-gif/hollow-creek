@@ -284,6 +284,7 @@
     Net.as(p, () => HC.Units.update(u, dt, s, true));
     return true;
   };
+  let itemAcc = 0;
   function hostTick(dt) {
     frameRemote(dt);
     ownAcc += dt;
@@ -314,7 +315,7 @@
     const sig = (key, val) => { const j = JSON.stringify(val); if (prevSig[key] === j) return undefined; prevSig[key] = j; return val; };
     const msg = {
       type: 'tick', t: s.time, st: s.stage, wm: s.workMins, paused: !!s.paused, m: C.money, day: C.day,
-      units, trailers, at: s.attachments, saws: s.saws || [], hose: s.hose || null, items: W.items.map(itemOut),
+      units, trailers, at: s.attachments, saws: s.saws || [], hose: s.hose || null, items: (itemAcc += TICK) >= 0.25 ? ((itemAcc = 0), sig('items', W.items.map((it) => { const o = itemOut(it); o.x = Math.round(o.x); o.y = Math.round(o.y); if (o.z) o.z = Math.round(o.z * 20) / 20; return o; }))) : undefined, // debris at most 4x a second, and only when it moved
       tc, brm, bhp, ti,
       stumps: sig('stumps', W.stumps.map(prim)), fences: sig('fences', W.fences.map((f, i) => (f.broken ? i : -1)).filter((i) => i >= 0)),
       wires: sig('wires', W.wires.map((w, i) => (w.down ? i : -1)).filter((i) => i >= 0)), houses: sig('houses', W.houses.map((h) => (h.damaged || []).length)),
@@ -457,7 +458,7 @@
     s.attachments = m.at; if (HC.Game.sawProps) HC.Game.sawProps(s); s.saws = m.saws || (m.saw ? [m.saw] : []); s.hose = m.hose;
     // the world
     const byId = new Map(W.items.map((it) => [it.id, it]));
-    W.items = m.items.map((o) => { const it = byId.get(o.id); if (it) { const n = itemIn(o); Object.assign(it, n); if (!n.content) delete it.content; return it; } return itemIn(o); });
+    if (m.items) W.items = m.items.map((o) => { const it = byId.get(o.id); if (it) { const n = itemIn(o); Object.assign(it, n); if (!n.content) delete it.content; return it; } return itemIn(o); });
     for (const [i, t] of m.tc) if (W.trees[i]) Object.assign(W.trees[i], t);
     if (m.brm.length) { const rm = new Set(m.brm); W.bushes = W.bushes.filter((b) => !rm.has(bushKey(b))); }
     if (m.bhp.length) { const hp = new Map(m.bhp); for (const b of W.bushes) if (hp.has(bushKey(b))) b.hp = hp.get(bushKey(b)); }
@@ -592,8 +593,9 @@
     const s = S(), W = HC.world, C = HC.company, units = {};
     for (const k in s.units) { const u = s.units[k], o = prim(u, { input: 1 }); o.on = u.on; o.carry = u.carrying.map(itemOut); o.b = HC.baseOf(k); units[k] = o; }
     const trailers = s.trailers.filter((t) => !HC.EQUIP[t.kind] || HC.EQUIP[t.kind].move !== 'tow').map((t) => Object.assign(prim(t), { cg: t.cargo ? t.cargo.map((c) => c.kind) : [] }));
-    const items = W.items.map(itemOut), isig = items.map((i) => i.id + ':' + Math.round(i.x) + ':' + Math.round(i.y) + ':' + (i.cn || 0)).join('|');
-    const msg = { type: 'opres', tag: myTag, name: Net.myName || C.name, co: C.name, me: s.active, units, trailers, at: s.attachments || [], job: s.job ? s.job.parcel : null };
+    const items = W.items.map(itemOut), isig = items.map((i) => i.id + ':' + Math.round(i.x / 4) + ':' + Math.round(i.y / 4) + ':' + (i.cn || 0)).join('|'); // coarse: small settling nudges don't resend everything
+    const jinfo = (j) => j && { id: j.id, client: j.client, type: j.type, address: j.address, pay: j.pay, parcel: j.parcel, due: j.due };
+    const msg = { type: 'opres', tag: myTag, name: Net.myName || C.name, co: C.name, me: s.active, units, trailers, at: s.attachments || [], job: s.job ? s.job.parcel : null, jobs: [jinfo(C.active), jinfo(C.queued)].filter(Boolean) };
     if (withDiff) { msg.d = ldDiff(); msg.st = pendStamps.splice(0); }
     if (!withDiff || isig !== lastItemsSig) { if (withDiff) lastItemsSig = isig; msg.items = items; }
     if (Net.role === 'host') {
@@ -616,10 +618,13 @@
       const C = HC.company, had = new Set((C.board || []).map((j) => j.id));
       C.board = m.board.filter((j) => !(S().job && S().job.id === j.id));
       const fresh = C.board.filter((j) => !had.has(j.id));
+      if (HC.UI.refreshPhone && (fresh.length || had.size !== C.board.length)) HC.UI.refreshPhone('jobs');
       if (fresh.length && had.size) { HC.Audio.pop(); HC.UI.toast(`Phone: ${fresh[0].client} wants ${HC.JOBS[fresh[0].type].name.toLowerCase()} for ${HC.money(fresh[0].pay)}. Press J to see the job board.`, 'call'); }
     }
     const s = S(), R = Net.remote[m.tag] || (Net.remote[m.tag] = { units: {}, trailers: [], at: [], items: [] });
-    Object.assign(R, { name: m.name, co: m.co, me: m.me && m.tag + ':' + m.me, job: m.job });
+    const jsig = JSON.stringify(m.jobs || []), changedJobs = jsig !== R.jsig;
+    Object.assign(R, { name: m.name, co: m.co, me: m.me && m.tag + ':' + m.me, job: m.job, jobs: m.jobs || [], jsig });
+    if (changedJobs && R.jsig !== undefined && HC.UI.refreshPhone) HC.UI.refreshPhone('jobs');
     for (const st of m.st || []) applyStamp(st);
     if (m.d) ldApply(m.d);
     R.rawUnits = m.units; R.rawTrailers = m.trailers; R.rawAt = m.at;
@@ -844,3 +849,11 @@
     return r;
   };
 })();
+
+// every job booked in town right now: yours and each friend's (for the "Booked in town" list on everyone's phone)
+HC.Net.booked = function () {
+  const out = [], C = HC.company;
+  for (const j of [C.active, C.queued]) if (j) out.push(Object.assign({ who: 'You' }, j));
+  for (const tag in HC.Net.remote || {}) { const R = HC.Net.remote[tag]; for (const j of R.jobs || []) out.push(Object.assign({ who: R.name || R.co }, j)); }
+  return out;
+};

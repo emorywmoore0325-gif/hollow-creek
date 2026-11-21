@@ -59,6 +59,7 @@
       if (t.type === 'sapling') { t.cut += rate / 0.8; if (t.cut >= 1) { t.state = 'gone'; HC.Audio.chip(); if (!t.marked) HC.Game.penalty('wrong', t.x, t.y); } }
       else if (t.state === 'standing' && near(t, p, t.trunkR + 10) && !t.damaged) { t.damaged = true; if (!t.marked) HC.Game.penalty('tree', t.x, t.y); }
     }
+    if (bog) { u.v *= 0.5; U.wear(u, 0.6 * dt); HC.Game.hintOnce('That brush is too heavy for a bush hog: it bogs down and wears the cutter. Thick brush and bigger saplings need a forestry mulcher.'); }
     setGround(S, p.x, p.y, R, [T.TALL], T.MOWED);
     if (Math.random() < dt * 8) HC.Game.dust(p.x + HC.rand(-R, R), p.y + HC.rand(-R, R), HC.pick(['#7fa443', '#93b552', '#6a8f36']), 2, 50);
   }
@@ -78,10 +79,17 @@
       if (t.type === 'sapling') {
         t.cut += rate / 0.9; hit = true;
         if (t.cut >= 1) { t.state = 'gone'; HC.Audio.chip(); if (!t.marked) HC.Game.penalty('wrong', t.x, t.y); }
+      } else if (t.state === 'standing' && t.marked && (t.s || 1) < 0.85 && near(t, fp, t.trunkR + 12)) { // a young marked tree: the drum takes it down to the ground
+        t.cut += rate / 2.4; hit = true;
+        if (t.cut >= 1) { t.state = 'gone'; HC.Audio.chip(); }
       } else if (t.state === 'standing' && near(t, fp, t.trunkR + 12) && !t.damaged) {
         t.damaged = true;
         if (!t.marked) HC.Game.penalty('tree', t.x, t.y);
       }
+    }
+    for (const st of S.lot.stumps.slice()) if (near(st, fp, R + st.r)) { // and stumps get ground down to grade, slower than a stump grinder
+      st.hp += (rate / (1.4 + (st.grind || 4) * 0.35)); hit = true;
+      if (st.hp >= 1) { S.lot.stumps.splice(S.lot.stumps.indexOf(st), 1); if (st.fromMarked) S.ground = (S.ground || 0) + 1; HC.Audio.pop(); }
     }
     setGround(S, fp.x, fp.y, R - 6, [T.GRASS, T.TALL, T.MOWED, T.DIRT], T.MULCH);
     HC.Game.dust(fp.x + HC.rand(-R, R) * 0.6, fp.y + HC.rand(-R, R) * 0.6, hit ? HC.pick(['#7b4b2b', '#a3683b', '#5f8f3a']) : '#a3683b', hit ? 3 : 1, 70);
@@ -112,7 +120,7 @@
       u.grindT = (u.grindT || 0) + dt * U.condFactor(u.kind);
       if (u.grindT < 1.2) return;
       u.grindT = 0;
-      const piece = u.hopper.shift(), units = piece.kind === 'log' ? 2 : 1;
+      const piece = u.hopper.shift(), each = (c) => (c.kind === 'log' || c.kind === 'stump' ? 2 : 1), units = piece.kind === 'pile' ? (piece.content || []).reduce((a, c) => a + each(c), 0) || 1 : each(piece);
       const dp = dischargePt(u), dump = U.nearDump(dp, S, 30);
       for (let i = 0; i < units; i++) {
         const m = { id: HC.uid(), kind: 'mulch', x: dp.x, y: dp.y, a: 0, size: 1, value: 0 };
@@ -351,12 +359,15 @@
     runWork(u, dt);
     U.burn(u, 0.25 * dt);
     const p = { x: u.x - Math.cos(u.a) * 38, y: u.y - Math.sin(u.a) * 38 }, R = 13, rate = U.condFactor(u.kind) * dt * 1.4;
+    let bog = false;
     for (const b of S.lot.bushes.slice()) if (near(b, p, R + b.r)) {
+      if (b.r > 13) { bog = true; continue; } // a heavy thicket: the rotary cutter just rides up on it
       b.hp += rate / 1.6;
       if (b.hp >= 1) { S.lot.bushes.splice(S.lot.bushes.indexOf(b), 1); HC.Audio.chip(); }
     }
     for (const t of S.lot.trees) {
       if (t.state === 'gone' || !near(t, p, R + 6)) continue;
+      if (t.type === 'sapling' && (t.s || 1) > 1.0) { bog = true; continue; } // too thick for the blades
       if (t.type === 'sapling') { t.cut += rate / 0.7; if (t.cut >= 1) { t.state = 'gone'; HC.Audio.chip(); if (!t.marked) HC.Game.penalty('wrong', t.x, t.y); } }
       else if (t.state === 'standing' && near(t, p, t.trunkR + 10) && !t.damaged) { t.damaged = true; if (!t.marked) HC.Game.penalty('tree', t.x, t.y); }
     }

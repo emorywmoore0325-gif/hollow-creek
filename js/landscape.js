@@ -43,7 +43,7 @@
   const list = () => (HC.company.pallets = HC.company.pallets || []);
   const forksOn = (u, S) => (S.attachments || []).find((a) => a.on === u.kind && a.kind === 'forks');
   HC.forksOn = forksOn;
-  const forkReach = (u) => (HC.baseOf(u.kind) === 'tractor' ? 42 : 30);
+  const forkReach = (u) => (HC.baseOf(u.kind) === 'tractor' ? 42 : HC.EQUIP[u.kind].reach ? HC.EQUIP[u.kind].reach + 8 : 30); // mini 23, skid 30, big track loader 36
   const front = (u) => ({ x: u.x + Math.cos(u.a) * forkReach(u), y: u.y + Math.sin(u.a) * forkReach(u) });
   const bedOf = (t) => ({ x: t.x - Math.cos(t.a) * 17, y: t.y - Math.sin(t.a) * 17 });
   const nameOf = (p) => `${HC.PALLETS[p.mat].name.toLowerCase()} pallet (${p.qty}/${HC.PALLETS[p.mat].per} ${HC.PALLETS[p.mat].unit})`;
@@ -154,7 +154,8 @@
   }
   const baseInteract = HC.Units.interact, baseHint = HC.Units.hint;
   HC.Units.interact = function (u, S) {
-    if (u && forksOn(u, S) && !u.on && !(S.trailers.some((t) => HC.Units.onDeck(t, u)) && !list().some((p) => p.ride && p.ride.held === u.kind) && Math.abs(u.v || 0) < 4 && !list().some((p) => HC.dist(p.x, p.y, front(u).x, front(u).y) < 26))) return forksInteract(u, S);
+    // on a trailer deck with nothing on the forks, E straps the machine down (pallets next to it or not); pallets get picked up off the ground or a deck from beside it
+    if (u && forksOn(u, S) && !u.on && !(S.trailers.some((t) => HC.Units.onDeck(t, u)) && !list().some((p) => p.ride && p.ride.held === u.kind) && Math.abs(u.v || 0) < 4)) return forksInteract(u, S);
     return baseInteract.apply(this, arguments);
   };
   HC.Units.hint = function (u, S) {
@@ -225,11 +226,12 @@
     baseUpd.apply(this, arguments);
     const S = HC.session;
     if (!S || S.preview || !HC.company) return;
-    if (HC.company.upRefund) { delete HC.company.upRefund; HC.Game.toast('The bigger dump trailer upgrade is gone: you got your money back. The 16 ft tandem dump trailer (18 units) is in the shop.', 'call'); }
+    if (HC.company.upRefund) { delete HC.company.upRefund; HC.Game.toast('An upgrade you bought was retired (bigger dump trailer or wider grapple): you got your money back.', 'call'); }
     if (HC.company.procRefund) { delete HC.company.procRefund; HC.Game.toast('The firewood processor now comes with the Firewood Yard, so yours was refunded ($24,000). Buy the yard and the processor is included.', 'call'); }
     if (HC.company.landRefund) { delete HC.company.landRefund; HC.Game.toast('The landscaping crew has retired: you\'ve been refunded $1,500. Buy sod, shrubs and pavers on pallets (and bulk mulch) at the landscape supply, and lay them yourself on foot.', 'call'); }
     follow(S);
   };
 
+  HC.forkReach = forkReach;
   HC.Landscape = { buy, buyMulch, list, forksOn, front, MAT_OF, MAT_NAME };
 })();

@@ -15,7 +15,7 @@
   function bind(sel, fn) {
     screen.querySelectorAll(sel).forEach((el) => el.addEventListener('click', (e) => { HC.Audio.init(); HC.Audio.click(); fn(el, e); }));
   }
-  function pauseWorld(p) { if (HC.session) HC.session.paused = p; if (p) HC.Audio.stopLoops(); }
+  function pauseWorld(p) { if (HC.Net && HC.Net.role && p) { HC.Audio.stopLoops(); return; } if (HC.session) HC.session.paused = p; if (p) HC.Audio.stopLoops(); } // in co-op the world keeps running for everyone while you look at your phone
 
   // ---------- title (the town idles behind it) ----------
   function title() {
@@ -233,8 +233,10 @@
         : c.status === 'paid' ? `<p>Done and paid: ${HC.money(c.pay)}.</p>` : `<p>${esc(c.rivalName)} got it at ${HC.money(c.rival)}${c.bid ? ` (you bid ${HC.money(c.bid)})` : ''}.</p>`;
       return `<article class="job contract" style="--jc:#3c5a7a"><div class="job-top"><span class="job-type">State DOT · storm cleanup</span><span class="job-no">${esc(c.road)}</span></div>${body}</article>`;
     };
+    const booked = HC.Net && HC.Net.role && HC.Net.booked ? HC.Net.booked() : [];
+    const bookedSec = booked.length && HC.Net.role ? `<section class="contracts"><h3 class="sec">Booked in town</h3><div class="jobs">${booked.map((j) => `<article class="job disabled" style="--jc:${(HC.JOBS[j.type] || {}).color || '#888'}"><div class="job-top"><span class="job-type">${esc((HC.JOBS[j.type] || {}).name || j.type)}</span><span class="job-no">${esc(j.who)}</span></div><h3>${esc(j.client)}</h3><p class="addr">${esc(j.address || '')} · ${HC.money(j.pay || 0)}${j.due ? ' · due ' + esc(HC.dueText(j)) : ''}</p><p class="lock">Booked by ${esc(j.who)}</p></article>`).join('')}</div></section>` : '';
     const conSec = cons.length ? `<section class="contracts"><h3 class="sec">State storm contracts</h3><div class="jobs">${cons.map(conCard).join('')}</div></section>` : '';
-    return `${active}${conSec}
+    return `${active}${bookedSec}${conSec}
       <div class="board-note"><strong>Forecast:</strong> ${esc(w.name)}. ${esc(w.note || '')} New customers call in through the day.</div>
       <div class="jobs">${board.length ? board.map(jobCard).join('') : '<p class="empty">No calls right now. Give it an hour.</p>'}</div>`;
   }
@@ -564,6 +566,13 @@
 
   // a brand-new company: nothing bought yet
   const ownsNothing = () => !Object.keys(HC.company.owned).some((k) => HC.company.owned[k] && k !== 'op' && !HC.EQUIP[k].hidden);
+  // redraw the open phone (co-op: the shared board or someone's booking changed)
+  function refreshPhone(onlyTab) {
+    if (!phoneOpen || (onlyTab && tab !== onlyTab)) return;
+    if (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return; // don't wipe a bid you're typing
+    const body = document.querySelector('.hub-body'), y = body ? body.scrollTop : 0;
+    phone(); const b2 = document.querySelector('.hub-body'); if (b2) b2.scrollTop = y;
+  }
   function phone(t) {
     if (t) tab = t;
     if (!HC.session || HC.session.preview) return;
@@ -872,7 +881,7 @@
 
   function init() { screen = $('screen'); hud = $('hud'); }
 
-  HC.UI = { cycleCam,
+  HC.UI = { cycleCam, refreshPhone,
     init, title, phone, closePhone, pause, resume, dayEnd, results, toast, updateHud, buildHud, show, hide, bind, stars,
     get phoneOpen() { return phoneOpen; }, get mapOpen() { const m = $('h-map'); return !!(m && m.classList.contains('big')); }, mapToggle, fleet, esc, ACT,
   };

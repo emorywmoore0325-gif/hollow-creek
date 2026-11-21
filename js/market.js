@@ -19,7 +19,7 @@
   function listing(k) {
     const cond = HC.randi(32, 88), list = priceOf(k);
     // worn ones are cheap; the odd great deal; condition sets most of the price
-    const f = HC.clamp(0.28 + cond / 160 + HC.rand(-0.08, 0.08) - (HC.chance(0.12) ? 0.15 : 0), 0.3, 0.85);
+    const f = HC.clamp(0.58 + cond / 350 + HC.rand(-0.05, 0.05) - (HC.chance(0.1) ? 0.08 : 0), 0.55, 0.9); // used machines hold their value: about 55-90% of new
     const years = Math.max(1, Math.round((100 - cond) / 9 + HC.rand(-1, 2)));
     return { id: HC.uid(), k, cond: k.startsWith('tr:') ? 100 : cond, years, price: Math.round((list * f) / 50) * 50, list, seller: HC.pick(SELLERS), sold: false };
   }

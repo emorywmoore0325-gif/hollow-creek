@@ -538,7 +538,7 @@
       },
       work() {},
       reach: (u) => HC.EQUIP[u.kind].reach || 24,
-      cap: (u) => ((u && HC.EQUIP[u.kind].grab) || 5) + HC.Co.level('grapple'), // mini 3, skid steer 5, plus grapple upgrades
+      cap: (u) => (u && HC.EQUIP[u.kind].grab) || 5, // mini 3, skid steer 5, big track loader 7
       pickable(u, S) {
         const fp = frontPt(u, KINDS.skid.reach(u));
         let best = null, bd = 30;

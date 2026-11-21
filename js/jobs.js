@@ -487,4 +487,10 @@
     },
     fence_line: (S) => G.OBJECTIVES.mulching(S),
   });
+
+  // the two jobs ask for different machines: a bush hog field is grass, briars and whips; a forestry mulching job is heavy brush and bigger saplings
+  { const bh = L.GEN.bush_hog, mu = L.GEN.mulching;
+    L.GEN.bush_hog = function (lot, job) { bh.apply(this, arguments); for (const b of lot.bushes) if (lot.zone && HC.inRect(b.x, b.y, lot.zone)) b.r = Math.min(b.r, 12); for (const t of lot.trees) if (t.type === 'sapling' && t.marked) t.s = Math.min(t.s, 0.9); };
+    L.GEN.mulching = function (lot, job) { mu.apply(this, arguments); for (const b of lot.bushes) if (lot.zone && HC.inRect(b.x, b.y, lot.zone)) b.r = Math.max(b.r, 15); for (const t of lot.trees) if (t.type === 'sapling' && t.marked) t.s = Math.max(t.s, 1.05); };
+  }
 })();

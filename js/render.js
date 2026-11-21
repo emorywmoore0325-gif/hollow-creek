@@ -252,6 +252,12 @@
     for (let i = 0; i < 6; i++) { const a = i * 1.1; parts.push(P('ico0', i % 2 ? '#4d7d2e' : '#6a9a3a', [Math.cos(a) * 0.24, 0.18 + r() * 0.12, Math.sin(a) * 0.24], [0.34, 0.28, 0.34])); }
     return build(parts);
   });
+  // a scoop of mulch or chips (a low lumpy mound), or a few splits of firewood: what a grapple or bucket carries
+  const bulkGeo = (kind) => cache('bulk_' + kind, () => {
+    if (kind === 'firewood') return build([0, 1, 2, 3].map((i) => P('box', ['#b58a5a', '#c9a26a', '#9a7048', '#d4b07a'][i], [((i % 2) - 0.5) * 0.12, 0.05 + Math.floor(i / 2) * 0.09, ((i % 3) - 1) * 0.08], [0.36, 0.09, 0.09], [0, i * 0.7, 0])));
+    const c = kind === 'chips' ? '#c9a26a' : '#3a2618', c2 = kind === 'chips' ? '#b48d58' : '#4a3020';
+    return build([P('sph', c, [0, 0.08, 0], [0.62, 0.22, 0.55]), P('sph', c2, [0.1, 0.13, -0.06], [0.34, 0.16, 0.3]), P('sph', c2, [-0.12, 0.11, 0.08], [0.3, 0.14, 0.28])]);
+  });
   const rockGeo = () => cache('rock', () => build([P('dode', '#8b8e93', [0, 0.14, 0], [0.62, 0.42, 0.52]), P('dode', '#a7abb0', [-0.08, 0.24, -0.05], [0.32, 0.22, 0.3])]));
   const boulderGeo = (s) => cache('boulder' + (Math.floor(s) % 3), () => {
     const r = rnd(Math.floor(s) % 3 + 21);
@@ -2404,7 +2410,7 @@
   function syncSmall(S) {
     const all = world.items.concat(world.remoteItems || []), carried = new Set();
     for (const k in S.units) for (const c of S.units[k].carrying) { all.push(c); carried.add(c); }
-    syncList(all, meshes.items, (it) => model(it.kind === 'log' ? logGeo(it) : it.kind === 'rock' ? rockGeo() : it.kind === 'stump' ? cache('stumpItem', BIG_MODELS.stumpItem) : it.kind === 'pile' ? (it.mulch ? cache('mulchHeap', BIG_MODELS.mulchHeap) : it.chips ? cache('chipHeap', BIG_MODELS.chipHeap) : it.firewood ? cache('woodHeap', BIG_MODELS.woodHeap) : cache('pileHeap', BIG_MODELS.pileHeap)) : brushGeo(it.seed || it.id)), (it, m) => {
+    syncList(all, meshes.items, (it) => model(it.kind === 'log' ? logGeo(it) : it.kind === 'rock' ? rockGeo() : it.kind === 'stump' ? cache('stumpItem', BIG_MODELS.stumpItem) : it.kind === 'mulch' || it.kind === 'chips' || it.kind === 'firewood' ? bulkGeo(it.kind) : it.kind === 'pile' ? (it.mulch ? cache('mulchHeap', BIG_MODELS.mulchHeap) : it.chips ? cache('chipHeap', BIG_MODELS.chipHeap) : it.firewood ? cache('woodHeap', BIG_MODELS.woodHeap) : cache('pileHeap', BIG_MODELS.pileHeap)) : brushGeo(it.seed || it.id)), (it, m) => {
       m.visible = inView(U(it.x), U(it.y));
       if (!m.visible) return;
       let ud = null, arms = null;
@@ -2483,7 +2489,7 @@
       }
       const r = p.ride, P = HC.PALLETS[p.mat];
       let lift = 0;
-      if (r && r.held) { const u = S.units[r.held]; lift = (0.08 + (u ? u.armT || 0 : 0) * (HC.baseOf(r.held) === 'tractor' ? 2.6 : 2.3)) * MM; }
+      if (r && r.held) { const u = S.units[r.held], mini = u && HC.EQUIP[u.kind].reach && HC.EQUIP[u.kind].reach < 20; lift = (0.08 + (u ? u.armT || 0 : 0) * (HC.baseOf(r.held) === 'tractor' ? 2.6 : mini ? 1.5 : 2.3)) * MM; }
       else if (r && r.t) { const t = S.trailers.find((q) => q.id === r.t); lift = t ? (DECK_H[t.kind] || 0.6) * MM : 0; }
       else if (r && r.u) lift = (HC.baseOf(r.u) === 'dually' ? 1.5 : 1.1) * MM;
       o.position.set(U(p.x), gh(p.x, p.y) + lift, U(p.y));

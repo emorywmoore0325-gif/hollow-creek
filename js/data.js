@@ -13,7 +13,7 @@ HC.TREES = {
 };
 
 // Game version: co-op players must match (bump whenever the game changes)
-HC.VERSION = '2026.11.20-2';
+HC.VERSION = '2026.11.20-3';
 HC.MAP_VER = 4; // bump whenever the world layout changes (saves then park everything back at the yard)
 
 // Equipment. key = number key. fuel in units, use per second.
@@ -698,3 +698,20 @@ Object.assign(HC.EQUIP.skidXL, { price: 22500 });
 // stone is worth more, and costs more to get rid of
 HC.ROCK_PRICE = 75;           // per rock at your quarry (was $45)
 HC.DUMP_FEES.rock = 22;       // per load unit at the county dump: $66 a rock (was $36)
+
+// the knuckleboom log truck carries 20 logs; the grapple upgrade is gone (machines carry what they're built for)
+HC.EQUIP.logtruck.bed = 20;
+HC.EQUIP.logtruck.help = HC.EQUIP.logtruck.help.replace('30 units', '20 logs');
+delete HC.UPGRADES.grapple;
+HC.BLURB.logtruck = HC.BLURB.logtruck.replace('30 units of logs', '20 logs').replace('30 units', '20 logs');
+
+HC.JOBS.bush_hog.blurb = 'An overgrown field: tall grass, briars and thin saplings. A tractor and bush hog mows it all down.';
+HC.JOBS.mulching.blurb = 'Thick brush and bigger saplings, too heavy for a bush hog. A forestry mulcher grinds it all, stumps included, and leaves a mulch carpet.';
+
+// ================= Balance: give the wheel loader and the tractor clear jobs to do =================
+Object.assign(HC.EQUIP.loader, { price: 44000, cap: 16, speed: 84,
+  help: 'Articulated wheel loader on rubber tires: it drives itself down the road to the job (no lowboy needed) and its 3 yd bucket scoops up to 16 pieces at once, so it fills a tri-axle dump truck in a few passes and clears a storm or lot-clearing mess fast. Lower the bucket (hold G), drive into a push pile or loose debris and press E to scoop; raise it (hold T) beside a truck or trailer and press E to dump.' });
+HC.BLURB.loader = 'Rubber-tired loader: drives to the job on its own, scoops 16 at a time, fills trucks fast.';
+Object.assign(HC.EQUIP.tractor, { price: 19500, cap: 9, speed: 92,
+  help: 'Cab tractor: drives to the job at road speed and tows a dump or equipment trailer behind it, runs the bush hog off its PTO (the only machine that can), and its front-end loader scoops 9 pieces (clamp-on forks lift pallets). G lowers the bucket, E scoops, T raises it and E dumps into a trailer or truck. Back up square to the bush hog and press Q to hook it on; hold left click to cut.' });
+HC.BLURB.tractor = 'Road-speed tractor: tows a trailer, runs the bush hog, loader scoops 9, takes pallet forks.';
