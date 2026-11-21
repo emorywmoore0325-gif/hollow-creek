@@ -280,11 +280,13 @@
     const quarryCard = q && !q.owned ? `<article class="shop-item"><h4>${esc(q.name)}</h4><p>A working gravel quarry up past Fox Run. Own it and every rock you haul to its sales pad sells for ${HC.money(HC.ROCK_PRICE)} instead of costing a dump fee.</p>
       <button class="btn buy-quarry" ${C.money < q.price ? 'disabled' : ''}>Buy ${HC.money(q.price)}</button></article>` : '';
     const lvl = C.yardLevel || 1;
-    const EXP = { 2: { price: 12000, text: 'Push the equipment compound east onto the lot next door: more gravel, a longer fence and four more trailer bays (room for the lowboy and log trailer).' },
-      3: { price: 22000, text: 'Put up a second pole barn on the expansion with five more covered machine bays.' } };
+    const EXP = { 2: { price: 12000, text: 'Push the equipment compound east onto the lot next door: more gravel, a longer fence, an enclosed storage barn and four more trailer bays (room for the lowboy and log trailer).' },
+      3: { price: 22000, text: 'Add a lean-to equipment shed off the storage barn with five more covered machine bays.' } };
     const expCard = lvl < 3 && HC.world.yard.id === 'hq' ? `<article class="shop-item"><h4>Home Yard expansion <span class="lvl">${'■'.repeat(lvl)}${'□'.repeat(3 - lvl)}</span></h4><p>${EXP[lvl + 1].text}</p>
       <button class="btn buy-exp" ${C.money < EXP[lvl + 1].price ? 'disabled' : ''}>Level ${lvl + 1}: ${HC.money(EXP[lvl + 1].price)}</button></article>` : '';
-    const yards = expCard + quarryCard + HC.world.yards.filter((y) => !y.owned && !y.coop).map((y) => `<article class="shop-item"><h4>${esc(y.name)}</h4><p>${y.id === 'firewood' ? 'Out on Hemlock Hollow Rd: a fenced yard with a permanent firewood processor, a roadside firewood stand, debris storage, parking bays and a fuel pump. Bring logs, run them through the processor, and stock the stand.' : 'A fenced equipment yard with a pole shed, parking bays and a fuel pump on Fox Run, across town. Park, fuel and repair equipment there.'}</p>
+    const homeCards = HC.Homes ? HC.Homes.listed().map((L) => { const mineH = C.home === L.parcel, old = HC.Homes.mine(), net = L.price - (old ? Math.round(old.price * 0.85) : 0);
+      return `<article class="shop-item"><h4>${esc(L.name)} <span class="role">${esc(L.address)}</span></h4><p>${esc(L.blurb)} Walk up to the front door and press E to go inside and sleep.</p>${mineH ? '<span class="chip ok">Your home</span>' : `<button class="btn buy-home" data-id="${L.parcel}" ${C.money < net ? 'disabled' : ''}>Buy ${HC.money(L.price)}${old ? ` (${HC.money(net)} after selling yours)` : ''}</button>`}</article>`; }).join('') : '';
+    const yards = homeCards + expCard + quarryCard + HC.world.yards.filter((y) => !y.owned && !y.coop).map((y) => `<article class="shop-item"><h4>${esc(y.name)}</h4><p>${y.id === 'firewood' ? 'Out on Hemlock Hollow Rd: a fenced yard with a permanent firewood processor, a roadside firewood stand, debris storage, parking bays and a fuel pump. Bring logs, run them through the processor, and stock the stand.' : 'A fenced equipment yard with a pole shed, parking bays and a fuel pump on Fox Run, across town. Park, fuel and repair equipment there.'}</p>
       <button class="btn buy-yard" data-id="${y.id}" ${C.money < y.price ? 'disabled' : ''}>Buy ${HC.money(y.price)}</button></article>`).join('');
     const trade = HC.Game.sawTrade();
     const saws = Object.keys(HC.CHAINSAWS).map((id) => {
@@ -346,7 +348,7 @@
       ['tools', 'Chainsaws & attachments', `<p class="small cat-note">${C.owned.saw ? 'Buy another of your saw so more than one of you can cut (co-op). Switching to a different model trades in your saws (40% of what one cost).' : 'You need a chainsaw to fell and buck trees. Climb out of the truck (F), then G picks it up.'}</p><div class="shop-grid">${saws}${tools.map(card).join('')}</div>`],
       ['supply', 'Landscape supply', supplySec()],
       ['upgrades', 'Upgrades', `<div class="shop-grid">${up}</div>`],
-      ['property', 'Yards', yards ? `<div class="shop-grid">${yards}</div>` : '<p class="empty">You own every yard.</p>'],
+      ['property', 'Homes & yards', yards ? `<div class="shop-grid">${yards}</div>` : '<p class="empty">You own every yard.</p>'],
       ['crew', 'Hire help', `<div class="shop-grid">${keys.filter((k) => HC.EQUIP[k].move === 'walk').map(card).join('')}${crew}</div>`],
       ['fleet', 'My equipment', null],
     ];
@@ -509,6 +511,7 @@
       HC.Audio.cash(); HC.Save.save(); buildHud();
       return `${HC.EQUIP[key].name} bought and parked at your home yard.`;
     },
+    '.buy-home'(d) { return HC.Homes.buy(d.id); },
     '.buy-exp'() {
       const C = HC.company, lvl = C.yardLevel || 1, price = { 2: 12000, 3: 22000 }[lvl + 1];
       if (!price || C.money < price) return null;
@@ -610,7 +613,7 @@
     const act = (sel, close) => bind(sel, (el) => doAct(sel, { ...el.dataset }, close));
     act('.take', true); act('.counter'); act('#b-invoice', true); act('#b-switch', true);
     bind('.bid', (el) => { const inp = screen.querySelector(`.bid-in[data-id="${el.dataset.id}"]`); doAct('.bid', { id: el.dataset.id, amt: inp ? inp.value : 0 }); });
-    for (const sel of ['.buy-used', '.buy-eq', '.buy-tr', '.buy-more', '.buy-att', '.buy-pal', '.buy-mulch', '.buy-exp', '.buy-quarry', '.buy-yard', '.buy-saw', '.buy-saw2', '.svc', '.wear-oh', '.wear-haul', '.wear-scrap', '.buy-up', '.hire', '.fire', '.repair', '#b-repair-all', '#b-fuel-all']) act(sel);
+    for (const sel of ['.buy-used', '.buy-eq', '.buy-tr', '.buy-more', '.buy-att', '.buy-pal', '.buy-mulch', '.buy-exp', '.buy-home', '.buy-quarry', '.buy-yard', '.buy-saw', '.buy-saw2', '.svc', '.wear-oh', '.wear-haul', '.wear-scrap', '.buy-up', '.hire', '.fire', '.repair', '#b-repair-all', '#b-fuel-all']) act(sel);
     for (const sel of ['.sell-u', '.sell-t', '.sell-a']) bind(sel, (el) => armSell(el, () => { doAct(sel, { ...el.dataset }); return false; }));
   }
   function closePhone() { hide(); pauseWorld(false); }
@@ -764,6 +767,7 @@
     const PLACES = [];
     if (W.sawmill) PLACES.push([W.sawmill, 'S', '#8b5a3c', 'Sawmill · buys logs']);
     if (W.dumpSite) PLACES.push([W.dumpSite, 'D', '#56622f', 'County brush & stump dump']);
+    if (HC.Homes) for (const L of HC.Homes.listed()) { const mine = HC.company.home === L.parcel; if (mine || !HC.company.home || true) PLACES.push([{ x: L.house.x, y: L.house.y, w: L.house.w, h: L.house.h }, mine ? '⌂' : '$', mine ? '#2f5a8a' : '#a8925a', mine ? 'Your home' : `${L.name} for sale · ${HC.money(L.price)}`]); }
     if (W.scrapyard) PLACES.push([W.scrapyard, 'X', '#6a6f75', 'Hollow Creek Salvage · scrap worn-out machines']);
     if (W.supply) PLACES.push([W.supply, 'L', '#4f9a3c', 'Landscape supply · mulch, chips, firewood, pallets']);
     if (W.quarry) PLACES.push([W.quarry, 'Q', '#7d8085', W.quarry.owned ? 'Your quarry · sells rock' : 'Quarry (for sale)']);

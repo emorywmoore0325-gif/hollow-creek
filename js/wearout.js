@@ -94,9 +94,11 @@
       const here = atScrapyard(u) || (u.on && atScrapyard(S.trailers.find((t) => t.id === u.on.trailer) || u));
       const value = HC.scrapValue(k) - (here ? 0 : HC.HAUL_FEE(k));
       if (u.on) u.on = null;
-      const old = HC.Game.resaleValue; HC.Game.resaleValue = () => value; // sell it at scrap price, and let sellUnit do the clean-up
-      let ok = false; try { ok = HC.Game.sellUnit(k); } finally { HC.Game.resaleValue = old; }
+      const c0 = C().money, toast = HC.Game.toast; let ok = false;
+      HC.Game.toast = (m, t) => (t === 'warn' ? toast(m, t) : null); // sellUnit does the clean-up; its sale message is replaced by ours
+      try { ok = HC.Game.sellUnit(k); } finally { HC.Game.toast = toast; }
       if (!ok) return null;
+      C().money = c0 + value; HC.Save.save();
       const c = C(); for (const m of [c.hours, c.rebuilt, c.dead, c.svc]) if (m) delete m[k];
       return `Scrapped the ${name(k)} at Hollow Creek Salvage: ${HC.money(value)}${here ? '' : ` (after ${HC.money(HC.HAUL_FEE(k))} for the rollback)`}.`;
     },

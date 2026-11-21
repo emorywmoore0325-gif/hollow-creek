@@ -58,7 +58,21 @@
     nightPools.count = pools.length; nightPools.frustumCulled = false; nightPools.renderOrder = 4; scene.add(nightPools);
     nightWorld = world;
   }
+  // homes: a For Sale sign in front of each listed house, a mailbox with a flag at yours
+  let homeGrp = null, homeSig = '';
+  function syncHomes() {
+    if (!HC.Homes) return;
+    const sig = (HC.company.home || 0) + ':' + world.parcels.length;
+    if (sig === homeSig && homeGrp) return; homeSig = sig;
+    if (homeGrp) scene.remove(homeGrp);
+    const parts = [];
+    for (const L of HC.Homes.listed()) { const d = HC.Homes.door(L.house), x = U(d.x) + 1.4, z = U(d.y) + (L.house.facing === -1 ? -0.6 : 0.6), y = gh(d.x, d.y);
+      if (HC.company.home === L.parcel) parts.push(P('box', '#5a3a26', [x, y + 0.45, z], [0.08, 0.9, 0.08]), P('box', '#2f5a8a', [x, y + 0.95, z], [0.42, 0.26, 0.24]), P('box', '#d23a2a', [x + 0.22, y + 1.08, z], [0.03, 0.2, 0.12]));
+      else parts.push(P('box', '#f4f1e8', [x - 0.55, y + 0.6, z], [0.07, 1.2, 0.07]), P('box', '#f4f1e8', [x, y + 1.15, z], [1.2, 0.06, 0.06]), P('box', '#ffffff', [x, y + 0.82, z], [0.9, 0.55, 0.05]), P('box', '#c8302a', [x, y + 0.98, z + 0.03], [0.8, 0.16, 0.01])); }
+    homeGrp = model(build(parts), false, true); scene.add(homeGrp);
+  }
   function syncNight(S) {
+    syncHomes();
     if (nightWorld !== world || !nightStatic) buildNightStatics();
     const n = nightLevel;
     nightStatic.material.opacity = n; nightPools.material.opacity = n * 0.7;
