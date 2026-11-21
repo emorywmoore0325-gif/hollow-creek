@@ -61,12 +61,16 @@
   // ---------- the season decides what people call about ----------
   const OFF = { spring: ['snow_plowing', 'leaf_cleanup'], summer: ['snow_plowing', 'leaf_cleanup'], fall: ['snow_plowing', 'sod_planting'], winter: ['lawn_mowing', 'sod_planting', 'leaf_cleanup', 'bush_hog', 'mulch_delivery', 'hardscape', 'fence_line'] };
   const BOOST = { spring: [['lawn_mowing', 0.2], ['sod_planting', 0.15]], summer: [['storm_cleanup', 0.12], ['lawn_mowing', 0.12]], fall: [['leaf_cleanup', 0.25], ['firewood_delivery', 0.15]], winter: [['snow_plowing', 0.5], ['firewood_delivery', 0.15]] };
+  let seasonPick = false;
+  const baseBoard = G.makeBoard;
+  G.makeBoard = function () { seasonPick = true; try { return baseBoard.apply(this, arguments); } finally { seasonPick = false; } };
   const baseMake = G.makeJob;
   G.makeJob = function (type, tier) {
     const sea = HC.season();
     let t = type;
-    for (const [bt, p] of BOOST[sea]) if (HC.JOBS[bt] && Math.random() < p) { t = bt; break; }
-    if (OFF[sea].includes(t)) { const ok = Object.keys(HC.JOBS).filter((q) => !OFF[sea].includes(q) && !HC.JOBS[q].tract); t = HC.pick(ok); }
+    const random = seasonPick || /\bcalls\b/.test(new Error().stack || ''); // only random customer calls follow the season; a job asked for by name stays that job
+    if (random) for (const [bt, p] of BOOST[sea]) if (HC.JOBS[bt] && Math.random() < p) { t = bt; break; }
+    if (random && OFF[sea].includes(t)) { const ok = Object.keys(HC.JOBS).filter((q) => !OFF[sea].includes(q) && !HC.JOBS[q].tract); t = HC.pick(ok); }
     const j = baseMake.call(this, t, tier);
     if (t === 'firewood_delivery' && (sea === 'fall' || sea === 'winter')) j.pay = Math.round((j.pay * (sea === 'winter' ? 1.4 : 1.25)) / 10) * 10;
     return j;
