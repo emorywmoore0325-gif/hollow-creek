@@ -2700,10 +2700,14 @@
     buildFences();
   }
 
+  // fences are built in map chunks so the ones off screen aren't drawn (one map-wide mesh was the single biggest cost per frame)
   function buildFences() {
     if (fenceMesh) scene.remove(fenceMesh);
-    const parts = [];
+    fenceMesh = new THREE.Group(); scene.add(fenceMesh);
+    const CH = 24, chunks = new Map();
     for (const f of world.fences) {
+      const key = Math.floor(U(f.x) / CH) + ',' + Math.floor(U(f.y) / CH);
+      let parts = chunks.get(key); if (!parts) chunks.set(key, (parts = []));
       const cx = U(f.x + f.w / 2), cz = U(f.y + f.h / 2), y = gh(f.x + f.w / 2, f.y + f.h / 2);
       if (f.broken) { parts.push(P('box', '#a98458', [cx, y + 0.05, cz], f.v ? [0.08, 0.06, 0.9] : [0.9, 0.06, 0.08], [0, 0.5, 0])); continue; }
       const sx = f.v ? 0.06 : 1, sz = f.v ? 1 : 0.06;
@@ -2715,10 +2719,12 @@
       parts.push(P('box', '#b58e62', [cx, y + 0.15, cz], [sx, 0.04, f.v ? 1 : 0.02]), P('box', '#b58e62', [cx, y + 0.32, cz], [sx, 0.04, f.v ? 1 : 0.02]));
       for (const e of [0, 1]) parts.push(P('box', '#7c5f40', [f.v ? cx : U(f.x + f.w * e), y + 0.2, f.v ? U(f.y + f.h * e) : cz], [0.05, 0.4, 0.05]));
     }
-    if (!parts.length) return;
-    fenceMesh = new THREE.Mesh(build(parts), bodyMat);
-    fenceMesh.castShadow = true; fenceMesh.receiveShadow = true;
-    scene.add(fenceMesh);
+    for (const parts of chunks.values()) {
+      if (!parts.length) continue;
+      const m = new THREE.Mesh(build(parts), bodyMat);
+      m.castShadow = false; m.receiveShadow = true; // thin rails: their shadows cost a lot and show little
+      fenceMesh.add(m);
+    }
   }
   function buildPoles() {
     if (poleMesh) scene.remove(poleMesh);
@@ -2794,10 +2800,11 @@
         const along = -(dx * bx + dz * bz), side = Math.abs(dx * bz - dz * bx);
         fade = along > -1.2 && along < 9 && side < U(t.crownR) * t.s + 0.9;
       }
-      if (g.userData.fade !== fade) {
-        g.userData.fade = fade;
+      const near = Math.abs(U(t.x) - cam.tx) < 20 && Math.abs(U(t.y) - cam.tz) < 20; // outlines only on the trees close to the camera: halves the cost of a forest
+      if (g.userData.fade !== fade || g.userData.near !== near) {
+        g.userData.fade = fade; g.userData.near = near;
         g.userData.m.userData.body.material = fade ? fadeMat : bodyMat;
-        g.userData.m.children[1].visible = !fade;
+        g.userData.m.children[1].visible = !fade && near;
       }
       if (t.state === 'standing') {
         const w = (S.weather.wind || 0) * 0.002 + 0.006, now = performance.now();
@@ -2881,29 +2888,53 @@
   }
   const rampRear = (t) => RAMP[t.kind].x * 32 / 3; // px from the axle to the ramp hinge
   const attObjs = {};
+  // snow gear, built to size in metres after the reference photos
   const SNOW_GEO = {
-    truckplow: () => { // hydraulic V-plow: two moldboard wings on an A-frame, a light bar on top, a rubber deflector, shoes on the ground
-      const Y = '#e8b21f', D = '#1e1f21', p = [];
+    truckplow: () => { // a red 9 ft 2 in V-plow: curved moldboard wings, black cutting edges, a hinge post at the point, A-frame mount, light bar with plow lamps, red marker rods
+      const RED = '#c8231c', RD = '#9a1a14', BK = '#1c1d1f', p = [], X = Math.PI / 2;
+      const prof = [[0.09, 0.1], [0.03, 0.26], [-0.01, 0.42], [-0.02, 0.58], [0.01, 0.74], [0.07, 0.88]]; // the moldboard's curve: forward at the bottom and the top
       for (const s2 of [1, -1]) {
-        for (let i = 0; i < 6; i++) { const t = i / 5, ang = 0.3 * s2; p.push(Pm('box', Y, [0.12 + Math.abs(t * 1.3 * Math.sin(ang)) * 0.0 + (1 - t) * 0.0 + 0.0, 0.18 + t * 0.62, s2 * 0.66], [0.06 + (t > 0.6 ? 0.04 : 0), 0.14, 1.35], [0, ang, -0.25 + t * 0.55])); }
-        p.push(Pm('box', '#c49317', [0.06, 0.5, s2 * 0.66], [0.04, 0.76, 1.33], [0, 0.3 * s2, 0]), Pm('box', D, [0.18, 0.06, s2 * 0.66], [0.06, 0.08, 1.35], [0, 0.3 * s2, 0]), // backing, cutting edge
-          Pm('box', D, [-0.1, 0.05, s2 * 1.15], [0.24, 0.06, 0.18]), Pm('box', '#2a2b2d', [0.24, 0.92, s2 * 0.66], [0.02, 0.12, 1.3], [0, 0.3 * s2, 0])); // shoes, rubber deflector
+        const yaw = -s2 * 0.34, cx = 0.12, cz = s2 * 0.7, nx = Math.cos(yaw), nz = -Math.sin(yaw);
+        for (const [off, y] of prof) p.push(Pm('box', RED, [cx + nx * off, y, cz + nz * off], [0.05, 0.17, 1.46], [0, yaw, 0]));
+        p.push(Pm('box', RD, [cx - nx * 0.06, 0.5, cz - nz * 0.06], [0.04, 0.84, 1.42], [0, yaw, 0]), // ribs and backing
+          Pm('box', BK, [cx + nx * 0.12, 0.05, cz + nz * 0.12], [0.06, 0.1, 1.46], [0, yaw, 0]), // cutting edge
+          Pm('box', '#f2f2f2', [cx + nx * 0.075, 0.6, cz + nz * 0.075 + s2 * 0.1], [0.01, 0.12, 0.5], [0, yaw, 0]), // white decal
+          Pm('cyl', RED, [-0.12, 1.3, s2 * 1.38], [0.025, 0.85, 0.025]), Pm('box', BK, [-0.08, 0.06, s2 * 1.2], [0.24, 0.05, 0.14])); // marker rod, shoe
       }
-      p.push(Pm('box', D, [-0.35, 0.32, 0], [0.7, 0.14, 0.5]), Pm('box', D, [-0.75, 0.55, 0], [0.12, 0.6, 1.0]), Pm('cyl', '#c9cdd2', [-0.2, 0.45, 0.3], [0.06, 0.6, 0.06], [0, 0, 1.3]), Pm('cyl', '#c9cdd2', [-0.2, 0.45, -0.3], [0.06, 0.6, 0.06], [0, 0, 1.3]), // A-frame, mount, cylinders
-        Pm('box', D, [-0.6, 1.25, 0], [0.06, 0.06, 1.6]), ...[1, -1].flatMap((s2) => [Pm('box', D, [-0.6, 1.0, s2 * 0.75], [0.05, 0.5, 0.05]), Pm('box', '#f4f6ff', [-0.56, 1.25, s2 * 0.62], [0.04, 0.12, 0.2]), Pm('box', '#e8a21f', [-0.56, 1.25, s2 * 0.4], [0.04, 0.08, 0.1])])); // light bar with plow lamps
+      p.push(Pm('box', RED, [0.36, 0.5, 0], [0.14, 0.98, 0.14]), ...[0.2, 0.45, 0.7].map((y) => Pm('box', BK, [0.44, y, 0], [0.03, 0.05, 0.08]))); // hinge post with bolts
+      p.push(Pm('box', BK, [-0.25, 0.32, 0], [0.55, 0.16, 0.9]), Pm('box', BK, [-0.55, 0.45, 0], [0.12, 0.5, 1.1]), // A-frame and mount
+        Pm('cyl', '#c9cdd2', [-0.1, 0.35, 0.32], [0.06, 0.55, 0.06], [0, 0, X * 0.9]), Pm('cyl', '#c9cdd2', [-0.1, 0.35, -0.32], [0.06, 0.55, 0.06], [0, 0, X * 0.9]), // angle cylinders
+        ...[1, -1].flatMap((s2) => [Pm('box', RED, [-0.58, 1.0, s2 * 0.55], [0.06, 0.9, 0.06]), Pm('box', BK, [-0.52, 1.42, s2 * 0.55], [0.14, 0.18, 0.3]), Pm('box', '#f4f6ff', [-0.44, 1.42, s2 * 0.55], [0.01, 0.12, 0.24])]), // light posts and lamps
+        Pm('box', RED, [-0.58, 1.3, 0], [0.06, 0.06, 1.16]));
       return build(p);
     },
-    spreader: () => { // receiver-mount hopper spreader: poly hopper on a steel frame, spinner below, receiver bar
-      const p = [Pm('box', '#2a2b2d', [0.4, 0.55, 0], [0.8, 0.07, 0.07]), Pm('box', '#2a2b2d', [0, 0.45, 0], [0.5, 0.06, 0.6]),
-        Pm('cone', '#2a2b2d', [0, 0.75, 0], [0.62, 0.5, 0.62], [Math.PI, 0, 0]), Pm('box', '#2a2b2d', [0, 1.1, 0], [0.62, 0.36, 0.62]), Pm('box', '#e4e2da', [0, 1.29, 0], [0.64, 0.04, 0.64]), // hopper and lid
-        Pm('cyl', '#3a3b3d', [0, 0.42, 0], [0.4, 0.03, 0.4]), Pm('box', '#c9cdd2', [0.05, 0.42, 0], [0.36, 0.01, 0.03]), Pm('box', '#c42a24', [-0.32, 0.9, 0], [0.02, 0.14, 0.3])];
+    spreader: () => { // tailgate spreader: black poly V-box hopper on a frame, spinner under it, receiver bar forward
+      const BK = '#222325', p = [Pm('box', '#3a3b3d', [0.45, 0.5, 0], [0.9, 0.08, 0.08]), Pm('box', '#3a3b3d', [0, 0.38, 0], [0.55, 0.06, 0.95])];
+      for (let i = 0; i < 5; i++) { const y = 0.6 + i * 0.12, w = 0.42 + i * 0.12; p.push(Pm('box', BK, [0, y, 0], [w, 0.12, 1.1])); } // tapered hopper
+      p.push(Pm('box', '#e6e3da', [0, 1.21, 0], [0.92, 0.03, 1.12]), Pm('cyl', '#2a2b2d', [-0.05, 0.3, 0], [0.42, 0.03, 0.42]), Pm('box', '#c9cdd2', [-0.05, 0.31, 0], [0.38, 0.01, 0.04]), Pm('box', '#c42a24', [-0.48, 0.95, 0], [0.02, 0.12, 0.5]));
       return build(p);
     },
-    pusher: () => { // on the skid steer's quick-attach: a wide box with tall side plates and a rubber edge
-      const O = '#d04a1a', D = '#1e1f21', p = [Pm('box', D, [2.32, -1.3, 0], [0.1, 0.62, 1.2])];
-      p.push(Pm('box', O, [2.55, -1.32, 0], [0.06, 0.8, 2.5]), Pm('box', D, [2.6, -1.71, 0], [0.12, 0.06, 2.5]), Pm('box', HC.shade(O, -0.15), [2.5, -0.95, 0], [0.16, 0.06, 2.5]));
-      for (const s2 of [1, -1]) p.push(Pm('box', O, [3.05, -1.35, s2 * 1.24], [1.05, 0.76, 0.05]), Pm('box', D, [3.05, -1.72, s2 * 1.24], [1.0, 0.05, 0.08]));
-      for (const z of [-0.8, 0, 0.8]) p.push(Pm('box', HC.shade(O, -0.2), [2.5, -1.32, z], [0.08, 0.76, 0.06]));
+    pusher: () => { // 8 ft skid steer snow pusher, after the photo: orange box, a curved moldboard, deep side plates with steel shoes, brace tubes, rubber edge
+      const O = '#ec6a1c', OD = '#c9561a', BK = '#1e1f21', p = [Pm('box', BK, [2.32, -1.3, 0], [0.1, 0.62, 1.2])];
+      for (const [x, y] of [[2.5, -1.62], [2.44, -1.42], [2.42, -1.22], [2.45, -1.02]]) p.push(Pm('box', O, [x, y, 0], [0.05, 0.21, 2.44]));
+      p.push(Pm('box', BK, [2.56, -1.7, 0], [0.06, 0.06, 2.44]), Pm('box', OD, [2.47, -0.9, 0], [0.12, 0.05, 2.44])); // rubber edge, top lip
+      for (const s2 of [1, -1]) {
+        p.push(Pm('box', O, [2.95, -1.32, s2 * 1.22], [0.95, 0.78, 0.05]), Pm('box', O, [3.25, -1.0, s2 * 1.22], [0.42, 0.2, 0.05], [0, 0, -0.35]), // side plate with a swept top
+          Pm('box', BK, [2.95, -1.72, s2 * 1.24], [0.9, 0.05, 0.12]), ...[2.6, 3.0, 3.35].map((x) => Pm('box', '#c9cdd2', [x, -1.66, s2 * 1.255], [0.04, 0.04, 0.02]))); // steel shoe with bolts
+        p.push(Pm('cyl', O, [2.75, -1.0, s2 * 0.8], [0.07, 0.9, 0.07], [Math.PI / 2 * s2 * 0.9, 0, 0.6])); // brace tube
+      }
+      const g = build(p); g.translate(-PLATE[0] * MM, -PLATE[1] * MM, 0); return g;
+    },
+    pusherXL: () => { // a 14 ft loader snow box, after the photo: black, tall, deep sides, diagonal braces, a bolted steel edge (origin: moldboard bottom centre)
+      const B = '#26282b', BD = '#1a1b1d', ST = '#9aa0a6', p = [];
+      for (let i = 0; i < 6; i++) p.push(Pm('box', B, [0.04 - (i === 2 || i === 3 ? 0.04 : 0), 0.11 + i * 0.21, 0], [0.06, 0.22, 4.3]));
+      p.push(Pm('box', ST, [0.14, 0.06, 0], [0.08, 0.12, 4.3]), ...Array.from({ length: 14 }, (_, k) => Pm('box', '#d8dde2', [0.19, 0.07, -2.0 + k * 0.31], [0.02, 0.04, 0.04]))); // steel edge and bolts
+      for (const s2 of [1, -1]) {
+        p.push(Pm('box', B, [0.75, 0.62, s2 * 2.15], [1.5, 1.24, 0.07]), Pm('box', BD, [0.75, 0.04, s2 * 2.17], [1.5, 0.08, 0.14]), Pm('box', '#e8b21f', [1.4, 1.0, s2 * 2.19], [0.12, 0.12, 0.01])); // side plates, shoes, reflectors
+        p.push(Pm('cyl', B, [0.55, 0.95, s2 * 1.4], [0.08, 1.7, 0.08], [s2 * 1.2, 0, 0.5])); // diagonal braces
+      }
+      for (const z of [-1.4, -0.5, 0.5, 1.4]) p.push(Pm('box', BD, [-0.06, 0.62, z], [0.1, 1.2, 0.1])); // back ribs
+      p.push(Pm('box', BD, [-0.14, 0.9, 0], [0.12, 0.5, 1.3])); // coupler plate
       return build(p);
     },
   };
@@ -2945,6 +2976,10 @@
       }
       if (o.userData.drum) { const hu = a.on && S.units[a.on]; if (hu && hu.working) o.userData.drum.rotation.z -= 0.55; }
       const host = a.on && !a.on.startsWith('trailer:') && !a.on.startsWith('truck:') && unitObjs[a.on];
+      if (host && a.kind === 'pusherXL' && host.userData.loaderArm) { // the loader snow box rides on the loader arms, swallowing the bucket
+        if (o.parent !== host.userData.loaderArm) host.userData.loaderArm.add(o);
+        o.position.set(2.45 * MM, -1.5 * MM, 0); o.rotation.set(0, 0, 0); o.visible = !S.units[a.on].hidden; continue;
+      }
       if (host && (a.kind === 'forks' || a.kind === 'pusher') && host.userData.loaderArm && !host.userData.arms) { // clamp-on forks on the tractor's bucket
         if (o.parent !== host.userData.loaderArm) host.userData.loaderArm.add(o);
         o.position.set((PLATE[0] + 0.62) * MM, (PLATE[1] - 0.05) * MM, 0); o.rotation.set(0, 0, 0);
@@ -2958,7 +2993,7 @@
       } else {
         if (o.parent !== scene) scene.add(o);
         const deck = a.on && a.on.startsWith('trailer:') ? S.trailers.find((t) => t.id === a.on.slice(8)) : null;
-        const lift = a.kind === 'bushhog' ? (host ? (S.units[a.on].armT || 0) * 0.5 * MM : 0) : a.kind === 'truckplow' || a.kind === 'spreader' ? 0 : 0.3 * MM;
+        const lift = a.kind === 'bushhog' ? (host ? (S.units[a.on].armT || 0) * 0.5 * MM : 0) : a.kind === 'truckplow' || a.kind === 'spreader' || a.kind === 'pusherXL' ? 0 : 0.3 * MM;
         const hu = host && S.units[a.on], hostDeck = hu ? S.trailers.find((t) => (hu.on ? t.id === hu.on.id : HC.Units.onDeck(t, hu))) : null; // riding with its tractor
         const dk = deck || (hostDeck && HC.RIDES(hu.kind) ? hostDeck : null), bed = a.on && a.on.startsWith('truck:') ? (HC.baseOf(a.on.slice(6)) === 'dually' ? 1.5 : 1.1) * MM : 0;
         o.position.set(U(a.x), gh(a.x, a.y) + (dk ? (DECK_H[dk.kind] || 0.6) * MM : 0) + bed + lift, U(a.y));

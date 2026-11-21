@@ -75,42 +75,48 @@
   // ---------- plows and spreaders: attachments like any other (buy one, it waits at your yard, hook it on with Q) ----------
   const FIT = {
     truckplow: ['truck', 'truck2', 'dually', 'dumptruck', 'dumptruck2', 'dumptruck3', 'servicetruck'], // pickups and dump trucks; never the semis or the show truck
-    pusher: ['skid', 'tractor'], // every skid steer and track loader on the quick-attach, or the tractor
+    pusher: ['skid', 'tractor'], // every skid steer and compact track loader on the quick-attach, or the tractor
+    pusherXL: ['loader'], // the big snow box: wheel loader only
     spreader: ['truck', 'truck2', 'dually', 'dumptruck', 'dumptruck2', 'dumptruck3', 'servicetruck'],
   };
   const fitsOf = (id) => (k) => FIT[id].includes(HC.baseOf(k)) && !!HC.EQUIP[k];
-  HC.ATT_FITS = Object.assign(HC.ATT_FITS || {}, { truckplow: fitsOf('truckplow'), pusher: fitsOf('pusher'), spreader: fitsOf('spreader') });
+  HC.ATT_FITS = Object.assign(HC.ATT_FITS || {}, { truckplow: fitsOf('truckplow'), pusher: fitsOf('pusher'), pusherXL: fitsOf('pusherXL'), spreader: fitsOf('spreader') });
   HC.winterFits = (id) => Object.keys(HC.EQUIP).filter((k) => !k.includes('_') && fitsOf(id)(k) && HC.EQUIP[k].move).map((k) => HC.EQUIP[k].short);
   HC.ATT_POINT = Object.assign(HC.ATT_POINT || {}, {
-    truckplow: (u) => { const d = (u.r || 16) * 1.12 + 10; return { x: u.x + Math.cos(u.a) * d, y: u.y + Math.sin(u.a) * d }; },
-    spreader: (u) => { const d = -((u.r || 16) * 1.2 + 6); return { x: u.x + Math.cos(u.a) * d, y: u.y + Math.sin(u.a) * d }; },
+    truckplow: (u) => { const d = Math.min(52, (u.r || 16) * 2.1 + 6); return { x: u.x + Math.cos(u.a) * d, y: u.y + Math.sin(u.a) * d }; }, // the blade just ahead of the bumper
+    spreader: (u) => { const d = -Math.min(50, (u.r || 16) * 2.05 + 5); return { x: u.x + Math.cos(u.a) * d, y: u.y + Math.sin(u.a) * d }; }, // behind the tailgate
+    pusherXL: (u) => { const d = (u.r || 26) + 16; return { x: u.x + Math.cos(u.a) * d, y: u.y + Math.sin(u.a) * d }; },
   });
-  HC.WINTER = { truckplow: { w: 2.7 }, pusher: { w: 2.5 } };
+  HC.WINTER = { truckplow: { w: 2.8 }, pusher: { w: 2.44 }, pusherXL: { w: 4.3 } };
   Object.assign(HC.EQUIP, {
     truckplow: { name: 'Truck V-Plow (8.5 ft, hydraulic)', short: 'V-plow', noUnit: true, price: 5200, attachTo: 'truck',
       help: 'A hydraulic V-plow. Drive the truck\'s nose up square to it and press Q to pin it on (Q again to drop it). Plows snow as you drive forward and rolls it off into a windrow.' },
     pusher: { name: 'Snow Pusher Box (8 ft)', short: 'Snow pusher', noUnit: true, price: 3400, attachTo: 'skid',
       help: 'A rubber-edge snow pusher. Skid steers lock it on the quick-attach like any head (drop the grapple with Q, pick this up with Q); the tractor hooks it on its loader. It carries the snow and leaves a heap where you stop or back up.' },
+    pusherXL: { name: 'Loader Snow Box (14 ft)', short: 'Loader snow box', noUnit: true, price: 7800, attachTo: 'loader',
+      help: 'A 14 ft snow box for the wheel loader: tall, deep and heavy. Drive the loader up square to it with the bucket down and press Q to lock it on. Moves a parking lot of snow in a few passes and stacks it in big heaps.' },
     spreader: { name: 'Tailgate Salt Spreader', short: 'Salt spreader', noUnit: true, price: 2400, attachTo: 'truck',
       help: 'A receiver-mount salt spreader. Back the truck up to it and press Q. Fill it with rock salt at the landscape supply pickup area (E), then it salts plowed pavement behind you.' },
   });
   HC.BLURB.truckplow = `Front-mount V-plow. Works on: ${HC.winterFits('truckplow').join(', ')}.`;
   HC.BLURB.pusher = `Snow pusher box. Works on: ${HC.winterFits('pusher').join(', ')}.`;
+  HC.BLURB.pusherXL = `14 ft loader snow box. Works on: ${HC.winterFits('pusherXL').join(', ')}.`;
   HC.BLURB.spreader = `Receiver salt spreader. Works on: ${HC.winterFits('spreader').join(', ')}.`;
-  HC.ATT_T = Object.assign(HC.ATT_T || {}, { truckplow: 0.45, pusher: 0.35, spreader: 0.2 });
+  HC.ATT_T = Object.assign(HC.ATT_T || {}, { truckplow: 0.45, pusher: 0.35, pusherXL: 1.1, spreader: 0.2 });
   HC.ATT_DELIVERY = Object.assign(HC.ATT_DELIVERY || {}, {
     truckplow: 'V-plow delivered to your yard. Drive a pickup or dump truck nose-up to it and press Q.',
     pusher: 'Snow pusher delivered to your yard. Skid steer: drop the grapple (Q) and pick the pusher up (Q). Tractor: drive up square to it and press Q.',
+    pusherXL: 'Loader snow box delivered to your yard. Drive the wheel loader up square to it with the bucket down and press Q.',
     spreader: 'Salt spreader delivered to your yard. Back a pickup or dump truck up to it and press Q. Salt is at the landscape supply.',
   });
   HC.SALT_PRICE = 16; HC.SALT_CAP = 24; // per unit (a few bags); a spreader holds 24
   const onUnit = (k, kind) => HC.session && (HC.session.attachments || []).find((a) => a.on === k && a.kind === kind);
-  HC.hasPlow = (k) => !!(onUnit(k, 'truckplow') || onUnit(k, 'pusher'));
+  HC.hasPlow = (k) => !!(onUnit(k, 'truckplow') || onUnit(k, 'pusher') || onUnit(k, 'pusherXL'));
   HC.hasSpreader = (k) => !!onUnit(k, 'spreader');
   // Q in a truck: hook up or drop a plow or spreader
   const baseMode = U.mode;
   U.mode = function (u, S) {
-    if (u && U.isTruck(u.kind) && (FIT.truckplow.includes(HC.baseOf(u.kind)) || (S.attachments || []).some((a) => a.on === u.kind))) return HC.Game.attachToggle(u, S);
+    if (u && ((U.isTruck(u.kind) && (FIT.truckplow.includes(HC.baseOf(u.kind)) || (S.attachments || []).some((a) => a.on === u.kind))) || (HC.baseOf(u.kind) === 'loader' && ((S.attachments || []).some((a) => a.on === u.kind) || HC.Game.attachmentNear(u, S))))) return HC.Game.attachToggle(u, S);
     return baseMode.apply(this, arguments);
   };
   // older saves bought plows per vehicle: turn those into real attachments, already hooked on
@@ -130,7 +136,7 @@
   // clearing and salting: the blade scrapes snow tiles in front; the spreader salts plowed pavement behind
   const under = (W, i) => (W.snowUnder && W.snowUnder.get(i)) ?? T.ROAD;
   function plowAt(u, S) {
-    const W = S.lot, item = onUnit(u.kind, 'truckplow') ? 'truckplow' : 'pusher', wM = HC.WINTER[item].w, PXM = 32 / 3, c = Math.cos(u.a), s = Math.sin(u.a), half = (wM * PXM) / 2, ahead = (u.r || 14) * 1.05;
+    const W = S.lot, item = onUnit(u.kind, 'truckplow') ? 'truckplow' : onUnit(u.kind, 'pusherXL') ? 'pusherXL' : 'pusher', wM = HC.WINTER[item].w, PXM = 32 / 3, c = Math.cos(u.a), s = Math.sin(u.a), half = (wM * PXM) / 2, ahead = item === 'truckplow' ? Math.min(52, (u.r || 16) * 2.1 + 6) : item === 'pusherXL' ? (u.r || 26) + 22 : (u.r || 14) + 16; // the blade's leading edge
     const cx = u.x + c * ahead, cy = u.y + s * ahead; let n = 0;
     for (let o = -half; o <= half + 0.01; o += 4) {
       const x = cx - s * o, y = cy + c * o, tx = Math.floor(x / TS), ty = Math.floor(y / TS);
@@ -142,10 +148,10 @@
       if (item === 'truckplow') { // the V-plow rolls it off the right-hand wing into a windrow beside your pass
         const ox = cx - s * (half + 14), oy = cy + c * (half + 14);
         addSnow(W, ox, oy, n); HC.Game.dust(ox, oy, '#f4f7fa', 3, 70);
-      } else u.blade = (u.blade || 0) + n; // the pusher box carries it along in front
+      } else u.blade = (u.blade || 0) + n; // the pusher boxes carry it along in front
     }
     // a pusher that runs into a snow pile scoops it up and keeps pushing (stack it at the edge of the lot)
-    if (item === 'pusher') for (const pl of W.snowPiles || []) if (HC.dist(pl.x, pl.y, cx, cy) < 16 + Math.sqrt(pl.n) * 2) { u.blade = (u.blade || 0) + pl.n; pl.n = 0; }
+    if (item === 'pusher' || item === 'pusherXL') for (const pl of W.snowPiles || []) if (HC.dist(pl.x, pl.y, cx, cy) < 16 + Math.sqrt(pl.n) * 2) { u.blade = (u.blade || 0) + pl.n; pl.n = 0; }
     if (item === 'truckplow') for (const pl of (W.snowPiles || []).slice()) { // a windrow in the path gets rolled further over, pass by pass, toward the edge
       const dx = pl.x - cx, dy = pl.y - cy, along = dx * c + dy * s, side = -dx * s + dy * c;
       if (pl.n > 0 && Math.abs(along) < 12 && side > -half && side < half + 6) { const m = pl.n; pl.n = 0; addSnow(W, cx - s * (half + 16), cy + c * (half + 16), m); }

@@ -318,7 +318,7 @@
     C.attCount[kind] = S.attachments.filter((a) => a.kind === kind).length + 1;
     addAttachment(kind, false, `${kind}_${n}`);
   }
-  const ATT_NAME = { mulcher: 'Mulcher head', grapple: 'Grapple', bushhog: 'Bush hog', brushcut: 'Brush cutter', forks: 'Pallet forks', truckplow: 'V-plow', pusher: 'Snow pusher', spreader: 'Salt spreader' };
+  const ATT_NAME = { mulcher: 'Mulcher head', grapple: 'Grapple', bushhog: 'Bush hog', brushcut: 'Brush cutter', forks: 'Pallet forks', truckplow: 'V-plow', pusher: 'Snow pusher', pusherXL: 'Loader snow box', spreader: 'Salt spreader' };
   // forks go on a skid steer's quick-attach or clamp onto the tractor's loader bucket; the bush hog hangs on the tractor's three-point hitch
   const attFits = (a, u) => (HC.ATT_FITS && HC.ATT_FITS[a.kind] ? HC.ATT_FITS[a.kind](u.kind) : a.kind === 'forks' ? ['skid', 'tractor'].includes(HC.baseOf(u.kind)) : (a.kind === 'bushhog' ? 'tractor' : 'skid') === HC.baseOf(u.kind));
   const frontSlot = (a) => a.kind !== 'bushhog' && a.kind !== 'spreader';
