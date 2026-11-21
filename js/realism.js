@@ -114,3 +114,17 @@
     return hitch2.apply(this, arguments);
   };
 })();
+
+// light-duty trucks (the show truck) pull light bumper-pull trailers only
+(() => {
+  const U = HC.Units, base = U.hitchToggle;
+  U.hitchToggle = function (u, S) {
+    const sp = u && HC.EQUIP[u.kind];
+    if (sp && sp.lightTow && !S.trailers.some((t) => t.hitch === u.kind)) {
+      const t = S.trailers.find((q) => !q.hitch && !U.isBed(q) && HC.dist(U.coupler(q).x, U.coupler(q).y, u.x - Math.cos(u.a) * (sp.hitchOff || 34), u.y - Math.sin(u.a) * (sp.hitchOff || 34)) < 34);
+      const T2 = t && HC.TRAILERS[t.kind];
+      if (T2 && (T2.gooseneck || T2.heavy || (T2.len || 0) > 50 || (T2.cap || 0) > 14 || HC.trailerKindOf(t.id) === 'equip')) return HC.Game.toast('The show truck only pulls light trailers: the dump trailer, chippers or the log splitter.', 'warn');
+    }
+    return base.apply(this, arguments);
+  };
+})();

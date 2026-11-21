@@ -145,6 +145,10 @@
         V(r + 0.01, 0.22 * MM * 3, 0, [1, 0.9, 0.7]);
       } else if (truckish(kind)) { // headlamps low on the nose, red tails at the back corners, three amber clearance lamps on the cab roof
         for (const s2 of [-1, 1]) { V(f - 0.02, h * 0.3, s2 * hw * 0.78, WH); V(r + 0.02, h * 0.26, s2 * hw * 0.9, RED); V(f - 0.06, h * 0.3, s2 * hw * 0.98, AMB); }
+        if (HC.EQUIP[kind] && HC.EQUIP[kind].showLights) { // LED grille bars and rock lights glowing under every wheel well
+          for (const z of [-0.3, 0, 0.3]) { V(f - 0.01, h * 0.42, z, WH); V(f - 0.01, h * 0.36, z, WH); }
+          for (const x of [f * 0.72, r * 0.62]) for (const s2 of [-1, 1]) V(x, 0.03, s2 * hw * 0.85, [0.85, 0.95, 1]);
+        }
         const big = (HC.massOf ? HC.massOf(kind) : 3) >= 6;
         if (big) for (const z of [-0.12, 0, 0.12]) V(f - Math.min(1.2, (f - r) * 0.28), h * 0.97, z, AMB);
       } else { // machines: work lamps on the front of the cab roof, a pair facing back, an amber beacon on top
@@ -1547,6 +1551,25 @@
       Pm('box', '#2a2b2d', [-3.05, 1.2, 0], [1.2, 0.15, 1.5]), Pm('box', COL.black, [3.1, 1.15, 1.2], [1.3, 0.12, 0.3]), Pm('box', COL.black, [3.1, 1.15, -1.2], [1.3, 0.12, 0.3]),
       ...wheelM(3.0, 0.52, 1.0, 0.52, 0.32), ...wheelM(3.0, 0.52, -1.0, 0.52, 0.32),
       ...[-2.5, -3.75].flatMap((x) => [...wheelM(x, 0.52, 0.86, 0.52, 0.27), ...wheelM(x, 0.52, -0.86, 0.52, 0.27), ...wheelM(x, 0.52, 1.15, 0.52, 0.27), ...wheelM(x, 0.52, -1.15, 0.52, 0.27)])]),
+    squat: () => { // a squatted show truck: black half-ton crew cab, front lifted above the rear, polished wheels on mud tires, LED grille bars, amber headlamps, rock lights
+      const K = '#17181a', Kd = '#0e0f10', CH = '#d9dde2', lift = 0.2, rake = 0.04;
+      const body = [Pm('box', COL.black, [-0.2, 0.62, 0], [5.6, 0.22, 0.9]),
+        ...truckCabM(2.95, K, { hood: 1.45, cabL: 2.75, w: 2.02, hy: 0.98, cy: 1.08, ch: 1.02 }),
+        // short bed with rails, a black tonneau, tailgate and tail lamps
+        Pm('box', K, [-2.0, 1.25, 0], [1.75, 0.66, 2.02]), Pm('box', Kd, [-2.0, 1.5, 0], [1.72, 0.03, 1.94]), Pm('box', K, [-2.88, 1.2, 0], [0.05, 0.56, 1.95]),
+        ...[1, -1].flatMap((sd) => [Pm('box', '#c42a24', [-2.9, 1.28, sd * 0.88], [0.04, 0.36, 0.16]), Pm('box', Kd, [-0.9, 0.98, sd * 1.06], [1.4, 0.1, 0.14]), // tails, running boards
+          Pm('box', CH, [1.42, 1.72, sd * 1.16], [0.26, 0.22, 0.08]), Pm('box', '#2a2c2f', [1.48, 1.66, sd * 1.07], [0.06, 0.06, 0.14]), // chrome mirrors on the A-pillars
+          ...[2.35, -1.7].map((x) => Pm('box', Kd, [x, 1.2, sd * 1.04], [1.25, 0.1, 0.2])), // fender flares over the tires
+          Pm('box', '#e8a21f', [3.02, 1.36, sd * 0.8], [0.05, 0.1, 0.36]), Pm('box', '#f4f6ff', [3.03, 1.27, sd * 0.8], [0.05, 0.08, 0.3]), Pm('box', '#e8a21f', [3.02, 1.22, sd * 0.97], [0.05, 0.22, 0.05])]), // amber C-clamp headlamps
+        Pm('box', '#2a2c2f', [3.02, 1.22, 0], [0.06, 0.46, 1.24]), Pm('box', '#c9cdd2', [3.05, 1.22, 0], [0.02, 0.4, 1.18]), Pm('box', '#f4f6ff', [3.07, 1.36, 0], [0.03, 0.05, 1.16]), Pm('box', '#f4f6ff', [3.07, 1.1, 0], [0.03, 0.05, 1.16]), // satin grille with two LED bars
+        Pm('box', '#2f4a8a', [3.08, 1.23, 0], [0.02, 0.09, 0.22]), // oval grille badge
+        Pm('box', Kd, [3.0, 0.82, 0], [0.18, 0.24, 2.04]), Pm('box', '#e8e4d6', [3.1, 0.8, 0], [0.01, 0.12, 0.36]), // bumper and plate
+        Pm('box', CH, [-3.0, 0.78, 0], [0.16, 0.16, 2.0]), Pm('box', COL.steel, [-3.2, 0.66, 0], [0.36, 0.08, 0.08]), // rear bumper, receiver
+        Pm('box', '#e8eef2', [0.6, 0.58, 0], [3.6, 0.03, 0.06])]; // rock-light strip under the frame
+      for (const q of body) { q.pos = [q.pos[0], q.pos[1] + (lift + q.pos[0] * rake) * MM, q.pos[2]]; q.rot = [q.rot[0], q.rot[1], (q.rot[2] || 0) + rake]; } // lifted and raked: nose up, tail down
+      const wheels = [2.35, -1.7].flatMap((x) => [1, -1].flatMap((sd) => wheelM(x, 0.53, sd * 0.9, 0.53, 0.44, CH)));
+      return build([...body, ...wheels]);
+    },
     servicetruck: () => { // after the reference: white crew cab, a full-length tool body with compartment doors, a compressor and a folded knuckle crane
       const W = '#f2f2ef', Wd = '#d8d9d5', g = '#9aa0a6', X = Math.PI / 2;
       const seg = (c, a2, b2, t, w, z) => { const dx = b2[0] - a2[0], dy = b2[1] - a2[1]; return Pm('box', c, [(a2[0] + b2[0]) / 2, (a2[1] + b2[1]) / 2, z], [Math.hypot(dx, dy), t, w], [0, 0, Math.atan2(dy, dx)]); };
