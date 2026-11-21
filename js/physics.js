@@ -19,12 +19,27 @@
       if (!(it.z > 0) && !it.vz) return;
       it.vz = (it.vz || 0) - 9.8 * dt;
       it.z = (it.z || 0) + it.vz * dt * 0.33;
+      if (it.vx || it.vy) { it.x += (it.vx || 0) * dt; it.y += (it.vy || 0) * dt; } // it carries on sideways through the air
+      if (it.wx || it.wz) { it.rx = (it.rx || 0) + (it.wx || 0) * dt; it.rz = (it.rz || 0) + (it.wz || 0) * dt; } // tumbling end over end
+      if (it.spin) it.a = (it.a || 0) + it.spin * dt;
+      it.restT = 0;
       if (it.z <= 0) {
         it.z = 0;
         const b = BOUNCE[it.kind];
-        if (b && it.vz < -1.6) { it.vz = -it.vz * b; it.vx = (it.vx || 0) + HC.rand(-14, 14); it.vy = (it.vy || 0) + HC.rand(-14, 14); it.spin = HC.rand(-2, 2); }
-        else it.vz = 0;
+        if (b && it.vz < -1.6) {
+          it.vz = -it.vz * b; it.vx = (it.vx || 0) * 0.6 + HC.rand(-14, 14); it.vy = (it.vy || 0) * 0.6 + HC.rand(-14, 14); it.spin = HC.rand(-3, 3);
+          if (it.kind === 'firewood') { it.wx = HC.rand(-9, 9); it.wz = HC.rand(-6, 6); HC.Audio.knock && Math.random() < 0.3 && HC.Audio.knock(); }
+        } else {
+          it.vz = 0;
+          if (it.kind === 'firewood') { it.rx = Math.round((it.rx || 0) / (Math.PI / 2)) * (Math.PI / 2); it.rz = 0; it.wx = it.wz = 0; } // a split comes to rest on a flat face
+        }
       }
+    },
+    // throw a piece: off a splitter wedge, a processor belt or out of a dump box
+    launch(it, dirA, speed, up) {
+      it.z = Math.max(it.z || 0, 0.25); it.vz = up; it.vx = Math.cos(dirA) * speed; it.vy = Math.sin(dirA) * speed;
+      it.spin = HC.rand(-4, 4); it.wx = HC.rand(-10, 10); it.wz = HC.rand(-7, 7); it.restT = 0;
+      return it;
     },
   };
 
@@ -50,12 +65,14 @@
           it.vx = (it.vx || 0) + ax * dt; it.vy = (it.vy || 0) + ay * dt;
         }
       }
+      if (!it.vx && !it.vy) it.restT = (it.restT || 0) + dt; else it.restT = 0;
       if (it.vx || it.vy) {
         const nx = it.x + it.vx * dt, ny = it.y + it.vy * dt, t = HC.Lot.tile(S.lot, nx, ny);
         if (t === HC.T.WATER || t === HC.T.ROCKFACE || t === -1) { it.vx = 0; it.vy = 0; }
         else { it.x = nx; it.y = ny; }
         if (it.spin) { it.a = (it.a || 0) + it.spin * dt; it.spin *= Math.exp(-4 * dt); }
-        const fr = Math.exp(-(it.kind === 'log' ? 2.5 : it.kind === 'brush' ? 7 : 5) * dt);
+        const fr = Math.exp(-(it.kind === 'log' ? 2.5 : it.kind === 'brush' ? 7 : it.kind === 'firewood' ? 3.2 : 5) * dt);
+        if (it.kind === 'firewood' && (Math.abs(it.vx) + Math.abs(it.vy)) > 6) it.rx = (it.rx || 0) + (Math.abs(it.vx) + Math.abs(it.vy)) * dt * 0.12; // splits skid and flip a little as they slide
         it.vx *= fr; it.vy *= fr;
         if (Math.abs(it.vx) < 0.5 && Math.abs(it.vy) < 0.5) { it.vx = 0; it.vy = 0; }
       }
@@ -121,7 +138,7 @@
   const PRODUCT = { mulch: 'mulch', chips: 'chips', firewood: 'firewood' };
   let groupT = 0;
   function group(S) {
-    const items = S.lot.items, loose = items.filter((i) => PRODUCT[i.kind] && !(i.z > 0.05));
+    const items = S.lot.items, loose = items.filter((i) => PRODUCT[i.kind] && !(i.z > 0.05) && !i.vx && !i.vy && (i.restT || 0) > (i.kind === 'firewood' ? 1.2 : 0.3)); // only once it has come to rest
     if (!loose.length) return;
     for (const it of loose) {
       if (!items.includes(it)) continue;

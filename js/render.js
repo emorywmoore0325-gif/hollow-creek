@@ -12,6 +12,7 @@
   const meshes = { trees: new Map(), items: new Map(), stumps: new Map(), bushes: new Map(), plants: new Map(), houses: new Map() };
   let fenceMesh = null, poleMesh = null, wireLines = null, unitObjs = {}, trailerObjs = {};
   let workLight = null, nightLevel = 0;
+  const _nd = new THREE.Object3D(); // the night lights' and snow piles' own placement helper (never share _dummy: tracks rely on its scale being 1)
   // a vehicle's lights: L switches them on or off; left alone they come on by themselves at dusk when it's driven or working
   HC.lightsOn = (u, S) => u && !u.hidden && (u.lights ?? (nightLevel > 0.3 && (u === S.units[S.active] || u.moving || u.working || u.occupied)));
   HC.nightLevel = () => nightLevel;
@@ -54,7 +55,7 @@
     // pools of light on the ground under the lamps
     const pg = new THREE.PlaneGeometry(1, 1); pg.rotateX(-Math.PI / 2);
     nightPools = new THREE.InstancedMesh(pg, new THREE.MeshBasicMaterial({ map: glowTex, color: '#ffd9a0', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }), Math.max(1, pools.length));
-    pools.forEach(([x, y, z, r], i) => { _dummy.position.set(x, y, z); _dummy.rotation.set(0, 0, 0); _dummy.scale.set(r * 2, 1, r * 2); _dummy.updateMatrix(); nightPools.setMatrixAt(i, _dummy.matrix); });
+    pools.forEach(([x, y, z, r], i) => { _nd.position.set(x, y, z); _nd.rotation.set(0, 0, 0); _nd.scale.set(r * 2, 1, r * 2); _nd.updateMatrix(); nightPools.setMatrixAt(i, _nd.matrix); });
     nightPools.count = pools.length; nightPools.frustumCulled = false; nightPools.renderOrder = 4; scene.add(nightPools);
     nightWorld = world;
   }
@@ -96,7 +97,7 @@
     if (!piles.length && !carried.length) { if (snowMesh) snowMesh.visible = false; return; }
     if (!snowMesh) { snowMesh = new THREE.InstancedMesh(GEO.ico, new THREE.MeshStandardMaterial({ color: '#f2f6fa', roughness: 0.9 }), 400); snowMesh.castShadow = true; snowMesh.receiveShadow = true; snowMesh.frustumCulled = false; scene.add(snowMesh); }
     snowMesh.visible = true; let i = 0;
-    const put = (x, y, n, a) => { if (i >= 400) return; const r = 0.22 + Math.sqrt(n) * 0.11; _dummy.position.set(U(x), gh(x, y) + r * 0.18, U(y)); _dummy.rotation.set(0, a || 0, 0); _dummy.scale.set(r * 2.2, r * 0.9, r * 1.5); _dummy.updateMatrix(); snowMesh.setMatrixAt(i++, _dummy.matrix); };
+    const put = (x, y, n, a) => { if (i >= 400) return; const r = 0.22 + Math.sqrt(n) * 0.11; _nd.position.set(U(x), gh(x, y) + r * 0.18, U(y)); _nd.rotation.set(0, a || 0, 0); _nd.scale.set(r * 2.2, r * 0.9, r * 1.5); _nd.updateMatrix(); snowMesh.setMatrixAt(i++, _nd.matrix); };
     for (const p of piles) if (inView(U(p.x), U(p.y), 4)) put(p.x, p.y, p.n, p.x * 0.01);
     for (const u of carried) { const d = (u.r || 14) * 1.05 + 6; put(u.x + Math.cos(u.a) * d, u.y + Math.sin(u.a) * d, u.blade, -u.a); }
     snowMesh.count = i; snowMesh.instanceMatrix.needsUpdate = true;
@@ -119,7 +120,7 @@
     const n = nightLevel;
     nightStatic.material.opacity = n; nightPools.material.opacity = n * 0.7;
     nightStatic.visible = nightPools.visible = n > 0.02;
-    if (!nightUnits) nightUnits = glowPoints(400, 1.15);
+    if (!nightUnits) nightUnits = glowPoints(600, 0.75);
     if (!nightBeams) { // headlight beams: a soft pool of light thrown on the ground ahead of every lit vehicle
       const bg = new THREE.PlaneGeometry(1, 1); bg.rotateX(-Math.PI / 2);
       nightBeams = new THREE.InstancedMesh(bg, new THREE.MeshBasicMaterial({ map: glowTex, color: '#fff2d0', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }), 40);
@@ -130,20 +131,45 @@
     if (!nightUnits.visible) return;
     let nb = 0;
     const pa = nightUnits.geometry.attributes.position.array, ca = nightUnits.geometry.attributes.color.array; let i = 0;
-    const put = (x, y, z, c) => { if (i >= 400) return; pa[i * 3] = x; pa[i * 3 + 1] = y; pa[i * 3 + 2] = z; ca[i * 3] = c[0]; ca[i * 3 + 1] = c[1]; ca[i * 3 + 2] = c[2]; i++; };
+    const put = (x, y, z, c) => { if (i >= 600) return; pa[i * 3] = x; pa[i * 3 + 1] = y; pa[i * 3 + 2] = z; ca[i * 3] = c[0]; ca[i * 3 + 1] = c[1]; ca[i * 3 + 2] = c[2]; i++; };
+    // every light sits where it is on that model: points worked out once from its shape, then carried by its own transform
+    const WH = [1, 0.95, 0.82], RED = [1, 0.06, 0.02], AMB = [1, 0.55, 0.08], put3 = (v, c) => put(v.x, v.y, v.z, c);
+    const truckish = (k) => HC.EQUIP[k] && HC.EQUIP[k].move === 'car';
+    function lightPts(o, kind, trailer) {
+      if (o.userData.lp) return o.userData.lp;
+      const g = o.userData.body && o.userData.body.geometry; if (!g) return null;
+      if (!g.boundingBox) g.computeBoundingBox();
+      const b = g.boundingBox, f = b.max.x, r = b.min.x, hw = Math.max(0.12, Math.min(b.max.z, -b.min.z)), h = b.max.y, L = [], V = (x, y, z, c) => L.push({ v: new THREE.Vector3(x, y, z), c });
+      if (trailer) { // tail, stop and turn lamps low at the back corners, a centre plate lamp, amber markers on the front corners and down the sides
+        for (const s2 of [-1, 1]) { V(r + 0.02, 0.28 * MM * 3, s2 * hw * 0.92, RED); V(f - 0.1, 0.32 * MM * 3, s2 * hw * 0.98, AMB); V((f + r) / 2, 0.3 * MM * 3, s2 * hw * 1.0, AMB); }
+        V(r + 0.01, 0.22 * MM * 3, 0, [1, 0.9, 0.7]);
+      } else if (truckish(kind)) { // headlamps low on the nose, red tails at the back corners, three amber clearance lamps on the cab roof
+        for (const s2 of [-1, 1]) { V(f - 0.02, h * 0.3, s2 * hw * 0.78, WH); V(r + 0.02, h * 0.26, s2 * hw * 0.9, RED); V(f - 0.06, h * 0.3, s2 * hw * 0.98, AMB); }
+        const big = (HC.massOf ? HC.massOf(kind) : 3) >= 6;
+        if (big) for (const z of [-0.12, 0, 0.12]) V(f - Math.min(1.2, (f - r) * 0.28), h * 0.97, z, AMB);
+      } else { // machines: work lamps on the front of the cab roof, a pair facing back, an amber beacon on top
+        for (const s2 of [-1, 1]) { V(f * 0.35 + 0.05, h * 0.9, s2 * hw * 0.55, WH); V(r * 0.6, h * 0.86, s2 * hw * 0.5, [1, 0.9, 0.75]); V(r + 0.03, h * 0.3, s2 * hw * 0.8, RED); }
+        V(0, h * 1.02, 0, AMB);
+      }
+      return (o.userData.lp = L);
+    }
+    const tmpV = new THREE.Vector3();
     const all = Object.values(S.units).concat(Object.values(S.remote || {}));
     for (const u of all) {
       if (!u || u.hidden || !HC.EQUIP[u.kind] || HC.EQUIP[u.kind].move === 'walk' || HC.EQUIP[u.kind].move === 'tow') continue;
       if (!inView(U(u.x), U(u.y), 6) || !HC.lightsOn(u, S)) continue;
-      const c = Math.cos(u.a), s = Math.sin(u.a), f = (u.r || 14) * 1.05, w = (u.r || 14) * 0.5, y = gh(u.x, u.y) + 0.32;
-      if (nb < 40) { const bx = u.x + c * (f + 46), by = u.y + s * (f + 46); _dummy.position.set(U(bx), gh(bx, by) + 0.05, U(by)); _dummy.rotation.set(0, -u.a, 0); _dummy.scale.set(4.2, 1, 2.6); _dummy.updateMatrix(); nightBeams.setMatrixAt(nb++, _dummy.matrix); }
-      for (const sd of [-1, 1]) { const hx = u.x + c * f - s * w * sd, hy = u.y + s * f + c * w * sd; put(U(hx), y, U(hy), [1, 0.95, 0.8]); }
-      for (const sd of [-1, 1]) { const tx = u.x - c * f * 0.95 - s * w * sd, ty = u.y - s * f * 0.95 + c * w * sd; put(U(tx), y - 0.04, U(ty), [1, 0.05, 0.02]); put(U(tx), y - 0.04, U(ty), [0.8, 0.02, 0.0]); }
-      const roof = HC.Units.isTruck(u.kind) || HC.EQUIP[HC.baseOf(u.kind)].heavy; if (roof) put(U(u.x), y + 0.55, U(u.y), [1, 0.62, 0.12]); // amber beacon / cab light
+      const o = unitObjs[u.kind] || (u.tag && unitObjs[u.tag + ':' + u.kind]);
+      if (nb < 40) { const f = (u.r || 14) * 1.05, bx = u.x + Math.cos(u.a) * (f + 46), by = u.y + Math.sin(u.a) * (f + 46); _nd.position.set(U(bx), gh(bx, by) + 0.05, U(by)); _nd.rotation.set(0, -u.a, 0); _nd.scale.set(truckish(u.kind) ? 4.2 : 3.2, 1, truckish(u.kind) ? 2.6 : 3); _nd.updateMatrix(); nightBeams.setMatrixAt(nb++, _nd.matrix); }
+      const lp = o && lightPts(o, u.kind, false);
+      if (lp) { o.updateMatrixWorld(); for (const q of lp) { tmpV.copy(q.v).applyMatrix4(o.matrixWorld); if (q.c === AMB && (u.lightBlink = (performance.now() / 500 | 0) % 2) === 0 && !truckish(u.kind)) continue; put3(tmpV, q.c); } }
     }
-    for (const t of S.trailers) { if (!t.hitch || HC.Units.isBed(t) || !S.units[t.hitch] || !HC.lightsOn(S.units[t.hitch], S) || !inView(U(t.x), U(t.y), 6)) continue; const c = Math.cos(t.a), s = Math.sin(t.a), b = U((HC.TRAILERS[t.kind] || {}).len || 36) * TS * 0.5 + 4, y = gh(t.x, t.y) + 0.25; for (const sd of [-1, 1]) put(U(t.x - c * b - s * 10 * sd), y, U(t.y - s * b + c * 10 * sd), [1, 0.12, 0.08]); }
+    for (const t of S.trailers) {
+      if (!t.hitch || HC.Units.isBed(t) || !S.units[t.hitch] || !HC.lightsOn(S.units[t.hitch], S) || !inView(U(t.x), U(t.y), 6)) continue;
+      const o = trailerObjs[t.id]; const lp = o && lightPts(o, t.kind, true); if (!lp) continue;
+      o.updateMatrixWorld(); for (const q of lp) { tmpV.copy(q.v).applyMatrix4(o.matrixWorld); put3(tmpV, q.c); }
+    }
     nightBeams.count = nb; nightBeams.instanceMatrix.needsUpdate = true;
-    for (let j = i; j < 400; j++) pa[j * 3 + 1] = -50;
+    for (let j = i; j < 600; j++) pa[j * 3 + 1] = -50;
     nightUnits.geometry.attributes.position.needsUpdate = true; nightUnits.geometry.attributes.color.needsUpdate = true;
   }
   let aimMesh = null, landMesh = null, zoneLine = null, zoneSig = '', targetGroup = null, targetSig = '', beacon = null, marker = null;
@@ -397,10 +423,42 @@
   });
   // a scoop of mulch or chips (a low lumpy mound), or a few splits of firewood: what a grapple or bucket carries
   const bulkGeo = (kind) => cache('bulk_' + kind, () => {
-    if (kind === 'firewood') return build([0, 1, 2, 3].map((i) => P('box', ['#b58a5a', '#c9a26a', '#9a7048', '#d4b07a'][i], [((i % 2) - 0.5) * 0.12, 0.05 + Math.floor(i / 2) * 0.09, ((i % 3) - 1) * 0.08], [0.36, 0.09, 0.09], [0, i * 0.7, 0])));
+    if (kind === 'firewood') return build([0, 1, 2].flatMap((i) => [P('box', ['#c9a26a', '#b58a5a', '#d4b07a'][i], [0, 0.05 + i * 0.002, (i - 1) * 0.11], [0.38, 0.1, 0.1], [0, (i - 1) * 0.35, 0]), P('box', '#5a3e28', [0, 0.1, (i - 1) * 0.11], [0.37, 0.025, 0.085], [0, (i - 1) * 0.35, 0]), P('box', '#e3c08a', [0.19, 0.05, (i - 1) * 0.11], [0.01, 0.09, 0.09], [0, (i - 1) * 0.35, 0])]));
     const c = kind === 'chips' ? '#c9a26a' : '#3a2618', c2 = kind === 'chips' ? '#b48d58' : '#4a3020';
     return build([P('sph', c, [0, 0.08, 0], [0.62, 0.22, 0.55]), P('sph', c2, [0.1, 0.13, -0.06], [0.34, 0.16, 0.3]), P('sph', c2, [-0.12, 0.11, 0.08], [0.3, 0.14, 0.28])]);
   });
+  // firewood heaps by size: splits criss-crossed in a rough cone, bigger and taller as pieces land on it
+  const woodHeapGeo = (bk) => cache('woodHeap' + bk, () => {
+    const p = [], r = rnd(17 + bk), n = 5 + bk * 5, R0 = 0.28 + Math.sqrt(bk) * 0.22, H0 = 0.12 + Math.sqrt(bk) * 0.17;
+    for (let i = 0; i < n; i++) {
+      const a = r() * 6.28, d = Math.sqrt(r()) * R0, h = 0.05 + (1 - d / R0) * H0 * (0.5 + r() * 0.6), col = ['#b58a5a', '#c9a26a', '#9a7048', '#d4b07a'][i % 4];
+      const rot = [r() * 0.7 - 0.35, r() * 6.28, r() * 0.5 - 0.25], L = 0.34 + r() * 0.1;
+      p.push(P('box', col, [Math.cos(a) * d, h, Math.sin(a) * d], [L, 0.1, 0.1], rot), P('box', '#5a3e28', [Math.cos(a) * d, h + 0.045, Math.sin(a) * d], [L * 0.96, 0.025, 0.08], rot)); // the bark side
+    }
+    return build(p);
+  });
+  // junk, piece by piece (in metres, scaled to tiles)
+  function junkParts(jt, v) {
+    const m = (x) => x / 3, B = (c, p, s, r) => P('box', c, p.map(m), s.map(m), r || [0, 0, 0]), C2 = (c, p, s, r) => P('cyl', c, p.map(m), s.map(m), r || [0, 0, 0]);
+    const fabric = ['#7a5a44', '#4f6a7a', '#8a7a5a', '#6a4a5a'][v % 4];
+    switch (jt) {
+      case 'couch': return [B(fabric, [0, 0.25, 0], [1.9, 0.4, 0.85]), B(HC.shade(fabric, -0.1), [0, 0.6, -0.33], [1.9, 0.5, 0.22]), B(HC.shade(fabric, -0.05), [0.85, 0.5, 0], [0.22, 0.35, 0.85]), B(HC.shade(fabric, -0.05), [-0.85, 0.5, 0], [0.22, 0.35, 0.85]), B(HC.shade(fabric, 0.08), [0.45, 0.48, 0.08], [0.85, 0.12, 0.62], [0, 0, 0.06]), B('#2a2520', [0.9, 0.04, 0.35], [0.06, 0.08, 0.06])];
+      case 'mattress': return [B('#e8e2d4', [0, 0.12, 0], [1.9, 0.22, 1.35], [0.12, 0, 0.06]), B('#c9b8a0', [0.3, 0.24, 0.2], [0.5, 0.01, 0.4], [0.12, 0, 0.06]), B('#a8c0d8', [-0.6, 0.235, -0.3], [0.4, 0.01, 0.5], [0.12, 0, 0.06])];
+      case 'fridge': return [B('#efede6', [0, 0.85, 0], [0.75, 1.7, 0.7]), B('#d8d5cc', [0.38, 1.25, 0], [0.02, 0.02, 0.6]), B('#9a9a96', [0.39, 1.0, 0.25], [0.03, 0.4, 0.04]), B('#c8b896', [0.2, 0.3, -0.2], [0.3, 0.2, 0.02])];
+      case 'washer': return [B('#f2f0ea', [0, 0.45, 0], [0.7, 0.9, 0.68]), C2('#3a4048', [0.36, 0.45, 0], [0.42, 0.03, 0.42], [0, 0, Math.PI / 2]), B('#c9c6bc', [0, 0.92, -0.22], [0.68, 0.12, 0.2])];
+      case 'tires': return [0, 1, 2].map((i) => C2('#1e1f21', [(i % 2) * 0.12, 0.13 + i * 0.24, 0], [0.7, 0.22, 0.7], [0, 0, (i - 1) * 0.08])).concat([C2('#55575a', [0.06, 0.62, 0], [0.32, 0.04, 0.32])]);
+      case 'scrap': return [B('#8a5a3a', [0, 0.1, 0], [1.4, 0.15, 0.5], [0, 0.3, 0.1]), C2('#7a6a5a', [0.2, 0.2, 0.3], [0.08, 1.6, 0.08], [0, 0.6, Math.PI / 2]), B('#6a6e72', [-0.3, 0.3, -0.1], [0.6, 0.4, 0.5], [0.2, 0.5, 0.3]), B('#9a4a2a', [0.4, 0.35, -0.2], [0.5, 0.06, 0.5], [0.6, 0, 0.2])];
+      case 'bags': return [[0, 0], [0.45, 0.15], [-0.35, 0.25], [0.15, -0.35]].map(([x, z], i) => P('sph', i % 3 ? '#1a1b1d' : '#2c3e2a', [m(x), m(0.25), m(z)], [m(0.55), m(0.5), m(0.5)])).concat([P('sph', '#1a1b1d', [m(0.1), m(0.55), m(0)], [m(0.45), m(0.4), m(0.45)])]);
+      case 'tv': return [B('#2a2a2c', [0, 0.32, 0], [0.75, 0.6, 0.55]), B('#1a2a3a', [0.38, 0.34, 0], [0.01, 0.42, 0.48]), B('#4a4a4c', [-0.2, 0.32, 0], [0.4, 0.5, 0.45])];
+      case 'lumber': return [0, 1, 2, 3, 4].map((i) => B(['#a88a5a', '#8a7048', '#b89a6a'][i % 3], [0, 0.05 + Math.floor(i / 2) * 0.1, (i % 2 - 0.5) * 0.25], [2.4, 0.08, 0.2], [0, (i - 2) * 0.08, 0]));
+      case 'carpet': return [C2('#8a6a7a', [0, 0.2, 0], [0.4, 2.2, 0.4], [0, 0, Math.PI / 2]), C2('#6a4a5a', [0.3, 0.55, 0.1], [0.32, 1.8, 0.32], [0, 0.4, Math.PI / 2])];
+      case 'grill': return [C2('#2a2b2d', [0, 0.85, 0], [0.6, 0.35, 0.6]), C2('#5a4030', [0, 0.65, 0], [0.62, 0.05, 0.62]), ...[0, 2.1, 4.2].map((a) => C2('#3a3b3d', [Math.cos(a) * 0.22, 0.32, Math.sin(a) * 0.22], [0.04, 0.65, 0.04]))];
+      case 'hottub': return [B('#c9c2b0', [0, 0.45, 0], [2.1, 0.9, 2.1]), B('#7a5a40', [0, 0.45, 1.06], [2.1, 0.8, 0.04]), B('#2f5a6a', [0, 0.92, 0], [1.8, 0.04, 1.8]), B('#3a3b3d', [0.3, 0.95, 0.4], [1.5, 0.05, 1.0], [0, 0.4, 0.05])];
+      default: return [B('#6a6a6a', [0, 0.2, 0], [0.5, 0.4, 0.5])];
+    }
+  }
+  const junkGeo = (jt, v) => cache('junk_' + jt + '_' + (v % 4), () => build(junkParts(jt, v % 4)));
+  HC._junkParts = junkParts;
   const rockGeo = () => cache('rock', () => build([P('dode', '#8b8e93', [0, 0.14, 0], [0.62, 0.42, 0.52]), P('dode', '#a7abb0', [-0.08, 0.24, -0.05], [0.32, 0.22, 0.3])]));
   const boulderGeo = (s) => cache('boulder' + (Math.floor(s) % 3), () => {
     const r = rnd(Math.floor(s) % 3 + 21);
@@ -2635,7 +2693,7 @@
   function syncSmall(S) {
     const all = world.items.concat(world.remoteItems || []), carried = new Set();
     for (const k in S.units) for (const c of S.units[k].carrying) { all.push(c); carried.add(c); }
-    syncList(all, meshes.items, (it) => model(it.kind === 'log' ? logGeo(it) : it.kind === 'rock' ? rockGeo() : it.kind === 'stump' ? cache('stumpItem', BIG_MODELS.stumpItem) : it.kind === 'mulch' || it.kind === 'chips' || it.kind === 'firewood' ? bulkGeo(it.kind) : it.kind === 'pile' ? (it.mulch ? cache('mulchHeap', BIG_MODELS.mulchHeap) : it.chips ? cache('chipHeap', BIG_MODELS.chipHeap) : it.firewood ? cache('woodHeap', BIG_MODELS.woodHeap) : cache('pileHeap', BIG_MODELS.pileHeap)) : brushGeo(it.seed || it.id)), (it, m) => {
+    syncList(all, meshes.items, (it) => model(it.kind === 'log' ? logGeo(it) : it.kind === 'rock' ? rockGeo() : it.kind === 'junk' ? junkGeo(it.jt, it.seed || 0) : it.kind === 'stump' ? cache('stumpItem', BIG_MODELS.stumpItem) : it.kind === 'mulch' || it.kind === 'chips' || it.kind === 'firewood' ? bulkGeo(it.kind) : it.kind === 'pile' ? (it.mulch ? cache('mulchHeap', BIG_MODELS.mulchHeap) : it.chips ? cache('chipHeap', BIG_MODELS.chipHeap) : it.firewood ? cache('woodHeap', BIG_MODELS.woodHeap) : cache('pileHeap', BIG_MODELS.pileHeap)) : brushGeo(it.seed || it.id)), (it, m) => {
       m.visible = inView(U(it.x), U(it.y));
       if (!m.visible) return;
       let ud = null, arms = null;
@@ -2651,6 +2709,12 @@
         m.position.copy(grabV);
       } else m.position.set(U(it.x), gh(it.x, it.y) + (u ? 0.3 + (u.armT || 0) * 0.55 : it.z || 0), U(it.y));
       m.rotation.y = -(it.a || 0);
+      if (it.kind === 'firewood' && !arms) { m.rotation.x = it.rx || 0; m.rotation.z = it.rz || 0; } else if (it.kind === 'firewood') { m.rotation.x = 0; m.rotation.z = 0; }
+      if (it.kind === 'pile' && it.firewood) { // a real heap of splits that grows piece by piece
+        const bk = Math.min(16, Math.max(1, Math.ceil(it.content.length / 2)));
+        if (m.userData.fb !== bk) { m.userData.fb = bk; const g2 = woodHeapGeo(bk); m.userData.body.geometry = g2; if (m.children[1]) m.children[1].geometry = g2; }
+        m.scale.setScalar(1); return;
+      }
       // going through a chipper: shrink away as it is fed in (logs shorten end-first into the infeed)
       const f = it.hp ? Math.max(0.08, 1 - it.hp) : 1;
       if (it.kind === 'log' && it.hp) m.scale.set(it.size * f, it.size * (0.7 + 0.3 * f), it.size * (0.7 + 0.3 * f));
@@ -2943,6 +3007,9 @@
         const lx = HC.clamp(x, x0 + len / 2, x1 - len / 2);
         p.push(Pm('cyl', bark, [lx, y + rad, z], [rad * 2, len, rad * 2], [yaw, pitch, Math.PI / 2]),
           Pm('cyl', '#e3c08a', [lx + Math.cos(yaw) * (len / 2 + 0.01), y + rad, z - Math.sin(yaw) * (len / 2 + 0.01)], [rad * 1.75, 0.02, rad * 1.75], [yaw, 0, Math.PI / 2]));
+      } else if (c.kind === 'junk') { // the actual piece, tossed in at an angle
+        const yaw = r() * 6.28, tilt = (r() - 0.5) * 0.4;
+        for (const q of junkParts(c.jt, c.seed || 0)) p.push({ ...q, pos: [x / 3 + q.pos[0] * Math.cos(yaw) - q.pos[2] * Math.sin(yaw), (y + 0.02) / 3 + q.pos[1], z / 3 + q.pos[0] * Math.sin(yaw) + q.pos[2] * Math.cos(yaw)], rot: [q.rot[0] + tilt, q.rot[1] - yaw, q.rot[2]] });
       } else if (c.kind === 'brush') { // a tangle: crooked limbs and leafy clumps, some sticking up over the sides
         for (let k = 0; k < 4; k++) p.push(Pm('cyl6', '#5e4127', [x + (r() - 0.5) * 0.5, y + 0.25 + r() * 0.35, z + (r() - 0.5) * 0.4], [0.06, 0.9 + r() * 0.8, 0.06], [r() * 3, r() * 3, r() * 3]));
         for (let k = 0; k < 5; k++) p.push(Pm('ico0', ['#4d7d2e', '#6a9a3a', '#3f6b27', '#7a8f3a'][(i + k) % 4], [x + (r() - 0.5) * 0.8, y + 0.3 + r() * 0.55, z + (r() - 0.5) * 0.7], [0.35 + r() * 0.3, 0.3 + r() * 0.25, 0.35 + r() * 0.3], [r() * 3, r() * 3, 0]));
@@ -3146,7 +3213,7 @@
       else if ((s -= S) < Math.PI * R) { const f = s / R; x = -S / 2 - R * Math.sin(f); y = t.R - R * Math.cos(f); rz = -f; }
       else if ((s -= Math.PI * R) < S) { x = -S / 2 + s; y = t.R + R; rz = Math.PI; }
       else { const f = (s - S) / R; x = S / 2 + R * Math.sin(f); y = t.R + R * Math.cos(f); rz = Math.PI - f; }
-      _dummy.position.set(x, y, t.z); _dummy.rotation.set(0, 0, rz); _dummy.updateMatrix();
+      _dummy.position.set(x, y, t.z); _dummy.rotation.set(0, 0, rz); _dummy.scale.set(1, 1, 1); _dummy.updateMatrix();
       m.setMatrixAt(i, _dummy.matrix);
     }
     m.instanceMatrix.needsUpdate = true;
@@ -3521,7 +3588,7 @@
     }
     octx.globalAlpha = 1;
     const labels = [];
-    for (const p of world.pads || []) labels.push([p.x + p.w / 2, p.y + p.h / 2, p.type === 'mill' ? `Sawmill log yard · logs ${Math.round((HC.MILL_PRICE - 1) * 100)}% over pad price` : `County dump · brush ${HC.money(HC.DUMP_FEES.brush)}, stumps ${HC.money(HC.DUMP_FEES.stump * 3)}, rock ${HC.money(HC.DUMP_FEES.rock * 3)}`]);
+    for (const p of world.pads || []) labels.push([p.x + p.w / 2, p.y + p.h / 2, p.type === 'mill' ? `Sawmill log yard · logs ${Math.round((HC.MILL_PRICE - 1) * 100)}% over pad price` : p.type === 'scrap' ? 'Salvage scale · buys metal junk' : `County dump · brush ${HC.money(HC.DUMP_FEES.brush)}, stumps ${HC.money(HC.DUMP_FEES.stump * 3)}, rock ${HC.money(HC.DUMP_FEES.rock * 3)}`]);
     for (const p of world.storage || []) { const y = world.yards.find((q) => q.id === p.yard); if (y && y.owned) labels.push([p.x + p.w / 2, p.y + p.h / 2, 'Debris storage']); }
     if (world.supply && world.supply.pickup) { const p = world.supply.pickup; labels.push([p.x + p.w / 2, p.y + p.h / 2, 'Pickup area']); }
     if (world.scrapyard) { const sy = world.scrapyard; labels.push([sy.x + sy.w / 2, sy.y + sy.h * 0.5, 'Hollow Creek Salvage · scrapyard']); }

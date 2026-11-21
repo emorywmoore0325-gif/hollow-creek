@@ -13,7 +13,7 @@ HC.TREES = {
 };
 
 // Game version: co-op players must match (bump whenever the game changes)
-HC.VERSION = '2026.11.21-1';
+HC.VERSION = '2026.11.21-2';
 HC.MAP_VER = 4; // bump whenever the world layout changes (saves then park everything back at the yard)
 
 // Equipment. key = number key. fuel in units, use per second.
@@ -729,3 +729,5 @@ HC.BLURB.servicetruck = 'Field service truck: repairs, oil and grease on site, w
 
 // ---------- seasons: snow on a lot to plow, salted pavement, fallen leaves to clean up ----------
 HC.T.SNOW = 15; HC.T.SALT = 16; HC.T.LEAVES = 17;
+// firewood balance: a log split into ~3 units still beats the sawmill (~$65 a log), but by less, and fall/winter demand (seasons.js) pushes it up 35-50%
+HC.FIREWOOD_SUPPLY = 40; HC.FIREWOOD_STAND = [62, 86];

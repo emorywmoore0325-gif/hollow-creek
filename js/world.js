@@ -586,6 +586,7 @@
     world.houses.push({ ...P(pw - 7, 2, 3.5), w: 5 * TS, h: 3.5 * TS, wall: '#7a7d80', roof: '#3d4248', damaged: [], label: 'Hollow Creek Salvage', yard: true, facing: flip ? -1 : 1, parcel: 'scrap' });
     const stacks = []; for (let i = 0; i < 5; i++) stacks.push({ ...P(3 + i * 2.6, 3), n: 2 + (i % 3), seed: i });
     for (let c = Math.floor(pw / 2) - 2; c < Math.floor(pw / 2) + 3; c++) { let y = flip ? gy - 1 : gy + ph; for (let n = 0; n < 9 && world.tile(c + gx, y) !== T.ROAD && world.tile(c + gx, y) !== -1; n++, y += flip ? -1 : 1) world.set(c + gx, y, T.GRAVEL); }
+    world.pads.push({ ...P(3, 8, 5), w: 11 * TS, h: 5 * TS, type: 'scrap', name: 'Hollow Creek Salvage scale' });
     world.scrapyard = { id: 'scrap', name: 'Hollow Creek Salvage', x: gx * TS, y: gy * TS, w: pw * TS, h: ph * TS, pad: { ...P(3, 8, 5), w: 11 * TS, h: 5 * TS }, stacks, crane: P(pw - 6, 9), wrecks: [P(pw - 8, 12.5), P(pw - 4.5, 12.5)] };
   }
 

@@ -161,9 +161,8 @@
       for (let i = 0; i < units; i++) {
         const f = { id: HC.uid(), kind: 'firewood', x: op.x, y: op.y, a: 0, size: 1, value: 0 };
         if (dump && dump.load + 1 <= HC.Game.trailerCap(dump)) { dump.cargo.push(f); dump.load += 1; continue; }
-        let pile = S.lot.items.find((it) => it.kind === 'pile' && it.firewood && near(it, op, 26));
-        if (!pile) { pile = { id: HC.uid(), kind: 'pile', firewood: true, x: op.x, y: op.y, a: 0, size: 0.6, content: [] }; S.lot.items.push(pile); }
-        pile.content.push(f); pile.size = 0.6 + Math.sqrt(pile.content.length) * 0.28;
+        // off the top of the belt they fly: tumbling, bouncing, then settling onto the heap below
+        f.z = 0.9; S.lot.items.push(HC.Physics.launch(f, u.a + Math.PI + HC.rand(-0.35, 0.35), HC.rand(12, 30), HC.rand(0.4, 1.6)));
       }
       HC.Audio.chip();
       HC.Game.dust(op.x, op.y, '#c9a26a', 2, 50);
@@ -782,7 +781,7 @@
         .sort((a, b) => HC.dist(a.x, a.y, g.x, g.y) - HC.dist(b.x, b.y, g.x, g.y)).slice(0, cap);
       if (!near2.length) return HC.Game.toast('Back the grapple up to felled trees (whole, not bucked), then press E.');
       if ((u.armT || 0) > 0.5) return HC.Game.toast('Lower the grapple (hold G) to grab them.', 'warn');
-      u.drag = near2.map((t) => t.id);
+      u.drag = near2.map((t) => t.id); for (const t of near2) t.skidded = true;
       HC.Audio.pick();
       HC.Game.toast(`Grabbed ${near2.length} tree${near2.length > 1 ? 's' : ''}. Drag them to the landing and press E to drop them.`);
     },

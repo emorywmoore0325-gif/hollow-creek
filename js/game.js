@@ -715,7 +715,7 @@
     for (let i = 0; i < n; i++) {
       const f = 0.16 + (i / Math.max(1, n)) * 0.62;
       S.lot.items.push({ id: HC.uid(), kind: 'log', x: t.x + dx * t.len * f + HC.rand(-3, 3), y: t.y + dy * t.len * f + HC.rand(-3, 3),
-        a: t.fallA + HC.rand(-0.2, 0.2), size: HC.clamp(t.s, 0.75, 1.2), value: Math.round(d.logValue * t.s), wood: t.type, w: t.trunkR * 2, parcel: t.parcel });
+        a: t.fallA + HC.rand(-0.2, 0.2), size: HC.clamp(t.s, 0.75, 1.2), value: Math.round(d.logValue * t.s * (t.harvested ? 1.3 : t.skidded ? 1.15 : 1)), wood: t.type, w: t.trunkR * 2, parcel: t.parcel, ctl: !!t.harvested }); // harvester logs are clean cut-to-length (+30% at the mill); whole trees skidded out and bucked at the landing are clean too (+15%)
     }
     const nb = Math.max(1, Math.round(t.crownR / 22));
     for (let i = 0; i < nb; i++) {
@@ -766,15 +766,16 @@
     if (!tr || !tr.cargo.length) return;
     const rig = tr.hitch && S.units[tr.hitch];
     pad = pad || padAt(tr.x, tr.y) || (rig && padAt(rig.x, rig.y)) || { type: 'dump' };
-    const mill = pad.type === 'mill';
-    const takes = (c) => (mill ? c.kind === 'log' : ['log', 'brush', 'stump', 'rock'].includes(c.kind));
+    const mill = pad.type === 'mill', scrapPad = pad.type === 'scrap';
+    const metal = (c) => c.kind === 'junk' && HC.JUNK && (HC.JUNK[c.jt] || {}).metal;
+    const takes = (c) => (mill ? c.kind === 'log' : scrapPad ? metal(c) : ['log', 'brush', 'stump', 'rock', 'junk'].includes(c.kind));
     const take = tr.cargo.filter(takes), keep = tr.cargo.filter((c) => !takes(c));
     if (!take.length) {
-      return toast(mill ? 'The sawmill only buys logs. Brush, stumps and rock go to the county brush & stump dump.' : 'The dump doesn\'t take those. Firewood, mulch and chips sell at the landscape supply (firewood also at your stand).');
+      return toast(mill ? 'The sawmill only buys logs. Brush, stumps and rock go to the county brush & stump dump.' : scrapPad ? 'The salvage yard only buys metal: appliances, scrap, grills. The rest of the junk goes to the county dump.' : 'The dump doesn\'t take those. Firewood, mulch and chips sell at the landscape supply (firewood also at your stand).');
     }
     let logs = 0, fees = 0, nl = 0;
     for (const c of take) {
-      if (c.kind === 'log' && mill) { logs += Math.round((c.value || 0) * HC.MILL_PRICE); nl++; } else fees += HC.dumpFee(c);
+      if (c.kind === 'log' && mill) { logs += Math.round((c.value || 0) * HC.MILL_PRICE); nl++; } else if (scrapPad) logs += (HC.JUNK[c.jt] || {}).scrap || 0; else fees += HC.dumpFee(c);
     }
     tr.cargo = keep; tr.load = keep.reduce((a, c) => a + HC.loadOf(c, tr), 0);
     if (S.job) { S.logSales += logs; S.costs.dump += fees; }
@@ -783,6 +784,7 @@
     S.time += 10; if (S.stage === 'onsite') S.workMins += 10;
     HC.Audio.cash();
     const left = keep.length ? ` ${keep.length} piece(s) stay aboard.` : '';
+    if (scrapPad) return toast(`Hollow Creek Salvage weighed it in: ${take.length} piece(s) of metal for ${HC.money(logs)}.${left}`, 'good');
     toast(mill ? `The sawmill bought ${nl} log(s) for ${HC.money(logs)}.${left}` : `Unloaded at the county dump: ${take.length} piece(s), fees ${HC.money(fees)}${take.some((c) => c.kind === 'log') ? ' (logs taken free: the sawmill pays for them)' : ''}.${left}`, 'good');
   }
 
@@ -837,14 +839,14 @@
     for (const t of loads) {
       const back = { dumptruck2: 66, dumptruck3: 80, dumptruck: 56, chiptruck: 58, chiptruck2: 70 }[HC.baseOf(u.kind)] || 48;
       const p = t.kind === 'bed' ? { x: u.x - Math.cos(u.a) * back, y: u.y - Math.sin(u.a) * back } : { x: t.x - Math.cos(t.a) * ((HC.TRAILERS[t.kind].len || 40) * 0.5 + 18), y: t.y - Math.sin(t.a) * ((HC.TRAILERS[t.kind].len || 40) * 0.5 + 18) };
-      const junk = t.cargo.filter((c) => DEBRIS.includes(c.kind) || c.kind === 'rock').length;
+      const junk = t.cargo.filter((c) => DEBRIS.includes(c.kind) || c.kind === 'rock' || c.kind === 'junk').length;
       const pad = padAt(p.x, p.y) || padAt(u.x, u.y) || padAt(t.x, t.y);
       if (junk && pad) {
         const before = t.cargo.length;
         haul(t, pad); n += before - t.cargo.length; t.tipT = 1; t.tipN = (t.tipN || 0) + 1;
         for (let i = 0; i < 6; i++) dust(p.x + HC.rand(-14, 14), p.y + HC.rand(-14, 14), '#8a6a44', 3, 80);
         if (!t.cargo.length) continue;
-        if (pad.type === 'mill' && t.cargo.some((c) => DEBRIS.includes(c.kind) || c.kind === 'rock')) { toast('The sawmill only takes logs: the brush, stumps and rock stay in the box. Take them to the county dump.', 'warn'); continue; }
+        if ((pad.type === 'mill' || pad.type === 'scrap') && t.cargo.some((c) => DEBRIS.includes(c.kind) || c.kind === 'rock' || c.kind === 'junk')) { if (pad.type === 'scrap') { toast('The salvage yard took the metal. The rest stays in the box: take it to the county dump.', 'warn'); continue; } toast('The sawmill only takes logs: the brush, stumps and rock stay in the box. Take them to the county dump.', 'warn'); continue; }
       }
       if (junk && storageAt(p.x, p.y)) toast('Dumped in your debris storage. It stays here until you haul it to the sawmill or the county dump.');
       else if (junk && !HC.World.yardAt(p.x, p.y, true) && !padAt(p.x, p.y)) { // not at your own yard
@@ -855,12 +857,13 @@
       if (!t.cargo.length) continue;
       const mulch = t.cargo.every((c) => c.kind === 'mulch'), chips = !mulch && t.cargo.every((c) => c.kind === 'chips'), firewood = !mulch && !chips && t.cargo.every((c) => c.kind === 'firewood');
       piled = true;
-      if (!mulch && !chips && !firewood) { // logs, brush, stumps and rock land as separate pieces, spread out behind the box
+      if (!mulch && !chips) { // logs, brush, stumps, rock and firewood land as separate pieces, spread out behind the box
         const back = t.kind === 'bed' ? u.a : t.a, k = t.cargo.length;
         t.cargo.forEach((c, i) => {
           const d = 6 + Math.sqrt(i / Math.max(1, k)) * (10 + Math.sqrt(k) * 5), ang = back + Math.PI + HC.rand(-0.9, 0.9);
           Object.assign(c, { x: p.x + Math.cos(ang) * d * 0.6, y: p.y + Math.sin(ang) * d * 0.6 + HC.rand(-4, 4), z: 0, vz: 0, a: HC.rand(0, 6.28) });
           if (c.kind === 'log') c.a = back + HC.rand(-0.5, 0.5);
+          if (c.kind === 'firewood') { c.z = 0.6; HC.Physics.launch(c, back + Math.PI + HC.rand(-0.6, 0.6), HC.rand(15, 45), HC.rand(0.5, 1.8)); } // splits slide out of the box and scatter
           if (!c.id) c.id = HC.uid();
           S.lot.items.push(c);
         });

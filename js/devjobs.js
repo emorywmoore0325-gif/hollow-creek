@@ -12,11 +12,24 @@
     timber_sale: { name: 'Logging Contract (bid)', color: '#4f3a22', needs: ['saw', 'skid'], tract: true, disposal: 'haul',
       blurb: 'A timber sale on a whole tract. Bid for the cutting rights, then fell the marked timber, skid it out, load it and truck every log to the sawmill. The logs are yours to sell.' },
   });
+  Object.assign(HC.JOBS, {
+    mech_harvest: { name: 'Mechanized Timber Sale (bid)', color: '#3f5a2a', needs: ['harvester', 'forwarder'], tract: true, disposal: 'haul',
+      blurb: 'A big timber sale only a mechanized crew can finish in time: harvester to fell and cut to length (cut-to-length logs fetch 30% more at the mill), forwarder to haul it to the road. Bid for the rights.' },
+    skid_contract: { name: 'Whole-Tree Skidding', color: '#6a4a2a', needs: ['skidder'], tract: true, disposal: 'place',
+      blurb: 'A felling crew already dropped the timber. Grab the whole trees with a grapple skidder and drag every one to the landing.' },
+  });
   HC.REQUESTS = HC.REQUESTS || {};
+  HC.REQUESTS.mech_harvest = ['Large timber sale on the ridge tract: mechanized crews only. Sealed bids.', 'Forty-some marked trees and a tight deadline. Bring a harvester and forwarder.'];
+  HC.REQUESTS.skid_contract = ['Our fallers are done. We need a skidder to drag it all to the landing.', 'Trees are on the ground. Skid them out to the landing for us.'];
   HC.REQUESTS.land_dev = ['We closed on a wooded lot and want to build. Clear it, pad it, and give us a gravel drive.', 'Builder here: I need this lot cleared, stumped, graded and a driveway in.', 'Got a house going up in the spring. Lot needs to be ready: trees, stumps, pad and drive.'];
   HC.REQUESTS.timber_sale = ['The forester marked a timber sale on our land. Highest bid gets the cutting rights.', 'We\'re selling the timber off the back tract. Send your bid.', 'Sealed bids on a timber sale: marked pine and oak, haul it all out.'];
 
   Object.assign(G.ESTIMATE, {
+    mech_harvest(tier) {
+      const count = HC.randi(30, 40) + tier * 8, cruise = Math.round(count * 3.3 * 52 * (HC.MILL_PRICE || 1.15) * 1.3 / 50) * 50;
+      return { count, cruise, pay: 900 + tier * 300, par: 1100 + tier * 150, summary: `${count} marked trees on a big tract. Cruise about ${HC.money(cruise)} at the mill if it's cut to length` };
+    },
+    skid_contract(tier) { const count = HC.randi(10, 14) + tier * 4; return { count, pay: count * 150 + 250, par: 120 + count * 12, summary: `${count} felled trees to drag to the landing` }; },
     land_dev(tier) {
       const count = HC.randi(8, 12) + tier * 3, stumps = HC.randi(3, 5) + tier;
       return { count, stumps, pay: Math.round((count * 210 + stumps * 90 + 1900 + tier * 500) / 10) * 10, par: 620 + tier * 120, summary: `${count} trees and ${stumps} old stumps to clear, a house pad to grade and a gravel driveway (multi-day)` };
@@ -47,6 +60,11 @@
       job.dev = { pad, drive, Hp: lot.ph };
     },
     timber_sale(lot, job) { L.GEN.timber_harvest(lot, job); },
+    mech_harvest(lot, job) { L.GEN.timber_harvest(lot, job); },
+    skid_contract(lot, job) { // the trees are already on the ground, felled every which way
+      L.GEN.timber_harvest(lot, job);
+      for (const t of lot.trees) if (t.marked) { t.state = 'felled'; t.fallA = HC.rand(0, Math.PI * 2); t.landT = 1; t.cut = 1; }
+    },
   });
 
   // world rectangles for the pad and the drive (lots on the far side of a road are built upside down)
@@ -61,6 +79,12 @@
   const pieces = (S, test, kinds) => S.lot.items.reduce((a, i) => a + (!test(i) ? 0 : i.kind === 'pile' ? i.content.filter((c) => kinds.includes(c.kind)).length : kinds.includes(i.kind) ? 1 : 0), 0);
 
   Object.assign(G.OBJECTIVES, {
+    mech_harvest: (S) => G.OBJECTIVES.timber_sale(S),
+    skid_contract(S) {
+      const pid = S.job.parcel, trees = S.lot.trees.filter((t) => t.marked && t.parcel === pid), Z = HC.world.zone;
+      const at = trees.filter((t) => t.state !== 'felled' || (Z && HC.inRect(t.x, t.y, { x: Z.x - TS * 2, y: Z.y - TS * 2, w: Z.w + TS * 4, h: Z.h + TS * 4 }))).length;
+      return [{ label: 'Skid every felled tree to the landing', n: at, of: trees.length, left: trees.length - at }];
+    },
     land_dev(S) {
       const pid = S.job.parcel, marked = S.lot.trees.filter((t) => t.marked && t.parcel === pid);
       const down = marked.filter((t) => t.state !== 'standing' && t.state !== 'falling').length;
@@ -131,7 +155,7 @@
     const S = HC.session, boxes = S && U.isTruck(u.kind) ? boxesOf(u, S).filter((t) => t.cargo.length && t.cargo.every((c) => c.kind === 'gravel')) : [];
     if (!boxes.length || Math.abs(u.v) > 4) { // anything else dumps as usual; a timber sale keeps a tally of what its logs fetch at the mill
       const before = C().money, r = baseDump.apply(this, arguments), pad = G.padAt && G.padAt(u.x, u.y);
-      if (S && S.job && S.job.type === 'timber_sale' && C().money > before) S.job.logsSold = (S.job.logsSold || 0) + (C().money - before);
+      if (S && S.job && (S.job.type === 'timber_sale' || S.job.type === 'mech_harvest') && C().money > before) S.job.logsSold = (S.job.logsSold || 0) + (C().money - before);
       return r;
     }
     let n = 0;

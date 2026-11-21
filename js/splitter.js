@@ -27,9 +27,9 @@
       for (let i = 0; i < units; i++) {
         const f = { id: HC.uid(), kind: 'firewood', x: op.x, y: op.y, a: 0, size: 1, value: 0 };
         if (dump && dump.load + 1 <= HC.Game.trailerCap(dump)) { dump.cargo.push(f); dump.load += 1; continue; }
-        let pile = S.lot.items.find((it) => it.kind === 'pile' && it.firewood && HC.dist(it.x, it.y, op.x, op.y) < 26);
-        if (!pile) { pile = { id: HC.uid(), kind: 'pile', firewood: true, x: op.x, y: op.y, a: 0, size: 0.6, content: [] }; S.lot.items.push(pile); }
-        pile.content.push(f); pile.size = 0.6 + Math.sqrt(pile.content.length) * 0.28;
+        // the halves pop off the wedge and tumble down beside the beam; once they settle they heap up together
+        f.x = u.x + Math.cos(u.a + Math.PI / 2) * 8; f.y = u.y + Math.sin(u.a + Math.PI / 2) * 8;
+        S.lot.items.push(HC.Physics.launch(f, u.a + Math.PI / 2 + HC.rand(-0.5, 0.5), HC.rand(20, 42), HC.rand(1.2, 2.4)));
       }
       HC.Audio.chip();
     },
